@@ -22,7 +22,7 @@ Gem::Specification.new do |s|
   # Gem dependencies
   s.add_runtime_dependency 'logstash', '>= 1.4.0', '< 2.0.0'
 
-  s.add_runtime_dependency 'ftw', ['~> 0.0.39']
+  s.add_runtime_dependency 'ftw', ['~> 0.0.40']
   s.add_runtime_dependency 'logstash-codec-json'
 
 end
