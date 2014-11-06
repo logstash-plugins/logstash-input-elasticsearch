@@ -8,7 +8,7 @@ require "logstash/json"
 # This is useful for replaying test logs, reindexing, etc.
 #
 # Example:
-#
+# [source,ruby]
 #     input {
 #       # Read all documents from Elasticsearch matching the given query
 #       elasticsearch {
