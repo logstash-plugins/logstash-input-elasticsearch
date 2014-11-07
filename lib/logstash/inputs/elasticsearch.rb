@@ -18,7 +18,7 @@ require "base64"
 #
 # This would create an Elasticsearch query with the following format:
 #
-#     http://localhost:9200/logstash-*/_search?q=%7B%22query%22:%7B%22match%22:%7B%22statuscode%22:200%7D%7D%7D&scroll=1m&size=1000
+#     http://localhost:9200/logstash-*/_search?q='{ "query": { "match": { "statuscode": 200 } } }'&scroll=1m&size=1000
 #
 # * TODO(sissel): Option to keep the index, type, and doc id so we can do reindexing?
 class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
