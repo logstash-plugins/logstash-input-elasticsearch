@@ -1,6 +1,7 @@
 # encoding: utf-8
 require "logstash/inputs/base"
 require "logstash/namespace"
+require "logstash/inputs/version"
 require "base64"
 
 # Read from an Elasticsearch cluster, based on search query results.
@@ -23,7 +24,6 @@ require "base64"
 # TODO(sissel): Option to keep the index, type, and doc id so we can do reindexing?
 class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   config_name "elasticsearch"
-  milestone 1
 
   default :codec, "json"
 
