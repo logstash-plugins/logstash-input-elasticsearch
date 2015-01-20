@@ -28,7 +28,6 @@ require "base64"
 #
 class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   config_name "elasticsearch"
-  milestone 1
 
   default :codec, "json"
 
