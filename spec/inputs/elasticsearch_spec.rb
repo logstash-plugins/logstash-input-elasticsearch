@@ -3,12 +3,12 @@ require "logstash/devutils/rspec/spec_helper"
 require "logstash/inputs/elasticsearch"
 require "elasticsearch"
 
-describe "inputs/elasticsearch" do
+describe "inputs/elasticsearch", :elasticsearch => true do
   it "should retrieve json event from elasticseach" do
     config = %q[
       input {
         elasticsearch {
-          hosts => ["node01"]
+          hosts => ["localhost"]
           scan => false
           query => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }'
         }
@@ -57,7 +57,7 @@ describe "inputs/elasticsearch" do
     config = %q[
       input {
         elasticsearch {
-          hosts => ["node01"]
+          hosts => ["localhost"]
           scan => true
           query => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }'
         }
@@ -157,7 +157,7 @@ describe "inputs/elasticsearch" do
         %q[
             input {
               elasticsearch {
-                hosts => ["node01"]
+                hosts => ["localhost"]
                 scan => false
                 query => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }'
                 docinfo => true
@@ -172,7 +172,7 @@ describe "inputs/elasticsearch" do
         config_metadata_with_hash = %Q[
             input {
               elasticsearch {
-                hosts => ["node01"]
+                hosts => ["localhost"]
                 scan => false
                 query => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }'
                 docinfo => true
@@ -195,7 +195,7 @@ describe "inputs/elasticsearch" do
         config_metadata_with_string = %Q[
             input {
               elasticsearch {
-                hosts => ["node01"]
+                hosts => ["localhost"]
                 scan => false
                 query => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }'
                 docinfo => true
@@ -225,7 +225,7 @@ describe "inputs/elasticsearch" do
         config = %q[
             input {
               elasticsearch {
-                hosts => ["node01"]
+                hosts => ["localhost"]
                 scan => false
                 query => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }'
                 docinfo => true
@@ -245,7 +245,7 @@ describe "inputs/elasticsearch" do
         config = %Q[
             input {
               elasticsearch {
-                hosts => ["node01"]
+                hosts => ["localhost"]
                 scan => false
                 query => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }'
                 docinfo => true
@@ -267,7 +267,7 @@ describe "inputs/elasticsearch" do
         config = %q[
           input {
             elasticsearch {
-              hosts => ["node01"]
+              hosts => ["localhost"]
               scan => false
               query => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }'
             }
