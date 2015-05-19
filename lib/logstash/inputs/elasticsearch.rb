@@ -11,7 +11,7 @@ require "base64"
 #     input {
 #       # Read all documents from Elasticsearch matching the given query
 #       elasticsearch {
-#         host => "localhost"
+#         hosts => "localhost"
 #         query => '{ "query": { "match": { "statuscode": 200 } } }'
 #       }
 #     }
@@ -68,7 +68,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # [source, ruby]
   #     input {
   #       elasticsearch {
-  #         host => "es.production.mysite.org"
+  #         hosts => "es.production.mysite.org"
   #         index => "mydata-2018.09.*"
   #         query => "*"
   #         size => 500
