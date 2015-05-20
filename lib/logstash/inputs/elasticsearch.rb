@@ -32,10 +32,9 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   default :codec, "json"
 
   # List of elasticsearch hosts to use for querying.
+  # each host can be either IP, HOST, IP:port or HOST:port
+  # port defaults to 9200
   config :hosts, :validate => :array
-
-  # The HTTP port of your Elasticsearch server's REST interface.
-  config :port, :validate => :number, :default => 9200
 
   # The index or alias to search.
   config :index, :validate => :string, :default => "logstash-*"
