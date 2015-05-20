@@ -127,7 +127,10 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     end
 
     hosts = if @ssl then
-      @hosts.map { |h| { :host => h, :scheme => 'https' } }
+      @hosts.map do |h|
+        host, port = h.split(":")
+        { :host => host, :scheme => 'https', :port => port }
+      end
     else
       @hosts
     end
