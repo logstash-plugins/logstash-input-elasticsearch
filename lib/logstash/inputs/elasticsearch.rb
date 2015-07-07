@@ -11,7 +11,7 @@ require "base64"
 #     input {
 #       # Read all documents from Elasticsearch matching the given query
 #       elasticsearch {
-#         hosts => "localhost"
+#         host => "localhost"
 #         query => '{ "query": { "match": { "statuscode": 200 } } }'
 #       }
 #     }
