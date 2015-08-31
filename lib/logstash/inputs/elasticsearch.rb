@@ -164,7 +164,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
       output_queue << event
     end
 
-    {:has_hits => r['hits']['hits'].any?, :scroll_id => r['_scroll_id']}
+    {'has_hits' => r['hits']['hits'].any?, '_scroll_id' => r['_scroll_id']}
   end
   
   public
@@ -172,14 +172,17 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
     # get first wave of data
     r = @client.search(@options)
+    has_hits = r['hits']['hits'].any?
 
     # since 'scan' doesn't return data on the search call, do an extra scroll
     if @scan
-      resp = run_next(output_queue, r['_scroll_id'])
+      r = run_next(output_queue, r['_scroll_id'])
+      has_hits = r['has_hits']
     end
 
-    while resp[:has_hits] do
-      resp = run_next(output_queue, resp[:scroll_id])
+    while has_hits do
+      r = run_next(output_queue, r['_scroll_id'])
+      has_hits = r['has_hits']
     end
   end # def run
 
