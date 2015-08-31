@@ -3,7 +3,7 @@ require "logstash/devutils/rspec/spec_helper"
 require "logstash/inputs/elasticsearch"
 require "elasticsearch"
 
-describe "inputs/elasticsearch", :elasticsearch => true do
+describe LogStash::Inputs::Elasticsearch do
   it "should retrieve json event from elasticseach" do
     config = %q[
       input {
@@ -47,7 +47,9 @@ describe "inputs/elasticsearch", :elasticsearch => true do
     expect(client).to receive(:search).with(any_args).and_return(response)
     expect(client).to receive(:scroll).with({ :body => "cXVlcnlUaGVuRmV0Y2g", :scroll=> "1m" }).and_return(scroll_reponse)
 
-    event = fetch_event(config)
+    event = input(config) do |pipeline, queue|
+      queue.pop
+    end
 
     insist { event }.is_a?(LogStash::Event)
     insist { event["message"] } == [ "ohayo" ]
@@ -102,7 +104,9 @@ describe "inputs/elasticsearch", :elasticsearch => true do
     expect(client).to receive(:scroll).with({ :body => "DcrY3G1xff6SB", :scroll => "1m" }).and_return(scroll_responses.first)
     expect(client).to receive(:scroll).with({ :body=> "cXVlcnlUaGVuRmV0Y2g", :scroll => "1m" }).and_return(scroll_responses.last)
 
-    event = fetch_event(config)
+    event = input(config) do |pipeline, queue|
+      queue.pop
+    end
 
     insist { event }.is_a?(LogStash::Event)
     insist { event["message"] } == [ "ohayo" ]
@@ -181,7 +185,9 @@ describe "inputs/elasticsearch", :elasticsearch => true do
             }
         ]
 
-        event = fetch_event(config_metadata_with_hash)
+        event = input(config_metadata_with_hash) do |pipeline, queue|
+          queue.pop
+        end
 
         expect(event[metadata_field]["_index"]).to eq('logstash-2014.10.12')
         expect(event[metadata_field]["_type"]).to eq('logs')
@@ -214,7 +220,9 @@ describe "inputs/elasticsearch", :elasticsearch => true do
       end
 
       it "should move the document info to the @metadata field" do
-        event = fetch_event(config_metadata)
+        event = input(config_metadata) do |pipeline, queue|
+          queue.pop
+        end
 
         expect(event["[@metadata][_index]"]).to eq('logstash-2014.10.12')
         expect(event["[@metadata][_type]"]).to eq('logs')
@@ -233,7 +241,9 @@ describe "inputs/elasticsearch", :elasticsearch => true do
               }
             }
         ]
-        event = fetch_event(config)
+        event = input(config) do |pipeline, queue|
+          queue.pop
+        end
 
         expect(event["[meta][_index]"]).to eq('logstash-2014.10.12')
         expect(event["[meta][_type]"]).to eq('logs')
@@ -253,7 +263,9 @@ describe "inputs/elasticsearch", :elasticsearch => true do
               }
             }]
 
-        event = fetch_event(config)
+        event = input(config) do |pipeline, queue|
+          queue.pop
+        end
 
         expect(event["@metadata"].keys).to eq(fields)
         expect(event["[@metadata][_type]"]).to eq(nil)
@@ -273,7 +285,9 @@ describe "inputs/elasticsearch", :elasticsearch => true do
             }
           }
         ]
-        event = fetch_event(config)
+        event = input(config) do |pipeline, queue|
+          queue.pop
+        end
 
         expect(event["[@metadata][_index]"]).to eq(nil)
         expect(event["[@metadata][_type]"]).to eq(nil)
@@ -281,18 +295,4 @@ describe "inputs/elasticsearch", :elasticsearch => true do
       end
     end
   end
-end
-
-def fetch_event(config)
-  pipeline = LogStash::Pipeline.new(config)
-  queue = Queue.new
-  pipeline.instance_eval do
-    @output_func = lambda { |event| queue << event }
-  end
-  pipeline_thread = Thread.new { pipeline.run }
-  event = queue.pop
-
-  pipeline_thread.join
-
-  return event
 end
