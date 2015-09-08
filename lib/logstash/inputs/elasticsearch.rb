@@ -156,7 +156,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
       has_hits = r['hits']['hits'].any?
     end
 
-    while has_hits do
+    while has_hits && !stop?
       r = process_next_scroll(output_queue, r['_scroll_id'])
       has_hits = r['has_hits']
     end

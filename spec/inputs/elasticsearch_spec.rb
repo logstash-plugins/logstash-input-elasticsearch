@@ -4,6 +4,25 @@ require "logstash/inputs/elasticsearch"
 require "elasticsearch"
 
 describe LogStash::Inputs::Elasticsearch do
+
+  it_behaves_like "an interruptible input plugin" do
+    let(:esclient) { double("elasticsearch-client") }
+    let(:config) { { } }
+
+    before :each do
+      allow(Elasticsearch::Client).to receive(:new).and_return(esclient)
+      hit = {
+        "_index" => "logstash-2014.10.12",
+        "_type" => "logs",
+        "_id" => "C5b2xLQwTZa76jBmHIbwHQ",
+        "_score" => 1.0,
+        "_source" => { "message" => ["ohayo"] }
+      }
+      allow(esclient).to receive(:search) { { "hits" => { "hits" => [hit] } } }
+      allow(esclient).to receive(:scroll) { { "hits" => { "hits" => [hit] } } }
+    end
+  end
+
   it "should retrieve json event from elasticseach" do
     config = %q[
       input {
