@@ -69,7 +69,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   #       elasticsearch {
   #         hosts => "es.production.mysite.org"
   #         index => "mydata-2018.09.*"
-  #         query => "*"
+  #         query => '{"query": { "match_all": {} } }'
   #         size => 500
   #         scroll => "5m"
   #         docinfo => true
