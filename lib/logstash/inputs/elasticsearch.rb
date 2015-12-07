@@ -60,7 +60,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # It might be important to note, with regards to metadata, that if you're
   # ingesting documents with the intent to re-index them (or just update them)
   # that the `action` option in the elasticsearch output want's to know how to
-  # handle those things. It can be dynamically assigned with a field 
+  # handle those things. It can be dynamically assigned with a field
   # added to the metadata.
   #
   # Example
@@ -86,7 +86,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   config :docinfo, :validate => :boolean, :default => false
 
   # Where to move the Elasticsearch document information by default we use the @metadata field.
-  config :docinfo_target, :validate=> :string, :default => "@metadata"
+  config :docinfo_target, :validate=> :string, :default => LogStash::Event::METADATA
 
   # List of document metadata to move to the `docinfo_target` field
   # To learn more about Elasticsearch metadata fields read
@@ -105,7 +105,6 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # SSL Certificate Authority file
   config :ca_file, :validate => :path
 
-  public
   def register
     require "elasticsearch"
 
@@ -141,9 +140,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     @client = Elasticsearch::Client.new(:hosts => hosts, :transport_options => transport_options)
   end
 
-  public
   def run(output_queue)
-
     # get first wave of data
     r = @client.search(@options)
 
@@ -160,38 +157,42 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
       r = process_next_scroll(output_queue, r['_scroll_id'])
       has_hits = r['has_hits']
     end
-  end # def run
+  end
 
   private
+
   def process_next_scroll(output_queue, scroll_id)
     r = scroll_request(scroll_id)
     r['hits']['hits'].each { |hit| push_hit(hit, output_queue) }
     {'has_hits' => r['hits']['hits'].any?, '_scroll_id' => r['_scroll_id']}
   end
 
-  private
   def push_hit(hit, output_queue)
     event = LogStash::Event.new(hit['_source'])
     decorate(event)
 
     if @docinfo
-      event[@docinfo_target] ||= {}
+      # do not assume event[@docinfo_target] to be in-place updatable. first get it, update it, then at the end set it in the event.
+      docinfo_target = event[@docinfo_target] || {}
 
-      unless event[@docinfo_target].is_a?(Hash)
-        @logger.error("Elasticsearch Input: Incompatible Event, incompatible type for the `@metadata` field in the `_source` document, expected a hash got:", :metadata_type => event[@docinfo_target].class)
+      unless docinfo_target.is_a?(Hash)
+        @logger.error("Elasticsearch Input: Incompatible Event, incompatible type for the docinfo_target=#{@docinfo_target} field in the `_source` document, expected a hash got:", :docinfo_target_type => docinfo_target.class, :event => event)
 
+        # TODO: (colin) I am not sure raising is a good strategy here?
         raise Exception.new("Elasticsearch input: incompatible event")
       end
 
       @docinfo_fields.each do |field|
-        event[@docinfo_target][field] = hit[field]
+        docinfo_target[field] = hit[field]
       end
+
+      event[@docinfo_target] = docinfo_target
     end
+
     output_queue << event
   end
 
-  private
   def scroll_request scroll_id
     @client.scroll(:body => scroll_id, :scroll => @scroll)
   end
-end # class LogStash::Inputs::Elasticsearch
+end
