@@ -1,6 +1,6 @@
 # Logstash Plugin
 
-[![Gem info][badge-gem]][rubygems]
+[![Gem Version](https://badge.fury.io/rb/logstash-input-elasticsearch.svg)](https://badge.fury.io/rb/logstash-input-elasticsearch)
 [![Build
 Status](http://build-eu-00.elastic.co/view/LS%20Plugins/view/LS%20Inputs/job/logstash-plugin-input-elasticsearch-unit/badge/icon)](http://build-eu-00.elastic.co/view/LS%20Plugins/view/LS%20Inputs/job/logstash-plugin-input-elasticsearch-unit/)
 
