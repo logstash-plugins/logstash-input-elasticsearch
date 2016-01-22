@@ -2,8 +2,7 @@
 
 [![Build
 Status](http://build-eu-00.elastic.co/view/LS%20Plugins/view/LS%20Inputs/job/logstash-plugin-input-elasticsearch-unit/badge/icon)](http://build-eu-00.elastic.co/view/LS%20Plugins/view/LS%20Inputs/job/logstash-plugin-input-elasticsearch-unit/)
-
-[![Gem Version](https://badge.fury.io/rb/logstash-input-elasticsearch.svg)](https://badge.fury.io/rb/logstash-input-elasticsearch)
+[![Gem info][badge-gem]][rubygems]
 
 This is a plugin for [Logstash](https://github.com/elastic/logstash).
 
