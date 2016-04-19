@@ -59,7 +59,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   #
   # It might be important to note, with regards to metadata, that if you're
   # ingesting documents with the intent to re-index them (or just update them)
-  # that the `action` option in the elasticsearch output want's to know how to
+  # that the `action` option in the elasticsearch output wants to know how to
   # handle those things. It can be dynamically assigned with a field
   # added to the metadata.
   #
