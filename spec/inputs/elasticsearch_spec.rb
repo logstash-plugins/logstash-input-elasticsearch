@@ -71,7 +71,7 @@ describe LogStash::Inputs::Elasticsearch do
     end
 
     insist { event }.is_a?(LogStash::Event)
-    insist { event["message"] } == [ "ohayo" ]
+    insist { event.get("message") } == [ "ohayo" ]
   end
 
   it "should retrieve json event from elasticseach with scan" do
@@ -128,7 +128,7 @@ describe LogStash::Inputs::Elasticsearch do
     end
 
     insist { event }.is_a?(LogStash::Event)
-    insist { event["message"] } == [ "ohayo" ]
+    insist { event.get("message") } == [ "ohayo" ]
   end
 
   context "with Elasticsearch document information" do
@@ -208,10 +208,10 @@ describe LogStash::Inputs::Elasticsearch do
           queue.pop
         end
 
-        expect(event[metadata_field]["_index"]).to eq('logstash-2014.10.12')
-        expect(event[metadata_field]["_type"]).to eq('logs')
-        expect(event[metadata_field]["_id"]).to eq('C5b2xLQwTZa76jBmHIbwHQ')
-        expect(event[metadata_field]["awesome"]).to eq("logstash")
+        expect(event.get("[#{metadata_field}][_index]")).to eq('logstash-2014.10.12')
+        expect(event.get("[#{metadata_field}][_type]")).to eq('logs')
+        expect(event.get("[#{metadata_field}][_id]")).to eq('C5b2xLQwTZa76jBmHIbwHQ')
+        expect(event.get("[#{metadata_field}][awesome]")).to eq("logstash")
       end
       
       it 'thows an exception if the `docinfo_target` exist but is not of type hash' do
@@ -243,9 +243,9 @@ describe LogStash::Inputs::Elasticsearch do
           queue.pop
         end
 
-        expect(event["[@metadata][_index]"]).to eq('logstash-2014.10.12')
-        expect(event["[@metadata][_type]"]).to eq('logs')
-        expect(event["[@metadata][_id]"]).to eq('C5b2xLQwTZa76jBmHIbwHQ')
+        expect(event.get("[@metadata][_index]")).to eq('logstash-2014.10.12')
+        expect(event.get("[@metadata][_type]")).to eq('logs')
+        expect(event.get("[@metadata][_id]")).to eq('C5b2xLQwTZa76jBmHIbwHQ')
       end
 
       it 'should move the document information to the specified field' do
@@ -264,9 +264,9 @@ describe LogStash::Inputs::Elasticsearch do
           queue.pop
         end
 
-        expect(event["[meta][_index]"]).to eq('logstash-2014.10.12')
-        expect(event["[meta][_type]"]).to eq('logs')
-        expect(event["[meta][_id]"]).to eq('C5b2xLQwTZa76jBmHIbwHQ')
+        expect(event.get("[meta][_index]")).to eq('logstash-2014.10.12')
+        expect(event.get("[meta][_type]")).to eq('logs')
+        expect(event.get("[meta][_id]")).to eq('C5b2xLQwTZa76jBmHIbwHQ')
       end
 
       it "should allow to specify which fields from the document info to save to the @metadata field" do
@@ -286,10 +286,10 @@ describe LogStash::Inputs::Elasticsearch do
           queue.pop
         end
 
-        expect(event["@metadata"].keys).to eq(fields)
-        expect(event["[@metadata][_type]"]).to eq(nil)
-        expect(event["[@metadata][_index]"]).to eq('logstash-2014.10.12')
-        expect(event["[@metadata][_id]"]).to eq(nil)
+        expect(event.get("@metadata").keys).to eq(fields)
+        expect(event.get("[@metadata][_type]")).to eq(nil)
+        expect(event.get("[@metadata][_index]")).to eq('logstash-2014.10.12')
+        expect(event.get("[@metadata][_id]")).to eq(nil)
       end
     end
 
@@ -308,9 +308,9 @@ describe LogStash::Inputs::Elasticsearch do
           queue.pop
         end
 
-        expect(event["[@metadata][_index]"]).to eq(nil)
-        expect(event["[@metadata][_type]"]).to eq(nil)
-        expect(event["[@metadata][_id]"]).to eq(nil)
+        expect(event.get("[@metadata][_index]")).to eq(nil)
+        expect(event.get("[@metadata][_type]")).to eq(nil)
+        expect(event.get("[@metadata][_id]")).to eq(nil)
       end
     end
   end

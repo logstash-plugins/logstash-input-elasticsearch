@@ -173,7 +173,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
     if @docinfo
       # do not assume event[@docinfo_target] to be in-place updatable. first get it, update it, then at the end set it in the event.
-      docinfo_target = event[@docinfo_target] || {}
+      docinfo_target = event.get(@docinfo_target) || {}
 
       unless docinfo_target.is_a?(Hash)
         @logger.error("Elasticsearch Input: Incompatible Event, incompatible type for the docinfo_target=#{@docinfo_target} field in the `_source` document, expected a hash got:", :docinfo_target_type => docinfo_target.class, :event => event)
@@ -186,7 +186,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
         docinfo_target[field] = hit[field]
       end
 
-      event[@docinfo_target] = docinfo_target
+      event.set(@docinfo_target, docinfo_target)
     end
 
     output_queue << event
