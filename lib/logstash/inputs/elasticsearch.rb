@@ -39,7 +39,9 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # The index or alias to search.
   config :index, :validate => :string, :default => "logstash-*"
 
-  # The query to be executed.
+  # The query to be executed. Read the Elasticsearch query DSL documentation
+  # for more info 
+  # https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html
   config :query, :validate => :string, :default => '{"query": { "match_all": {} } }'
 
   # Enable the Elasticsearch "scan" search type.  This will disable
