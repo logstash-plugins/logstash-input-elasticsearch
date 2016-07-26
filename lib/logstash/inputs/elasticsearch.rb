@@ -43,8 +43,8 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   default :codec, "json"
 
   # List of elasticsearch hosts to use for querying.
-  # each host can be either IP, HOST, IP:port or HOST:port
-  # port defaults to 9200
+  # Each host can be either IP, HOST, IP:port or HOST:port.
+  # Port defaults to 9200
   config :hosts, :validate => :array
 
   # The index or alias to search.
@@ -94,10 +94,10 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   #
   config :docinfo, :validate => :boolean, :default => false
 
-  # Where to move the Elasticsearch document information by default we use the @metadata field.
+  # Where to move the Elasticsearch document information. By default we use the @metadata field.
   config :docinfo_target, :validate=> :string, :default => LogStash::Event::METADATA
 
-  # List of document metadata to move to the `docinfo_target` field
+  # List of document metadata to move to the `docinfo_target` field.
   # To learn more about Elasticsearch metadata fields read
   # http://www.elasticsearch.org/guide/en/elasticsearch/guide/current/_document_metadata.html
   config :docinfo_fields, :validate => :array, :default => ['_index', '_type', '_id']
