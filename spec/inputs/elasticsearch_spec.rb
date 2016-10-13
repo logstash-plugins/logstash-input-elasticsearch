@@ -28,7 +28,6 @@ describe LogStash::Inputs::Elasticsearch do
       input {
         elasticsearch {
           hosts => ["localhost"]
-          scan => false
           query => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }'
         }
       }
@@ -74,63 +73,6 @@ describe LogStash::Inputs::Elasticsearch do
     insist { event.get("message") } == [ "ohayo" ]
   end
 
-  it "should retrieve json event from elasticseach with scan" do
-    config = %q[
-      input {
-        elasticsearch {
-          hosts => ["localhost"]
-          scan => true
-          query => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }'
-        }
-      }
-    ]
-
-    scan_response = {
-      "_scroll_id" => "DcrY3G1xff6SB",
-    }
-
-    scroll_responses = [
-      {
-        "_scroll_id" => "cXVlcnlUaGVuRmV0Y2g",
-        "took" => 27,
-        "timed_out" => false,
-        "_shards" => {
-          "total" => 169,
-          "successful" => 169,
-          "failed" => 0
-        },
-        "hits" => {
-          "total" => 1,
-          "max_score" => 1.0,
-          "hits" => [ {
-            "_index" => "logstash-2014.10.12",
-            "_type" => "logs",
-            "_id" => "C5b2xLQwTZa76jBmHIbwHQ",
-            "_score" => 1.0,
-            "_source" => { "message" => ["ohayo"] }
-          } ]
-        }
-      },
-      {
-        "_scroll_id" => "r453Wc1jh0caLJhSDg",
-        "hits" => { "hits" => [] }
-      }
-    ]
-
-    client = Elasticsearch::Client.new
-    expect(Elasticsearch::Client).to receive(:new).with(any_args).and_return(client)
-    expect(client).to receive(:search).with(any_args).and_return(scan_response)
-    expect(client).to receive(:scroll).with({ :body => "DcrY3G1xff6SB", :scroll => "1m" }).and_return(scroll_responses.first)
-    expect(client).to receive(:scroll).with({ :body=> "cXVlcnlUaGVuRmV0Y2g", :scroll => "1m" }).and_return(scroll_responses.last)
-
-    event = input(config) do |pipeline, queue|
-      queue.pop
-    end
-
-    insist { event }.is_a?(LogStash::Event)
-    insist { event.get("message") } == [ "ohayo" ]
-  end
-
   context "with Elasticsearch document information" do
     let!(:response) do
       {
@@ -150,7 +92,7 @@ describe LogStash::Inputs::Elasticsearch do
             "_type" => "logs",
             "_id" => "C5b2xLQwTZa76jBmHIbwHQ",
             "_score" => 1.0,
-            "_source" => { 
+            "_source" => {
               "message" => ["ohayo"],
               "metadata_with_hash" => { "awesome" => "logstash" },
               "metadata_with_string" => "a string"
@@ -181,7 +123,6 @@ describe LogStash::Inputs::Elasticsearch do
             input {
               elasticsearch {
                 hosts => ["localhost"]
-                scan => false
                 query => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }'
                 docinfo => true
               }
@@ -196,7 +137,6 @@ describe LogStash::Inputs::Elasticsearch do
             input {
               elasticsearch {
                 hosts => ["localhost"]
-                scan => false
                 query => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }'
                 docinfo => true
                 docinfo_target => '#{metadata_field}'
@@ -213,7 +153,7 @@ describe LogStash::Inputs::Elasticsearch do
         expect(event.get("[#{metadata_field}][_id]")).to eq('C5b2xLQwTZa76jBmHIbwHQ')
         expect(event.get("[#{metadata_field}][awesome]")).to eq("logstash")
       end
-      
+
       it 'thows an exception if the `docinfo_target` exist but is not of type hash' do
         metadata_field = 'metadata_with_string'
 
@@ -221,7 +161,6 @@ describe LogStash::Inputs::Elasticsearch do
             input {
               elasticsearch {
                 hosts => ["localhost"]
-                scan => false
                 query => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }'
                 docinfo => true
                 docinfo_target => '#{metadata_field}'
@@ -253,7 +192,6 @@ describe LogStash::Inputs::Elasticsearch do
             input {
               elasticsearch {
                 hosts => ["localhost"]
-                scan => false
                 query => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }'
                 docinfo => true
                 docinfo_target => 'meta'
@@ -275,7 +213,6 @@ describe LogStash::Inputs::Elasticsearch do
             input {
               elasticsearch {
                 hosts => ["localhost"]
-                scan => false
                 query => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }'
                 docinfo => true
                 docinfo_fields => #{fields}
@@ -299,7 +236,6 @@ describe LogStash::Inputs::Elasticsearch do
           input {
             elasticsearch {
               hosts => ["localhost"]
-              scan => false
               query => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }'
             }
           }

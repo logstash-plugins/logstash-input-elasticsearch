@@ -1,3 +1,11 @@
+## 4.0.0
+  - Remove `scan` from list of options as this is no longer allowed in
+    Elasticsearch 5.0.
+  - Change default query to sort by \_doc, as this replicates the `scan`
+    behavior
+  - Improve documentation to show sort by \_doc, and how to add it to custom
+    queries.
+    
 ## 3.0.2
   - Relax constraint on logstash-core-plugin-api to >= 1.60 <= 2.99
 
