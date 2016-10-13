@@ -12,7 +12,7 @@ require "base64"
 #       # Read all documents from Elasticsearch matching the given query
 #       elasticsearch {
 #         hosts => "localhost"
-#         query => '{ "query": { "match": { "statuscode": 200 } } }'
+#         query => '{ "query": { "match": { "statuscode": 200 } }, "sort": [ "_doc" ] }'
 #       }
 #     }
 #
@@ -23,7 +23,8 @@ require "base64"
 #         "match": {
 #           "statuscode": 200
 #         }
-#       }
+#       },
+#       "sort": [ "_doc" ]
 #     }'
 #
 class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
@@ -40,20 +41,16 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   config :index, :validate => :string, :default => "logstash-*"
 
   # The query to be executed. Read the Elasticsearch query DSL documentation
-  # for more info 
+  # for more info
   # https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html
-  config :query, :validate => :string, :default => '{"query": { "match_all": {} } }'
-
-  # Enable the Elasticsearch "scan" search type.  This will disable
-  # sorting but increase speed and performance.
-  config :scan, :validate => :boolean, :default => true
+  config :query, :validate => :string, :default => '{ "sort": [ "_doc" ] }'
 
   # This allows you to set the maximum number of hits returned per scroll.
   config :size, :validate => :number, :default => 1000
 
   # This parameter controls the keepalive time in seconds of the scrolling
   # request and initiates the scrolling process. The timeout applies per
-  # round trip (i.e. between the previous scan scroll request, to the next).
+  # round trip (i.e. between the previous scroll request, to the next).
   config :scroll, :validate => :string, :default => "1m"
 
   # If set, include Elasticsearch document information such as index, type, and
@@ -117,8 +114,6 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
       :size => @size
     }
 
-    @options[:search_type] = 'scan' if @scan
-
     transport_options = {}
 
     if @user && @password
@@ -146,14 +141,8 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     # get first wave of data
     r = @client.search(@options)
 
-    # since 'scan' doesn't return data on the search call, do an extra scroll
-    if @scan
-      r = process_next_scroll(output_queue, r['_scroll_id'])
-      has_hits = r['has_hits']
-    else # not a scan, process the response
-      r['hits']['hits'].each { |hit| push_hit(hit, output_queue) }
-      has_hits = r['hits']['hits'].any?
-    end
+    r['hits']['hits'].each { |hit| push_hit(hit, output_queue) }
+    has_hits = r['hits']['hits'].any?
 
     while has_hits && !stop?
       r = process_next_scroll(output_queue, r['_scroll_id'])
