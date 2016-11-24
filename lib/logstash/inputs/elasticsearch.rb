@@ -101,7 +101,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # SSL
   config :ssl, :validate => :boolean, :default => false
 
-  # SSL Certificate Authority file
+  # SSL Certificate Authority file in PEM encoded format, must also include any chain certificates as necessary 
   config :ca_file, :validate => :path
 
   def register
