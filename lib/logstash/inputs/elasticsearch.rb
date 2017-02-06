@@ -135,6 +135,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     client_options = {
       :hosts => hosts, 
       :transport_options => transport_options, 
+      :headers => {"Content-Type" => "application/json"},
       :transport_class => Elasticsearch::Transport::Transport::HTTP::Manticore
     }
 

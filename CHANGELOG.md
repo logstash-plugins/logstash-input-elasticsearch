@@ -1,3 +1,6 @@
+## 4.0.2
+  - Always use Content-Type: application/json for ES comms
+
 ## 4.0.1
   - Switch internal HTTP client to support TLSv1.2
   - Upgrade ES client internally to better support ES 5.x
