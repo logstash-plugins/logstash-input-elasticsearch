@@ -1,7 +1,3 @@
-## 4.0.1
-  - Switch internal HTTP client to support TLSv1.2
-  - Upgrade ES client internally to better support ES 5.x
-
 ## 4.0.0
   - Remove `scan` from list of options as this is no longer allowed in
     Elasticsearch 5.0.
