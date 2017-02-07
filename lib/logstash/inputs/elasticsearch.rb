@@ -1,8 +1,6 @@
 # encoding: utf-8
 require "logstash/inputs/base"
 require "logstash/namespace"
-require 'elasticsearch'
-require 'elasticsearch/transport/transport/http/manticore'
 require "base64"
 
 # Read from an Elasticsearch cluster, based on search query results.
@@ -107,6 +105,8 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   config :ca_file, :validate => :path
 
   def register
+    require "elasticsearch"
+
     @options = {
       :index => @index,
       :body => @query,
@@ -117,10 +117,8 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     transport_options = {}
 
     if @user && @password
-      transport_options[:auth] = {
-        :user => @user,
-        :password => @password.value
-      }
+      token = Base64.strict_encode64("#{@user}:#{@password.value}")
+      transport_options[:headers] = { :Authorization => "Basic #{token}" }
     end
 
     hosts = if @ssl then
@@ -132,17 +130,11 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
       @hosts
     end
 
-    client_options = {
-      :hosts => hosts, 
-      :transport_options => transport_options, 
-      :transport_class => Elasticsearch::Transport::Transport::HTTP::Manticore
-    }
-
     if @ssl && @ca_file
-      client_options[:ssl] = { :enabled => true, :ca_file => @ca_file }
+      transport_options[:ssl] = { :ca_file => @ca_file }
     end
-    
-    @client = Elasticsearch::Client.new(client_options)
+
+    @client = Elasticsearch::Client.new(:hosts => hosts, :transport_options => transport_options)
   end
 
   def run(output_queue)
