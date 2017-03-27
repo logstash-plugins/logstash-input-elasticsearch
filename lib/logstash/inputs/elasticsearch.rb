@@ -3,6 +3,16 @@ require "logstash/inputs/base"
 require "logstash/namespace"
 require "base64"
 
+# .Compatibility Note
+# [NOTE]
+# ================================================================================
+# Starting with Elasticsearch 5.3, there's an {ref}modules-http.html[HTTP setting]
+# called `http.content_type.required`. If this option is set to `true`, and you
+# are using Logstash 2.4 through 5.2, you need to update the Elasticsearch input
+# plugin to version 4.0.2 or higher.
+# 
+# ================================================================================
+# 
 # Read from an Elasticsearch cluster, based on search query results.
 # This is useful for replaying test logs, reindexing, etc.
 #
