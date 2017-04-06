@@ -63,7 +63,7 @@ describe LogStash::Inputs::Elasticsearch do
     client = Elasticsearch::Client.new
     expect(Elasticsearch::Client).to receive(:new).with(any_args).and_return(client)
     expect(client).to receive(:search).with(any_args).and_return(response)
-    expect(client).to receive(:scroll).with({ :body => "cXVlcnlUaGVuRmV0Y2g", :scroll=> "1m" }).and_return(scroll_reponse)
+    expect(client).to receive(:scroll).with({ :body => { :scroll_id => "cXVlcnlUaGVuRmV0Y2g" }, :scroll=> "1m" }).and_return(scroll_reponse)
 
     event = input(config) do |pipeline, queue|
       queue.pop
@@ -114,7 +114,7 @@ describe LogStash::Inputs::Elasticsearch do
     before do
       expect(Elasticsearch::Client).to receive(:new).with(any_args).and_return(client)
       expect(client).to receive(:search).with(any_args).and_return(response)
-      allow(client).to receive(:scroll).with({ :body => "cXVlcnlUaGVuRmV0Y2g", :scroll => "1m" }).and_return(scroll_reponse)
+      allow(client).to receive(:scroll).with({ :body => {:scroll_id => "cXVlcnlUaGVuRmV0Y2g"}, :scroll => "1m" }).and_return(scroll_reponse)
     end
 
     context 'when defining docinfo' do
