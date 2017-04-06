@@ -1,5 +1,6 @@
 ## 4.0.3
   - Docs: Add requirement to use version 4.0.2 or higher to support sending Content-Type headers
+  - Fix scrolling to use json bodies in the requests (this makes scrolling not work in ES 1.x)
 
 ## 4.0.2
   - Bump ES client to 5.0.2 to get content-type: json behavior
