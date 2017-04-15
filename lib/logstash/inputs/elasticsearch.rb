@@ -87,7 +87,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   #     output {
   #       elasticsearch {
   #         index => "copy-of-production.%{[@metadata][_index]}"
-  #         index_type => "%{[@metadata][_type]}"
+  #         document_type => "%{[@metadata][_type]}"
   #         document_id => "%{[@metadata][_id]}"
   #       }
   #     }
