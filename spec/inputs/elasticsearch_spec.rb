@@ -168,7 +168,7 @@ describe LogStash::Inputs::Elasticsearch do
             }
         ]
 
-        pipeline = LogStash::Pipeline.new(config_metadata_with_string)
+        pipeline = new_pipeline_from_string(config_metadata_with_string)
         queue = Queue.new
         pipeline.instance_eval do
           @output_func = lambda { |event| queue << event }
