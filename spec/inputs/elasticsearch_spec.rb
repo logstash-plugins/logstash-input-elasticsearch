@@ -16,7 +16,8 @@ describe LogStash::Inputs::Elasticsearch do
         "_type" => "logs",
         "_id" => "C5b2xLQwTZa76jBmHIbwHQ",
         "_score" => 1.0,
-        "_source" => { "message" => ["ohayo"] }
+        "_source" => { "message" => ["ohayo"] },
+        "fields" => { "message_copy" => ["ohayo"] }
       }
       allow(esclient).to receive(:search) { { "hits" => { "hits" => [hit] } } }
       allow(esclient).to receive(:scroll) { { "hits" => { "hits" => [hit] } } }
@@ -50,7 +51,8 @@ describe LogStash::Inputs::Elasticsearch do
           "_type" => "logs",
           "_id" => "C5b2xLQwTZa76jBmHIbwHQ",
           "_score" => 1.0,
-          "_source" => { "message" => ["ohayo"] }
+          "_source" => { "message" => ["ohayo"] },
+          "fields" => { "message_copy" => ["ohayo"] }
         } ]
       }
     }
@@ -96,7 +98,8 @@ describe LogStash::Inputs::Elasticsearch do
               "message" => ["ohayo"],
               "metadata_with_hash" => { "awesome" => "logstash" },
               "metadata_with_string" => "a string"
-            }
+            },
+            "fields" => { "message_copy" => ["ohayo"] }
           } ]
         }
       }
@@ -249,5 +252,41 @@ describe LogStash::Inputs::Elasticsearch do
         expect(event.get("[@metadata][_id]")).to eq(nil)
       end
     end
-  end
+
+    context "when query contains script fields but not enumerating script fields" do
+      it 'should not include the script fields at the root of the event' do
+        config = %q[
+          input {
+            elasticsearch {
+              hosts => ["localhost"]
+              query => '{ "query": { "match": { "message": "ohayo" } }, "script_fields": { "message_copy": {"script": "doc.message.values"} } }'
+            }
+          }
+        ]
+        event = input(config) do |pipeline, queue|
+          queue.pop
+        end
+
+        expect(event.get("message_copy")).to eq(nil)
+      end
+    end
+
+    context "when query contains script fields and enumerating script fields" do
+      it 'should include the script fields at the root of the event' do
+        config = %q[
+          input {
+            elasticsearch {
+              hosts => ["localhost"]
+              query => '{ "query": { "match": { "message": "ohayo" } }, "script_fields": { "message_copy": {"script": "doc.message.values"} } }'
+              script_fields => ["message_copy"]
+            }
+          }
+        ]
+        event = input(config) do |pipeline, queue|
+          queue.pop
+        end
+
+        expect(event.get("message_copy")).to eq(["ohayo"])
+      end
+    end  end
 end
