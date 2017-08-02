@@ -102,6 +102,9 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # http://www.elasticsearch.org/guide/en/elasticsearch/guide/current/_document_metadata.html
   config :docinfo_fields, :validate => :array, :default => ['_index', '_type', '_id']
 
+  # This parameter enumerates which script fields to retrieve
+  config :script_fields, :validate => :array
+
   # Basic Auth - username
   config :user, :validate => :string
 
@@ -188,6 +191,13 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
       end
 
       event.set(@docinfo_target, docinfo_target)
+    end
+
+    # go through the list of script fields to include in the event
+    if @script_fields && hit['fields']
+      @script_fields.each do |field|
+        event.set(field, hit['fields'][field])
+      end
     end
 
     output_queue << event
