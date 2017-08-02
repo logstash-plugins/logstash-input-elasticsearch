@@ -88,7 +88,8 @@ input plugins.
   * Value type is <<path,path>>
   * There is no default value for this setting.
 
-SSL Certificate Authority file in PEM encoded format, must also include any chain certificates as necessary 
+SSL Certificate Authority file in PEM encoded format, must also
+include any chain certificates as necessary.
 
 [id="plugins-{type}s-{plugin}-docinfo"]
 ===== `docinfo` 
@@ -111,7 +112,7 @@ Example
       elasticsearch {
         hosts => "es.production.mysite.org"
         index => "mydata-2018.09.*"
-        query => "*"
+        query => '{ "query": { "query_string": { "query": "*" } } }'
         size => 500
         scroll => "5m"
         docinfo => true
@@ -132,9 +133,11 @@ Example
   * Value type is <<array,array>>
   * Default value is `["_index", "_type", "_id"]`
 
-List of document metadata to move to the `docinfo_target` field
-To learn more about Elasticsearch metadata fields read
-http://www.elasticsearch.org/guide/en/elasticsearch/guide/current/_document_metadata.html
+If document metadata storage is requested by enabling the `docinfo`
+option, this option lists the metadata fields to save in the current
+event. See
+[Document Metadata](http://www.elasticsearch.org/guide/en/elasticsearch/guide/current/_document_metadata.html)
+in the Elasticsearch documentation for more information.
 
 [id="plugins-{type}s-{plugin}-docinfo_target"]
 ===== `docinfo_target` 
@@ -142,7 +145,9 @@ http://www.elasticsearch.org/guide/en/elasticsearch/guide/current/_document_meta
   * Value type is <<string,string>>
   * Default value is `"@metadata"`
 
-Where to move the Elasticsearch document information by default we use the @metadata field.
+If document metadata storage is requested by enabling the `docinfo`
+option, this option names the field under which to store the metadata
+fields as subfields.
 
 [id="plugins-{type}s-{plugin}-hosts"]
 ===== `hosts` 
@@ -150,9 +155,9 @@ Where to move the Elasticsearch document information by default we use the @meta
   * Value type is <<array,array>>
   * There is no default value for this setting.
 
-List of elasticsearch hosts to use for querying.
-each host can be either IP, HOST, IP:port or HOST:port
-port defaults to 9200
+List of one or more Elasticsearch hosts to use for querying. Each host
+can be either IP, HOST, IP:port, or HOST:port. The port defaults to
+9200.
 
 [id="plugins-{type}s-{plugin}-index"]
 ===== `index` 
@@ -168,17 +173,19 @@ The index or alias to search.
   * Value type is <<password,password>>
   * There is no default value for this setting.
 
-Basic Auth - password
+The password to use together with the username in the `user` option
+when authenticating to the Elasticsearch server. If set to an empty
+string authentication will be disabled.
 
 [id="plugins-{type}s-{plugin}-query"]
 ===== `query` 
 
   * Value type is <<string,string>>
-  * Default value is `"{ \"sort\": [ \"_doc\" ] }"`
+  * Default value is `'{ "sort": [ "_doc" ] }'`
 
-The query to be executed. Read the Elasticsearch query DSL documentation
-for more info
-https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html
+The query to be executed. Read the
+[Elasticsearch query DSL documentation](https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html)
+for more information.
 
 [id="plugins-{type}s-{plugin}-scroll"]
 ===== `scroll` 
@@ -204,7 +211,8 @@ This allows you to set the maximum number of hits returned per scroll.
   * Value type is <<boolean,boolean>>
   * Default value is `false`
 
-SSL
+If enabled, SSL will be used when communicating with the Elasticsearch
+server (i.e. HTTPS will be used instead of plain HTTP).
 
 [id="plugins-{type}s-{plugin}-user"]
 ===== `user` 
@@ -212,7 +220,9 @@ SSL
   * Value type is <<string,string>>
   * There is no default value for this setting.
 
-Basic Auth - username
+The username to use together with the password in the `password`
+option when authenticating to the Elasticsearch server. If set to an
+empty string authentication will be disabled.
 
 
 
