@@ -111,8 +111,17 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # SSL
   config :ssl, :validate => :boolean, :default => false
 
+  # SSL verify certificate
+  config :ssl_verify, :validate => :boolean, :default => true
+
   # SSL Certificate Authority file in PEM encoded format, must also include any chain certificates as necessary 
   config :ca_file, :validate => :path
+
+  # SSL Client Certificate file in PEM encoded format
+  config :client_cert_file, :validate => :path
+
+  # SSL Client Key file in PEM encoded format
+  config :client_key_file, :validate => :path
 
   def register
     require "elasticsearch"
@@ -140,8 +149,18 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
       @hosts
     end
 
-    if @ssl && @ca_file
-      transport_options[:ssl] = { :ca_file => @ca_file }
+    if @ssl
+      transport_options[:ssl] = {:verify => @ssl_verify}
+
+      if @ca_file
+        transport_options[:ssl][:ca_file] = @ca_file
+      end
+      if @client_cert_file
+        transport_options[:ssl][:client_cert] = OpenSSL::X509::Certificate.new(File.read(@client_cert_file))
+      end
+      if @client_key_file
+        transport_options[:ssl][:client_key] = OpenSSL::PKey::RSA.new(File.read(@client_key_file))
+      end
     end
 
     @client = Elasticsearch::Client.new(:hosts => hosts, :transport_options => transport_options)
