@@ -1,3 +1,6 @@
+## 4.1.0
+ - Enable use of docinfo (@metadata) fields in `add_field` decorations
+
 ## 4.0.6
   - Docs: Fix link syntax
 
