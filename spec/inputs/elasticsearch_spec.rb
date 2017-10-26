@@ -228,6 +228,27 @@ describe LogStash::Inputs::Elasticsearch do
         expect(event.get("[@metadata][_index]")).to eq('logstash-2014.10.12')
         expect(event.get("[@metadata][_id]")).to eq(nil)
       end
+
+      it 'should be able to reference metadata fields in `add_field` decorations' do
+        config = %q[
+          input {
+            elasticsearch {
+              hosts => ["localhost"]
+              query => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }'
+              docinfo => true
+              add_field => {
+                'identifier' => "foo:%{[@metadata][_type]}:%{[@metadata][_id]}"
+              }
+            }
+          }
+        ]
+
+        event = input(config) do |pipeline, queue|
+          queue.pop
+        end
+
+        expect(event.get('identifier')).to eq('foo:logs:C5b2xLQwTZa76jBmHIbwHQ')
+      end
     end
 
     context "when not defining the docinfo" do

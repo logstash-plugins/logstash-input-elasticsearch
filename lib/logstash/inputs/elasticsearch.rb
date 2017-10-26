@@ -170,7 +170,6 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
   def push_hit(hit, output_queue)
     event = LogStash::Event.new(hit['_source'])
-    decorate(event)
 
     if @docinfo
       # do not assume event[@docinfo_target] to be in-place updatable. first get it, update it, then at the end set it in the event.
@@ -189,6 +188,8 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
       event.set(@docinfo_target, docinfo_target)
     end
+
+    decorate(event)
 
     output_queue << event
   end
