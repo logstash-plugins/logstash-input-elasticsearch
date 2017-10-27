@@ -180,12 +180,12 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     if @schedule
       @scheduler = Rufus::Scheduler.new(:max_work_threads => 1)
       @scheduler.cron @schedule do
-        do_run(queue)
+        do_run(output_queue)
       end
 
       @scheduler.join
     else
-      do_run(queue)
+      do_run(output_queue)
     end
   end
 
