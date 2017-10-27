@@ -32,6 +32,9 @@ plugin to version 4.0.2 or higher.
 
 Read from an Elasticsearch cluster, based on search query results.
 This is useful for replaying test logs, reindexing, etc.
+You can periodically schedule ingestion using a cron syntax 
+(see `schedule` setting) or run the query one time to load
+data into Logstash.
 
 Example:
 [source,ruby]
@@ -55,6 +58,25 @@ This would create an Elasticsearch query with the following format:
     }'
 
 
+==== Scheduling
+
+Input from this plugin can be scheduled to run periodically according to a specific
+schedule. This scheduling syntax is powered by https://github.com/jmettraux/rufus-scheduler[rufus-scheduler].
+The syntax is cron-like with some extensions specific to Rufus (e.g. timezone support ).
+
+Examples:
+
+|==========================================================
+| `* 5 * 1-3 *`               | will execute every minute of 5am every day of January through March.
+| `0 * * * *`                 | will execute on the 0th minute of every hour every day.
+| `0 6 * * * America/Chicago` | will execute at 6:00am (UTC/GMT -5) every day.
+|==========================================================
+
+
+Further documentation describing this syntax can be found
+https://github.com/jmettraux/rufus-scheduler#parsing-cronlines-and-time-strings[here].
+
+
 [id="plugins-{type}s-{plugin}-options"]
 ==== Elasticsearch Input Configuration Options
 
@@ -71,6 +93,7 @@ This plugin supports the following configuration options plus the <<plugins-{typ
 | <<plugins-{type}s-{plugin}-index>> |<<string,string>>|No
 | <<plugins-{type}s-{plugin}-password>> |<<password,password>>|No
 | <<plugins-{type}s-{plugin}-query>> |<<string,string>>|No
+| <<plugins-{type}s-{plugin}-schedule>> |<<string,string>>|No
 | <<plugins-{type}s-{plugin}-scroll>> |<<string,string>>|No
 | <<plugins-{type}s-{plugin}-size>> |<<number,number>>|No
 | <<plugins-{type}s-{plugin}-ssl>> |<<boolean,boolean>>|No
@@ -186,6 +209,18 @@ string authentication will be disabled.
 The query to be executed. Read the
 [Elasticsearch query DSL documentation](https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html)
 for more information.
+
+[id="plugins-{type}s-{plugin}-schedule"]
+===== `schedule` 
+
+  * Value type is <<string,string>>
+  * There is no default value for this setting.
+
+Schedule of when to periodically run statement, in Cron format
+for example: "* * * * *" (execute query every minute, on the minute)
+
+There is no schedule by default. If no schedule is given, then the statement is run
+exactly once.
 
 [id="plugins-{type}s-{plugin}-scroll"]
 ===== `scroll` 
