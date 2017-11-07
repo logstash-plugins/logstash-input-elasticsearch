@@ -1,9 +1,9 @@
 Gem::Specification.new do |s|
 
   s.name            = 'logstash-input-elasticsearch'
-  s.version         = '4.1.0'
+  s.version         = '4.1.1'
   s.licenses        = ['Apache License (2.0)']
-  s.summary         = "Read from an Elasticsearch cluster, based on search query results"
+  s.summary         = "Reads query results from an Elasticsearch cluster"
   s.description     = "This gem is a Logstash plugin required to be installed on top of the Logstash core pipeline using $LS_HOME/bin/logstash-plugin install gemname. This gem is not a stand-alone program"
   s.authors         = ["Elastic"]
   s.email           = 'info@elastic.co'

@@ -1,3 +1,6 @@
+## 4.1.1
+  - Update gemspec summary
+
 ## 4.1.0
  - Enable use of docinfo (@metadata) fields in `add_field` decorations
 
