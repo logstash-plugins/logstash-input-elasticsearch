@@ -127,6 +127,11 @@ Example
     }
 
 
+NOTE: Starting with Logstash 6.0, the `document_type` option is
+deprecated due to the
+https://www.elastic.co/guide/en/elasticsearch/reference/6.0/removal-of-types.html[removal of types in Logstash 6.0].
+It will be removed in the next major version of Logstash.
+
 [id="plugins-{type}s-{plugin}-docinfo_fields"]
 ===== `docinfo_fields` 
 
@@ -136,7 +141,7 @@ Example
 If document metadata storage is requested by enabling the `docinfo`
 option, this option lists the metadata fields to save in the current
 event. See
-[Document Metadata](http://www.elasticsearch.org/guide/en/elasticsearch/guide/current/_document_metadata.html)
+http://www.elasticsearch.org/guide/en/elasticsearch/guide/current/_document_metadata.html[Document Metadata]
 in the Elasticsearch documentation for more information.
 
 [id="plugins-{type}s-{plugin}-docinfo_target"]
@@ -184,7 +189,7 @@ string authentication will be disabled.
   * Default value is `'{ "sort": [ "_doc" ] }'`
 
 The query to be executed. Read the
-[Elasticsearch query DSL documentation](https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html)
+https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html[Elasticsearch query DSL documentation]
 for more information.
 
 [id="plugins-{type}s-{plugin}-scroll"]
