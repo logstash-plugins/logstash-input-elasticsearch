@@ -1,3 +1,6 @@
+## 4.1.2
+  - Docs: Deprecate `document_type`
+
 ## 4.1.1
   - Update gemspec summary
 
