@@ -1,5 +1,6 @@
-## 4.1.2
+## 4.2.0
   - Docs: Deprecate `document_type`
+  - Add support for scheduling periodic execution of the query #81
 
 ## 4.1.1
   - Update gemspec summary
