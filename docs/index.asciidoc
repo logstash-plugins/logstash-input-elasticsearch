@@ -194,7 +194,7 @@ can be either IP, HOST, IP:port, or HOST:port. The port defaults to
   * Default value is `"logstash-*"`
 
 The index or alias to search. See
-https://www.elastic.co/guide/en/elasticsearch/reference/current/multi-index.html
+https://www.elastic.co/guide/en/elasticsearch/reference/current/multi-index.html[Multi Indices documentation]
 in the Elasticsearch documentation for more information on how to reference
 multiple indices.
 
