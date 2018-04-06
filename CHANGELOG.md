@@ -1,3 +1,6 @@
+## 4.2.1
+  - Docs: Set the default_codec doc attribute.
+
 ## 4.2.0
   - Docs: Deprecate `document_type`
   - Add support for scheduling periodic execution of the query #81
