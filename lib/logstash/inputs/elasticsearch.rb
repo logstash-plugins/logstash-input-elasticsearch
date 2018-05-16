@@ -10,13 +10,11 @@ require "base64"
 # called `http.content_type.required`. If this option is set to `true`, and you
 # are using Logstash 2.4 through 5.2, you need to update the Elasticsearch input
 # plugin to version 4.0.2 or higher.
-# 
+#
 # ================================================================================
-# 
+#
 # Read from an Elasticsearch cluster, based on search query results.
 # This is useful for replaying test logs, reindexing, etc.
-# It also supports periodically scheduling lookup enrichments
-# using a cron syntax (see `schedule` setting).
 #
 # Example:
 # [source,ruby]
@@ -38,24 +36,6 @@ require "base64"
 #       },
 #       "sort": [ "_doc" ]
 #     }'
-#
-# ==== Scheduling
-#
-# Input from this plugin can be scheduled to run periodically according to a specific
-# schedule. This scheduling syntax is powered by https://github.com/jmettraux/rufus-scheduler[rufus-scheduler].
-# The syntax is cron-like with some extensions specific to Rufus (e.g. timezone support ).
-#
-# Examples:
-#
-# |==========================================================
-# | `* 5 * 1-3 *`               | will execute every minute of 5am every day of January through March.
-# | `0 * * * *`                 | will execute on the 0th minute of every hour every day.
-# | `0 6 * * * America/Chicago` | will execute at 6:00am (UTC/GMT -5) every day.
-# |==========================================================
-#
-#
-# Further documentation describing this syntax can be found https://github.com/jmettraux/rufus-scheduler#parsing-cronlines-and-time-strings[here].
-#
 #
 class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   config_name "elasticsearch"
@@ -130,20 +110,15 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
   # SSL
   config :ssl, :validate => :boolean, :default => false
+  
+  # ssl_certificate_verification - Disable ssl_verification with false
+  config :ssl_certificate_verification, :validate => :boolean, :default => true
 
-  # SSL Certificate Authority file in PEM encoded format, must also include any chain certificates as necessary 
+  # SSL Certificate Authority file in PEM encoded format, must also include any chain certificates as necessary
   config :ca_file, :validate => :path
-
-  # Schedule of when to periodically run statement, in Cron format
-  # for example: "* * * * *" (execute query every minute, on the minute)
-  #
-  # There is no schedule by default. If no schedule is given, then the statement is run
-  # exactly once.
-  config :schedule, :validate => :string
 
   def register
     require "elasticsearch"
-    require "rufus/scheduler"
 
     @options = {
       :index => @index,
@@ -168,34 +143,17 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
       @hosts
     end
 
-    if @ssl && @ca_file
+    if @ssl && !@ssl_certificate_verification
+      transport_options[:ssl] = { :verify => @ssl_certificate_verification }
+    elsif @ssl && @ca_file
       transport_options[:ssl] = { :ca_file => @ca_file }
     end
+    
 
     @client = Elasticsearch::Client.new(:hosts => hosts, :transport_options => transport_options)
   end
 
-
   def run(output_queue)
-    if @schedule
-      @scheduler = Rufus::Scheduler.new(:max_work_threads => 1)
-      @scheduler.cron @schedule do
-        do_run(output_queue)
-      end
-
-      @scheduler.join
-    else
-      do_run(output_queue)
-    end
-  end
-
-  def stop
-    @scheduler.stop if @scheduler
-  end
-
-  private
-
-  def do_run(output_queue)
     # get first wave of data
     r = @client.search(@options)
 
@@ -207,6 +165,8 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
       has_hits = r['has_hits']
     end
   end
+
+  private
 
   def process_next_scroll(output_queue, scroll_id)
     r = scroll_request(scroll_id)
