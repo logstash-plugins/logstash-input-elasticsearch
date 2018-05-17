@@ -397,8 +397,4 @@ describe LogStash::Inputs::Elasticsearch do
     insist { event }.is_a?(LogStash::Event)
     expect(event.get("[cities][buckets]").map do |bucket| bucket["key"] end).to eq(['Tirana',"Shkodra"])
   end
-
-  it "should fail for unsupported response type" do
-
-  end
 end
