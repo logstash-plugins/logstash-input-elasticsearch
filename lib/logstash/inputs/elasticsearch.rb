@@ -216,13 +216,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
           has_hits = r['has_hits']
         end
       when 'aggregations'
-        aggs = r['aggregations']
-        event = LogStash::Event.new(aggs)
-
-        decorate(event)
-        output_queue << event
-      else
-        raise Exception.new("Unsupported response type: #{@response_type}")
+          push_aggregation(r, output_queue)
     end
 
   end
@@ -259,7 +253,13 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     output_queue << event
   end
 
-
+  def push_aggregation(response, output_queue)
+    aggs = response['aggregations']
+    event = LogStash::Event.new(aggs)
+    decorate(event)
+    output_queue << event
+  end
+  
   def scroll_request scroll_id
     @client.scroll(:body => { :scroll_id => scroll_id }, :scroll => @scroll)
   end
