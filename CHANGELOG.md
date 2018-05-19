@@ -1,3 +1,6 @@
+## 4.3.0
+  - Add support to return either `hits` or `aggregations`
+
 ## 4.2.0
   - Docs: Deprecate `document_type`
   - Add support for scheduling periodic execution of the query #81
