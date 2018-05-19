@@ -93,6 +93,7 @@ This plugin supports the following configuration options plus the <<plugins-{typ
 | <<plugins-{type}s-{plugin}-index>> |<<string,string>>|No
 | <<plugins-{type}s-{plugin}-password>> |<<password,password>>|No
 | <<plugins-{type}s-{plugin}-query>> |<<string,string>>|No
+| <<plugins-{type}s-{plugin}-response_type>> |<<string,string>>|No
 | <<plugins-{type}s-{plugin}-schedule>> |<<string,string>>|No
 | <<plugins-{type}s-{plugin}-scroll>> |<<string,string>>|No
 | <<plugins-{type}s-{plugin}-size>> |<<number,number>>|No
@@ -214,6 +215,15 @@ string authentication will be disabled.
 The query to be executed. Read the
 https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html[Elasticsearch query DSL documentation]
 for more information.
+
+[id="plugins-{type}s-{plugin}-response_type"]
+===== `response_type` 
+
+  * Value type is <<string,string>>
+  * Default value is `'hits'`
+  * Possible values are = `'hits'` or `'aggregations'`
+
+Allows you to specify which part of Elasticsearch's response to handle
 
 [id="plugins-{type}s-{plugin}-schedule"]
 ===== `schedule` 

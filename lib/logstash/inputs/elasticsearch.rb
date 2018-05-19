@@ -75,7 +75,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html
   config :query, :validate => :string, :default => '{ "sort": [ "_doc" ] }'
 
-  # This allows you to speccify the response: either hits or aggregations
+  # This allows you to speccify the response type: either hits or aggregations
   config :response_type, :validate => ['hits', 'aggregations'], :default => 'hits'
 
   # This allows you to set the maximum number of hits returned per scroll.
