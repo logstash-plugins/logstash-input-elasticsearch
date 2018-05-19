@@ -34,7 +34,7 @@ describe LogStash::Inputs::Elasticsearch do
     end
   end
 
-  it "should retrieve json event from elasticseach" do
+  it "should retrieve json event from elasticseach hits" do
     config = %q[
       input {
         elasticsearch {
@@ -83,7 +83,9 @@ describe LogStash::Inputs::Elasticsearch do
     insist { event }.is_a?(LogStash::Event)
     insist { event.get("message") } == [ "ohayo" ]
   end
+  it "should retrieve json event when specifying respones type" do
 
+  end
   context "with Elasticsearch document information" do
     let!(:response) do
       {
@@ -344,4 +346,55 @@ describe LogStash::Inputs::Elasticsearch do
 
   end
 
+  it "should retrieve json event from elasticsearch aggregations" do
+    config = %q{
+      input {
+        elasticsearch {
+          hosts => ["localhost"]
+          query => '{"aggs":{"cities":{"terms":{"field":"city_name"}}}}'
+          response_type => aggregations
+        }
+      }
+    }
+    response = {
+        "_scroll_id" => "cXVlcnlUaGVuRmV0Y2g",
+        "took" => 27,
+        "timed_out" => false,
+        "_shards" => {
+            "total" => 169,
+            "successful" => 169,
+            "failed" => 0
+        },
+        "hits" => {
+            "total" => 20,
+            "max_score" => 1.0,
+            "hits" => []
+        },
+        "aggregations" => {
+            "cities" => {
+                "doc_count_error_upper_bound" => 0,
+                "sum_other_doc_count"  => 0,
+                "buckets" => [
+                    {
+                        "key" => "Tirana",
+                        "doc_count" =>  10
+                    },
+                    {
+                        "key" => "Shkodra",
+                        "doc_count" =>  10
+                    }
+                ]
+            }
+        }
+    }
+    client = Elasticsearch::Client.new
+    expect(Elasticsearch::Client).to receive(:new).with(any_args).and_return(client)
+    expect(client).to receive(:search).with(any_args).and_return(response)
+    event = input(config) do |pipeline, queue|
+      queue.pop
+    end
+
+    insist { event }.is_a?(LogStash::Event)
+    expect(event.get("[cities][buckets]").map do |bucket| bucket["key"] end).to eq(['Tirana',"Shkodra"])
+  end
 end

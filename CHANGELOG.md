@@ -1,3 +1,6 @@
+## 4.3.0
+  - Add support to return either `hits` or `aggregations`
+  
 ## 4.2.1
   - Docs: Set the default_codec doc attribute.
 

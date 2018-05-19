@@ -75,6 +75,9 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html
   config :query, :validate => :string, :default => '{ "sort": [ "_doc" ] }'
 
+  # This allows you to speccify the response type: either hits or aggregations
+  config :response_type, :validate => ['hits', 'aggregations'], :default => 'hits'
+
   # This allows you to set the maximum number of hits returned per scroll.
   config :size, :validate => :number, :default => 1000
 
@@ -148,9 +151,14 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     @options = {
       :index => @index,
       :body => @query,
-      :scroll => @scroll,
-      :size => @size
+      :size => 0
     }
+
+    # Set scroll and size for hits
+    if @response_type == 'hits'
+      @options[:scroll] = @scroll
+      @options[:size] = @size
+    end
 
     transport_options = {}
 
@@ -198,14 +206,19 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   def do_run(output_queue)
     # get first wave of data
     r = @client.search(@options)
+    case @response_type
+      when 'hits'
+        r['hits']['hits'].each { |hit| push_hit(hit, output_queue) }
+        has_hits = r['hits']['hits'].any?
 
-    r['hits']['hits'].each { |hit| push_hit(hit, output_queue) }
-    has_hits = r['hits']['hits'].any?
-
-    while has_hits && !stop?
-      r = process_next_scroll(output_queue, r['_scroll_id'])
-      has_hits = r['has_hits']
+        while has_hits && !stop?
+          r = process_next_scroll(output_queue, r['_scroll_id'])
+          has_hits = r['has_hits']
+        end
+      when 'aggregations'
+          push_aggregation(r, output_queue)
     end
+
   end
 
   def process_next_scroll(output_queue, scroll_id)
@@ -240,6 +253,13 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     output_queue << event
   end
 
+  def push_aggregation(response, output_queue)
+    aggs = response['aggregations']
+    event = LogStash::Event.new(aggs)
+    decorate(event)
+    output_queue << event
+  end
+  
   def scroll_request scroll_id
     @client.scroll(:body => { :scroll_id => scroll_id }, :scroll => @scroll)
   end
