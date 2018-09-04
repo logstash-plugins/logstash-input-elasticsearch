@@ -1,4 +1,4 @@
-## Unreleased
+## 4.3.0
   - Add support for managed multi-slice scrolling with `slices` option.
 
 ## 4.2.1
