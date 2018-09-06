@@ -577,4 +577,104 @@ describe LogStash::Inputs::Elasticsearch do
 
   end
 
+  context 'elasticsearch client configuration' do
+    # In this set of tests, we validate the client that is created by registering a plugin
+    # with a certain configuration, in order to ensure that certain client-specific settings
+    # are wired through correctly.
+    subject(:client_initialize_options) do
+      result = nil
+
+      expect(Elasticsearch::Client).to receive(:new) do |options|
+        result = options
+      end
+      plugin.register
+
+      # Ensure that our expectation on Elasticsearch::Client#new has been met
+      RSpec::Mocks.verify
+
+      result
+    end
+
+    let(:config) do
+      {
+          "hosts" => ["localhost:9200"],
+          "query" => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }'
+      }
+    end
+
+    context 'when `ssl` is explicitly enabled' do
+      let(:config) { super().merge('ssl' => 'true') }
+
+      it { should include(:hosts) }
+      context '-> :hosts' do
+        subject(:hosts) { client_initialize_options.fetch(:hosts) }
+        it 'maps each host to include https schema' do
+          expect(hosts).to eq([{host: 'localhost', scheme: 'https', port: '9200'}])
+        end
+      end
+
+      it { should include(:transport_options) }
+      context('-> :transport_options') do
+        subject(:transport_options) { client_initialize_options.fetch(:transport_options) }
+
+        it { should include(:ssl) }
+        context('-> :ssl') do
+          subject(:ssl_options) { transport_options.fetch(:ssl) }
+          it 'includes `enable: true`' do
+            expect(ssl_options).to include(:enable)
+            expect(ssl_options[:enable]).to be true
+          end
+          context('when `ssl_certificate_verification` is not specified') do
+            it 'includes `verify: true`' do
+              expect(ssl_options).to include(:verify)
+              expect(ssl_options[:verify]).to be true
+            end
+          end
+          context('when `ssl_certificate_verification` is explicitly enabled') do
+            let(:config) { super().merge('ssl_certificate_verification' => true) }
+            it 'includes `verify: true`' do
+              expect(ssl_options).to include(:verify)
+              expect(ssl_options[:verify]).to be true
+            end
+          end
+          context('when `ssl_certificate_verification` is explicitly disabled') do
+            let(:config) { super().merge('ssl_certificate_verification' => false) }
+            it 'includes `verify: false`' do
+              expect(ssl_options).to include(:verify)
+              expect(ssl_options[:verify]).to be false
+            end
+          end
+        end
+      end
+    end
+
+    {
+        'not specified' => {},
+        'explicitly disabled' => { 'ssl' => 'false' }
+    }.each do |ssl_option_desc, ssl_option_config_override|
+      context "when `ssl` is #{ssl_option_desc}" do
+        let(:config) { super().merge(ssl_option_config_override) }
+
+        it { should include(:hosts) }
+        context '-> :hosts' do
+          subject(:hosts) { client_initialize_options.fetch(:hosts) }
+          it 'does not maps each host to include https schema' do
+            expect(hosts).to eq(config['hosts'])
+          end
+        end
+
+        it { should include(:transport_options) }
+        context('-> :transport_options') do
+          subject(:transport_options) { client_initialize_options.fetch(:transport_options) }
+
+          context('-> :ssl') do
+            subject(:ssl_options) { transport_options.fetch(:ssl, {}) }
+            it 'does not include `enable: true`' do
+              expect(ssl_options[:enable]).to_not be true
+            end
+          end
+        end
+      end
+    end
+  end
 end
