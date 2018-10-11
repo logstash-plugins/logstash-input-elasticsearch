@@ -151,6 +151,19 @@ Example
       }
     }
 
+If set, it will be possible to use the metadata information in the <<plugins-{type}s-{plugin}-add_field>> common option.
+
+Example
+[source, ruby]
+    input {
+      elasticsearch {
+        docinfo => true
+        add_field => {
+          identifier => %{[@metadata][_index]}:%{[@metadata][_type]}:%{[@metadata][_id]}"
+        }
+      }
+    }
+
 
 NOTE: Starting with Logstash 6.0, the `document_type` option is
 deprecated due to the
