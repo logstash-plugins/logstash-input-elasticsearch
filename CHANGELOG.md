@@ -1,5 +1,5 @@
-## Unreleased
-  - Add support for managed multi-slice scrolling with `slices` option.
+## 4.3.0
+  - Added managed slice scrolling with `slices` option
 
 ## 4.2.1
   - Docs: Set the default_codec doc attribute.
