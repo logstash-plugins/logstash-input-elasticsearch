@@ -1,5 +1,5 @@
 ## 4.3.1
-  - Fixed deeplink to Elasticsearch Reference  [#tbd](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/tbd)
+  - Fixed deeplink to Elasticsearch Reference  [#103](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/103)
 
 ## 4.3.0
   - Added managed slice scrolling with `slices` option
