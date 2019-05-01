@@ -125,7 +125,7 @@ describe LogStash::Inputs::Elasticsearch do
     end
 
     context 'without slices directive' do
-      let(:config) { super().except('slices') }
+      let(:config) { super.tap { |h| h.delete('slices') } }
       it 'runs just one slice' do
         expect(plugin).to receive(:do_run_slice).with(duck_type(:<<))
         expect(Thread).to_not receive(:new)
