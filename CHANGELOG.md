@@ -1,3 +1,6 @@
+## 4.3.2
+  - Fixed broken link to Elasticsearch Reference  [#tbd](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/tbd)
+
 ## 4.3.1
   - Fixed deeplink to Elasticsearch Reference  [#103](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/103)
 
