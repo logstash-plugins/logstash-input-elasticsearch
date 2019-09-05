@@ -139,6 +139,11 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # SSL Certificate Authority file in PEM encoded format, must also include any chain certificates as necessary 
   config :ca_file, :validate => :path
 
+  # SSL Certificate Verification is on by default.
+  # Disabling it is UNSAFE and means that we will trust any server that we connect to,
+  # including servers with invalid, expired, forged, or self-signed certificates.
+  config :ssl_certificate_verification, :validate => :boolean, :default => true
+
   # Schedule of when to periodically run statement, in Cron format
   # for example: "* * * * *" (execute query every minute, on the minute)
   #
@@ -177,8 +182,20 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
       @hosts
     end
 
-    if @ssl && @ca_file
-      transport_options[:ssl] = { :ca_file => @ca_file }
+    if @ssl
+      ssl_options = {:enable => true}
+      ssl_options[:ca_file] = @ca_file unless @ca_file.nil?
+      ssl_options[:verify] = @ssl_certificate_verification
+
+      if !@ssl_certificate_verification
+        logger.warn([
+                        "** WARNING ** Detected UNSAFE options in elasticsearch input configuration!",
+                        "** WARNING ** You have enabled encryption but DISABLED certificate verification.",
+                        "** WARNING ** To make sure your data is secure change :ssl_certificate_verification to true"
+                    ].join("\n"))
+      end
+
+      transport_options[:ssl] = ssl_options
     end
 
     @client = Elasticsearch::Client.new(:hosts => hosts, :transport_options => transport_options)
