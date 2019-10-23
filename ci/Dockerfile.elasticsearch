@@ -1,0 +1,10 @@
+ARG elastic_stack_version
+FROM docker.elastic.co/elasticsearch/elasticsearch$distribution_suffix:$elastic_stack_version
+
+ARG plugin_path=/usr/share/plugins/this
+ARG es_path=/usr/share/elasticsearch
+ARG es_yml=$es_path/config/elasticsearch.yml
+
+RUN rm -f $es_path/config/scripts
+
+COPY --chown=elasticsearch:elasticsearch ci/elasticsearch-run.sh $es_path/
