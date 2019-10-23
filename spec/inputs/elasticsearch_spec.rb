@@ -375,15 +375,13 @@ describe LogStash::Inputs::Elasticsearch do
       end
 
       it 'merges the values if the `docinfo_target` already exist in the `_source` document' do
-        metadata_field = 'metadata_with_hash'
-
         config_metadata_with_hash = %Q[
             input {
               elasticsearch {
                 hosts => ["localhost"]
                 query => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }'
                 docinfo => true
-                docinfo_target => '#{metadata_field}'
+                docinfo_target => 'metadata_with_hash'
               }
             }
         ]
@@ -392,33 +390,23 @@ describe LogStash::Inputs::Elasticsearch do
           queue.pop
         end
 
-        expect(event.get("[#{metadata_field}][_index]")).to eq('logstash-2014.10.12')
-        expect(event.get("[#{metadata_field}][_type]")).to eq('logs')
-        expect(event.get("[#{metadata_field}][_id]")).to eq('C5b2xLQwTZa76jBmHIbwHQ')
-        expect(event.get("[#{metadata_field}][awesome]")).to eq("logstash")
+        expect(event.get("[metadata_with_hash][_index]")).to eq('logstash-2014.10.12')
+        expect(event.get("[metadata_with_hash][_type]")).to eq('logs')
+        expect(event.get("[metadata_with_hash][_id]")).to eq('C5b2xLQwTZa76jBmHIbwHQ')
+        expect(event.get("[metadata_with_hash][awesome]")).to eq("logstash")
       end
 
-      it 'thows an exception if the `docinfo_target` exist but is not of type hash' do
-        metadata_field = 'metadata_with_string'
-
-        config_metadata_with_string = %Q[
-            input {
-              elasticsearch {
-                hosts => ["localhost"]
-                query => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }'
-                docinfo => true
-                docinfo_target => '#{metadata_field}'
-              }
-            }
-        ]
-
-        pipeline = new_pipeline_from_string(config_metadata_with_string)
-        queue = Queue.new
-        pipeline.instance_eval do
-          @output_func = lambda { |event| queue << event }
+      context 'if the `docinfo_target` exist but is not of type hash' do
+        let (:config) { {
+            "hosts" => ["localhost"],
+            "query" => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }',
+            "docinfo" => true,
+            "docinfo_target" => 'metadata_with_string'
+        } }
+        it 'thows an exception if the `docinfo_target` exist but is not of type hash' do
+          plugin.register
+          expect { plugin.run([]) }.to raise_error(Exception, /incompatible event/)
         end
-
-        expect { pipeline.run }.to raise_error(Exception, /incompatible event/)
       end
 
       it "should move the document info to the @metadata field" do

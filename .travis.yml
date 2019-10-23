@@ -1,21 +1,19 @@
 ---
-sudo: false
-language: ruby
-cache: bundler
-matrix:
-  include:
-  - rvm: jruby-9.1.13.0
-    env: LOGSTASH_BRANCH=master
-  - rvm: jruby-9.1.13.0
-    env: LOGSTASH_BRANCH=7.0
-  - rvm: jruby-9.1.13.0
-    env: LOGSTASH_BRANCH=6.7
-  - rvm: jruby-9.1.13.0
-    env: LOGSTASH_BRANCH=6.6
-  - rvm: jruby-1.7.27
-    env: LOGSTASH_BRANCH=5.6
-  fast_finish: true
-install: true
-script: ci/build.sh
-jdk: openjdk8
-before_install: gem install bundler -v '< 2'
+sudo: required
+services: docker
+addons:
+  apt:
+    packages:
+    - docker-ce
+env:
+  - INTEGRATION=false ELASTIC_STACK_VERSION=5.x
+  - INTEGRATION=false ELASTIC_STACK_VERSION=6.x
+  - INTEGRATION=false ELASTIC_STACK_VERSION=7.x
+  - INTEGRATION=false ELASTIC_STACK_VERSION=7.x SNAPSHOT=true
+  - INTEGRATION=false ELASTIC_STACK_VERSION=8.x SNAPSHOT=true
+  - INTEGRATION=true ELASTIC_STACK_VERSION=6.x
+  - INTEGRATION=true ELASTIC_STACK_VERSION=7.x
+  - INTEGRATION=true ELASTIC_STACK_VERSION=7.x SNAPSHOT=true
+  - INTEGRATION=true ELASTIC_STACK_VERSION=8.x SNAPSHOT=true
+install: ci/docker-setup.sh
+script: ci/docker-run.sh
