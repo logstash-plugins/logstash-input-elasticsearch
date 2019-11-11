@@ -1,3 +1,6 @@
+## 4.3.3
+  - Loosen restrictions on Elasticsearch gem [#110](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/110)
+
 ## 4.3.2
   - Fixed broken link to Elasticsearch Reference  [#106](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/106)
 
