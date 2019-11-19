@@ -4,6 +4,7 @@ require "logstash/namespace"
 require "logstash/json"
 require "base64"
 
+
 # .Compatibility Note
 # [NOTE]
 # ================================================================================
@@ -149,6 +150,8 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   def register
     require "elasticsearch"
     require "rufus/scheduler"
+    require "elasticsearch/transport/transport/http/manticore"
+
 
     @options = {
       :index => @index,
@@ -176,12 +179,12 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     else
       @hosts
     end
+    ssl_options = { :ssl  => true, :ca_file => @ca_file } if @ssl && @ca_file
+    ssl_options ||= {}
 
-    if @ssl && @ca_file
-      transport_options[:ssl] = { :ca_file => @ca_file }
-    end
-
-    @client = Elasticsearch::Client.new(:hosts => hosts, :transport_options => transport_options)
+    @client = Elasticsearch::Client.new(:hosts => hosts, :transport_options => transport_options,
+                                        :transport_class => ::Elasticsearch::Transport::Transport::HTTP::Manticore,
+                                        :ssl => ssl_options)
   end
 
 
