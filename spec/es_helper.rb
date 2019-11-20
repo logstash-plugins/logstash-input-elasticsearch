@@ -1,11 +1,35 @@
 module ESHelper
   def self.get_host_port
-    return "http://elasticsearch:9200" if ENV["INTEGRATION"] == "true"
-    raise "This setting is only used for integration tests"
+    if ENV["SECURE_INTEGRATION"] == "true"
+      "elasticsearch:9200"
+    elsif ENV["INTEGRATION"] == "true"
+      "elasticsearch:9200"
+    else
+      raise "This setting is only used for integration tests"
+    end
   end
 
-  def self.get_client
-    Elasticsearch::Client.new(:hosts => [get_host_port])
+  def self.get_client(options = {})
+    ssl_options = {}
+    hosts = [get_host_port]
+
+    if options[:ca_file]
+      ssl_options = { :ssl  => true, :ca_file => options[:ca_file] }
+      hosts.map! do |h|
+        host, port = h.split(":")
+        { :host => host, :scheme => 'https', :port => port }
+      end
+    end
+
+    transport_options = {}
+
+    if options[:user] && options[:password]
+      token = Base64.strict_encode64("#{options[:user]}:#{options[:password]}")
+      transport_options[:headers] = { :Authorization => "Basic #{token}" }
+    end
+
+    @client = Elasticsearch::Client.new(:hosts => hosts, :transport_options => transport_options, :ssl => ssl_options,
+                                        :transport_class => ::Elasticsearch::Transport::Transport::HTTP::Manticore)
   end
 
   def self.doc_type
