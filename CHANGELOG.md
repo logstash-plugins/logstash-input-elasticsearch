@@ -1,3 +1,6 @@
+## 4.4.0
+  - Changed Elasticsearch Client transport to use Manticore[#111](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/111) 
+
 ## 4.3.3
   - Loosen restrictions on Elasticsearch gem [#110](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/110)
 
