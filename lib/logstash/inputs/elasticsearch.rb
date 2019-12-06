@@ -152,7 +152,6 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     require "rufus/scheduler"
     require "elasticsearch/transport/transport/http/manticore"
 
-
     @options = {
       :index => @index,
       :scroll => @scroll,
