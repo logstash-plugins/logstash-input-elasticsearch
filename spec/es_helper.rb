@@ -1,12 +1,7 @@
 module ESHelper
   def self.get_host_port
-    if ENV["SECURE_INTEGRATION"] == "true"
-      "elasticsearch:9200"
-    elsif ENV["INTEGRATION"] == "true"
-      "elasticsearch:9200"
-    else
-      raise "This setting is only used for integration tests"
-    end
+    return "elasticsearch:9200" if ENV["INTEGRATION"] == "true" || ENV["SECURE_INTEGRATION"] == "true"
+    raise "This setting is only used for integration tests"
   end
 
   def self.get_client(options = {})
