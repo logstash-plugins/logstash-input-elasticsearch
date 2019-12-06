@@ -11,6 +11,7 @@ services:
       args:
         - elastic_stack_version=$ELASTIC_STACK_VERSION
         - integration=${INTEGRATION:-false}
+        - secure_integration=${SECURE_INTEGRATION:-false}
     command: /usr/share/plugins/this/ci/logstash-run.sh
     environment:
         - SPEC_OPTS
@@ -25,6 +26,7 @@ services:
       args:
         - elastic_stack_version=$ELASTIC_STACK_VERSION
         - integration=${INTEGRATION:-false}
+        - secure_integration=${SECURE_INTEGRATION:-false}
     command: /usr/share/elasticsearch/elasticsearch-run.sh
     tty: true
     ports:
