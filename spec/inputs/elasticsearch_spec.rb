@@ -587,39 +587,11 @@ describe LogStash::Inputs::Elasticsearch do
       }
     end
 
-    response = {
-      "_scroll_id" => "cXVlcnlUaGVuRmV0Y2g",
-      "took" => 27,
-      "timed_out" => false,
-      "_shards" => {
-        "total" => 169,
-        "successful" => 169,
-        "failed" => 0
-      },
-      "hits" => {
-        "total" => 1,
-        "max_score" => 1.0,
-        "hits" => [ {
-          "_index" => "logstash-2014.10.12",
-          "_type" => "logs",
-          "_id" => "C5b2xLQwTZa76jBmHIbwHQ",
-          "_score" => 1.0,
-          "_source" => { "message" => ["ohayo"] }
-        } ]
-      }
-    }
-
-    scroll_reponse = {
-      "_scroll_id" => "r453Wc1jh0caLJhSDg",
-      "hits" => { "hits" => [] }
-    }
-
     before do
       plugin.register
     end
 
     it "should properly schedule" do
-
       Timecop.travel(Time.new(2000))
       Timecop.scale(60)
       runner = Thread.new do
@@ -638,5 +610,4 @@ describe LogStash::Inputs::Elasticsearch do
     end
 
   end
-
 end

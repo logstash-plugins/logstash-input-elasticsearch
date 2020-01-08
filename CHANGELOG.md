@@ -1,5 +1,8 @@
+## 4.5.0
+  - Feat: Added support for cloud_id / cloud_auth configuration [#112](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/112)
+
 ## 4.4.0
-  - Changed Elasticsearch Client transport to use Manticore[#111](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/111) 
+  - Changed Elasticsearch Client transport to use Manticore [#111](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/111) 
 
 ## 4.3.3
   - Loosen restrictions on Elasticsearch gem [#110](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/110)
