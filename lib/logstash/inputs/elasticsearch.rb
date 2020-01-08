@@ -2,6 +2,7 @@
 require "logstash/inputs/base"
 require "logstash/namespace"
 require "logstash/json"
+require "logstash/util/safe_uri"
 require "base64"
 
 
@@ -69,6 +70,11 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # Port defaults to 9200
   config :hosts, :validate => :array
 
+  # Cloud ID, from the Elastic Cloud web console. If set `hosts` should not be used.
+  #
+  # For more info, check out the https://www.elastic.co/guide/en/logstash/current/connecting-to-cloud.html#_cloud_id[Logstash-to-Cloud documentation]
+  config :cloud_id, :validate => :string
+
   # The index or alias to search.
   config :index, :validate => :string, :default => "logstash-*"
 
@@ -134,6 +140,11 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # Basic Auth - password
   config :password, :validate => :password
 
+  # Cloud authentication string ("<username>:<password>" format) is an alternative for the `user`/`password` configuration.
+  #
+  # For more info, check out the https://www.elastic.co/guide/en/logstash/current/connecting-to-cloud.html#_cloud_auth[Logstash-to-Cloud documentation]
+  config :cloud_auth, :validate => :password
+
   # SSL
   config :ssl, :validate => :boolean, :default => false
 
@@ -165,12 +176,17 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
     transport_options = {}
 
+    fill_user_password_from_cloud_auth
+
     if @user && @password
       token = Base64.strict_encode64("#{@user}:#{@password.value}")
       transport_options[:headers] = { :Authorization => "Basic #{token}" }
     end
 
-    hosts = if @ssl then
+    fill_hosts_from_cloud_id
+    @hosts = Array(@hosts).map { |host| host.to_s } # potential SafeURI#to_s
+
+    hosts = if @ssl
       @hosts.map do |h|
         host, port = h.split(":")
         { :host => host, :scheme => 'https', :port => port }
@@ -275,10 +291,70 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   end
 
   def scroll_request scroll_id
-    @client.scroll(:body => { :scroll_id => scroll_id }, :scroll => @scroll)
+    client.scroll(:body => { :scroll_id => scroll_id }, :scroll => @scroll)
   end
 
   def search_request(options)
-    @client.search(options)
+    client.search(options)
   end
+
+  attr_reader :client
+
+  def hosts_default?(hosts)
+    hosts.nil? || ( hosts.is_a?(Array) && hosts.empty? )
+  end
+
+  def fill_hosts_from_cloud_id
+    return unless @cloud_id
+
+    if @hosts && !hosts_default?(@hosts)
+      raise LogStash::ConfigurationError, 'Both cloud_id and hosts specified, please only use one of those.'
+    end
+    @hosts = parse_host_uri_from_cloud_id(@cloud_id)
+  end
+
+  def fill_user_password_from_cloud_auth
+    return unless @cloud_auth
+
+    if @user || @password
+      raise LogStash::ConfigurationError, 'Both cloud_auth and user/password specified, please only use one.'
+    end
+    @user, @password = parse_user_password_from_cloud_auth(@cloud_auth)
+    params['user'], params['password'] = @user, @password
+  end
+
+  def parse_host_uri_from_cloud_id(cloud_id)
+    begin # might not be available on older LS
+      require 'logstash/util/cloud_setting_id'
+    rescue LoadError
+      raise LogStash::ConfigurationError, 'The cloud_id setting is not supported by your version of Logstash, ' +
+          'please upgrade your installation (or set hosts instead).'
+    end
+
+    begin
+      cloud_id = LogStash::Util::CloudSettingId.new(cloud_id) # already does append ':{port}' to host
+    rescue ArgumentError => e
+      raise LogStash::ConfigurationError, e.message.to_s.sub(/Cloud Id/i, 'cloud_id')
+    end
+    cloud_uri = "#{cloud_id.elasticsearch_scheme}://#{cloud_id.elasticsearch_host}"
+    LogStash::Util::SafeURI.new(cloud_uri)
+  end
+
+  def parse_user_password_from_cloud_auth(cloud_auth)
+    begin # might not be available on older LS
+      require 'logstash/util/cloud_setting_auth'
+    rescue LoadError
+      raise LogStash::ConfigurationError, 'The cloud_auth setting is not supported by your version of Logstash, ' +
+          'please upgrade your installation (or set user/password instead).'
+    end
+
+    cloud_auth = cloud_auth.value if cloud_auth.is_a?(LogStash::Util::Password)
+    begin
+      cloud_auth = LogStash::Util::CloudSettingAuth.new(cloud_auth)
+    rescue ArgumentError => e
+      raise LogStash::ConfigurationError, e.message.to_s.sub(/Cloud Auth/i, 'cloud_auth')
+    end
+    [ cloud_auth.username, cloud_auth.password ]
+  end
+
 end
