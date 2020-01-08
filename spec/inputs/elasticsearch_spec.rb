@@ -504,6 +504,80 @@ describe LogStash::Inputs::Elasticsearch do
     end
   end
 
+  describe "client" do
+    let(:config) do
+      {
+
+      }
+    end
+    let(:plugin) { described_class.new(config) }
+    let(:event)  { LogStash::Event.new({}) }
+
+    describe "cloud.id" do
+      let(:valid_cloud_id) do
+        'sample:dXMtY2VudHJhbDEuZ2NwLmNsb3VkLmVzLmlvJGFjMzFlYmI5MDI0MTc3MzE1NzA0M2MzNGZkMjZmZDQ2OjkyNDMkYTRjMDYyMzBlNDhjOGZjZTdiZTg4YTA3NGEzYmIzZTA6OTI0NA=='
+      end
+
+      let(:config) { super.merge({ 'cloud_id' => valid_cloud_id }) }
+
+      it "should set host(s)" do
+        plugin.register
+        client = plugin.send(:client)
+        expect( client.transport.hosts ).to eql [{
+                                                     :scheme => "https",
+                                                     :host => "ac31ebb90241773157043c34fd26fd46.us-central1.gcp.cloud.es.io",
+                                                     :port => 9243,
+                                                     :path => "",
+                                                     :protocol => "https"
+                                                 }]
+      end
+
+      context 'invalid' do
+        let(:config) { super.merge({ 'cloud_id' => 'invalid:dXMtY2VudHJhbDEuZ2NwLmNsb3VkLmVzLmlv' }) }
+
+        it "should fail" do
+          expect { plugin.register }.to raise_error LogStash::ConfigurationError, /cloud_id.*? is invalid/
+        end
+      end
+
+      context 'hosts also set' do
+        let(:config) { super.merge({ 'cloud_id' => valid_cloud_id, 'hosts' => [ 'localhost:9200' ] }) }
+
+        it "should fail" do
+          expect { plugin.register }.to raise_error LogStash::ConfigurationError, /cloud_id and hosts/
+        end
+      end
+    end if LOGSTASH_VERSION > '6.0'
+
+    describe "cloud.auth" do
+      let(:config) { super.merge({ 'cloud_auth' => LogStash::Util::Password.new('elastic:my-passwd-00') }) }
+
+      it "should set authorization" do
+        plugin.register
+        client = plugin.send(:client)
+        auth_header = client.transport.options[:transport_options][:headers][:Authorization]
+
+        expect( auth_header ).to eql "Basic #{Base64.encode64('elastic:my-passwd-00').rstrip}"
+      end
+
+      context 'invalid' do
+        let(:config) { super.merge({ 'cloud_auth' => 'invalid-format' }) }
+
+        it "should fail" do
+          expect { plugin.register }.to raise_error LogStash::ConfigurationError, /cloud_auth.*? format/
+        end
+      end
+
+      context 'user also set' do
+        let(:config) { super.merge({ 'cloud_auth' => 'elastic:my-passwd-00', 'user' => 'another' }) }
+
+        it "should fail" do
+          expect { plugin.register }.to raise_error LogStash::ConfigurationError, /cloud_auth and user/
+        end
+      end
+    end if LOGSTASH_VERSION > '6.0'
+  end
+
   context "when scheduling" do
     let(:config) do
       {
@@ -513,39 +587,11 @@ describe LogStash::Inputs::Elasticsearch do
       }
     end
 
-    response = {
-      "_scroll_id" => "cXVlcnlUaGVuRmV0Y2g",
-      "took" => 27,
-      "timed_out" => false,
-      "_shards" => {
-        "total" => 169,
-        "successful" => 169,
-        "failed" => 0
-      },
-      "hits" => {
-        "total" => 1,
-        "max_score" => 1.0,
-        "hits" => [ {
-          "_index" => "logstash-2014.10.12",
-          "_type" => "logs",
-          "_id" => "C5b2xLQwTZa76jBmHIbwHQ",
-          "_score" => 1.0,
-          "_source" => { "message" => ["ohayo"] }
-        } ]
-      }
-    }
-
-    scroll_reponse = {
-      "_scroll_id" => "r453Wc1jh0caLJhSDg",
-      "hits" => { "hits" => [] }
-    }
-
     before do
       plugin.register
     end
 
     it "should properly schedule" do
-
       Timecop.travel(Time.new(2000))
       Timecop.scale(60)
       runner = Thread.new do
@@ -564,5 +610,4 @@ describe LogStash::Inputs::Elasticsearch do
     end
 
   end
-
 end
