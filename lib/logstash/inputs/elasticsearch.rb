@@ -145,6 +145,9 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # For more info, check out the https://www.elastic.co/guide/en/logstash/current/connecting-to-cloud.html#_cloud_auth[Logstash-to-Cloud documentation]
   config :cloud_auth, :validate => :password
 
+  # Set the address of a forward HTTP proxy.
+  config :proxy, :validate => :uri # but empty string is allowed
+
   # SSL
   config :ssl, :validate => :boolean, :default => false
 
@@ -197,11 +200,30 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     ssl_options = { :ssl  => true, :ca_file => @ca_file } if @ssl && @ca_file
     ssl_options ||= {}
 
+    @logger.warn "Supplied proxy setting (proxy => '') has no effect" if @proxy.eql?('')
+
+    transport_options[:proxy] = @proxy.to_s if @proxy && !@proxy.eql?('')
+
     @client = Elasticsearch::Client.new(:hosts => hosts, :transport_options => transport_options,
                                         :transport_class => ::Elasticsearch::Transport::Transport::HTTP::Manticore,
                                         :ssl => ssl_options)
   end
 
+  # @override to handle proxy => '' as if none was set
+  def config_init(params)
+    proxy = params['proxy']
+    if proxy.is_a?(String)
+      # environment variables references aren't yet resolved
+      proxy = deep_replace(proxy)
+      if proxy.empty?
+        params.delete('proxy')
+        @proxy = ''
+      else
+        params['proxy'] = proxy # do not do resolving again
+      end
+    end
+    super(params)
+  end
 
   def run(output_queue)
     if @schedule
