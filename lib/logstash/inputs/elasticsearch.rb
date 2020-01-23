@@ -146,7 +146,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   config :cloud_auth, :validate => :password
 
   # Set the address of a forward HTTP proxy.
-  config :proxy, :validate => :uri # but empty string is allowed
+  config :proxy, :validate => :uri_or_empty
 
   # SSL
   config :ssl, :validate => :boolean, :default => false
@@ -209,20 +209,21 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
                                         :ssl => ssl_options)
   end
 
+  ##
   # @override to handle proxy => '' as if none was set
-  def config_init(params)
-    proxy = params['proxy']
-    if proxy.is_a?(String)
-      # environment variables references aren't yet resolved
-      proxy = deep_replace(proxy)
-      if proxy.empty?
-        params.delete('proxy')
-        @proxy = ''
-      else
-        params['proxy'] = proxy # do not do resolving again
-      end
-    end
-    super(params)
+  # @param value [Array<Object>]
+  # @param validator [nil,Array,Symbol]
+  # @return [Array(true,Object)]: if validation is a success, a tuple containing `true` and the coerced value
+  # @return [Array(false,String)]: if validation is a failure, a tuple containing `false` and the failure reason.
+  def self.validate_value(value, validator)
+    return super unless validator == :uri_or_empty
+
+    value = deep_replace(value)
+    value = hash_or_array(value)
+
+    return true, value.first if value.size == 1 && value.first.empty?
+
+    return super(value, :uri)
   end
 
   def run(output_queue)
