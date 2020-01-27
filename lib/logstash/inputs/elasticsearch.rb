@@ -145,6 +145,9 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # For more info, check out the https://www.elastic.co/guide/en/logstash/current/connecting-to-cloud.html#_cloud_auth[Logstash-to-Cloud documentation]
   config :cloud_auth, :validate => :password
 
+  # Set the address of a forward HTTP proxy.
+  config :proxy, :validate => :uri_or_empty
+
   # SSL
   config :ssl, :validate => :boolean, :default => false
 
@@ -197,11 +200,31 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     ssl_options = { :ssl  => true, :ca_file => @ca_file } if @ssl && @ca_file
     ssl_options ||= {}
 
+    @logger.warn "Supplied proxy setting (proxy => '') has no effect" if @proxy.eql?('')
+
+    transport_options[:proxy] = @proxy.to_s if @proxy && !@proxy.eql?('')
+
     @client = Elasticsearch::Client.new(:hosts => hosts, :transport_options => transport_options,
                                         :transport_class => ::Elasticsearch::Transport::Transport::HTTP::Manticore,
                                         :ssl => ssl_options)
   end
 
+  ##
+  # @override to handle proxy => '' as if none was set
+  # @param value [Array<Object>]
+  # @param validator [nil,Array,Symbol]
+  # @return [Array(true,Object)]: if validation is a success, a tuple containing `true` and the coerced value
+  # @return [Array(false,String)]: if validation is a failure, a tuple containing `false` and the failure reason.
+  def self.validate_value(value, validator)
+    return super unless validator == :uri_or_empty
+
+    value = deep_replace(value)
+    value = hash_or_array(value)
+
+    return true, value.first if value.size == 1 && value.first.empty?
+
+    return super(value, :uri)
+  end
 
   def run(output_queue)
     if @schedule

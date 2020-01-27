@@ -1,3 +1,6 @@
+## 4.6.0
+  - Feat: added option to specify proxy for ES [#114](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/114)
+
 ## 4.5.0
   - Feat: Added support for cloud_id / cloud_auth configuration [#112](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/112)
 

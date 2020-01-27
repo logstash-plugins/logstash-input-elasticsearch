@@ -576,6 +576,29 @@ describe LogStash::Inputs::Elasticsearch do
         end
       end
     end if LOGSTASH_VERSION > '6.0'
+
+    describe "proxy" do
+      let(:config) { super.merge({ 'proxy' => 'http://localhost:1234' }) }
+
+      it "should set proxy" do
+        plugin.register
+        client = plugin.send(:client)
+        proxy = client.transport.options[:transport_options][:proxy]
+
+        expect( proxy ).to eql "http://localhost:1234"
+      end
+
+      context 'invalid' do
+        let(:config) { super.merge({ 'proxy' => '${A_MISSING_ENV_VAR:}' }) }
+
+        it "should not set proxy" do
+          plugin.register
+          client = plugin.send(:client)
+
+          expect( client.transport.options[:transport_options] ).to_not include(:proxy)
+        end
+      end
+    end
   end
 
   context "when scheduling" do
