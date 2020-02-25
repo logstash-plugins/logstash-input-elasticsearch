@@ -151,6 +151,9 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # SSL
   config :ssl, :validate => :boolean, :default => false
 
+  # ssl_certificate_verification - Disable ssl_verification with false
+  config :ssl_certificate_verification, :validate => :boolean, :default => true
+
   # SSL Certificate Authority file in PEM encoded format, must also include any chain certificates as necessary 
   config :ca_file, :validate => :path
 
@@ -197,8 +200,11 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     else
       @hosts
     end
-    ssl_options = { :ssl  => true, :ca_file => @ca_file } if @ssl && @ca_file
+
+    ssl_options = { :ssl  => true, :ca_file => @ca_file, :verify => @ssl_certificate_verification } if @ssl && @ca_file
+    ssl_options ||= { :ssl  => @ssl, :verify => @ssl_certificate_verification } if @ssl
     ssl_options ||= {}
+
 
     @logger.warn "Supplied proxy setting (proxy => '') has no effect" if @proxy.eql?('')
 
