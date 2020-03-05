@@ -1,5 +1,6 @@
 # encoding: utf-8
 require "logstash/devutils/rspec/spec_helper"
+require "logstash/devutils/rspec/shared_examples"
 require "logstash/inputs/elasticsearch"
 require "elasticsearch"
 require "timecop"
@@ -80,8 +81,8 @@ describe LogStash::Inputs::Elasticsearch do
       queue.pop
     end
 
-    insist { event }.is_a?(LogStash::Event)
-    insist { event.get("message") } == [ "ohayo" ]
+    expect(event).to be_a(LogStash::Event)
+    expect(event.get("message")).to eql [ "ohayo" ]
   end
 
 
