@@ -1,0 +1,24 @@
+version: '3'
+
+services:
+
+  logstash:
+    command: /usr/share/plugins/plugin/.ci/logstash-run.sh
+    environment:
+        - INTEGRATION=${INTEGRATION:-false}
+        - SECURE_INTEGRATION=${SECURE_INTEGRATION:-false}
+
+  elasticsearch:
+    build:
+      context: ../
+      dockerfile: .ci/Dockerfile.elasticsearch
+      args:
+        - ELASTIC_STACK_VERSION=$ELASTIC_STACK_VERSION
+        - INTEGRATION=${INTEGRATION:-false}
+        - SECURE_INTEGRATION=${SECURE_INTEGRATION:-false}
+    command: /usr/share/elasticsearch/elasticsearch-run.sh
+    tty: true
+    ports:
+      - "9200:9200"
+    user: elasticsearch
+
