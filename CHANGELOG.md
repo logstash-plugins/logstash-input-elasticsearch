@@ -1,5 +1,5 @@
 ## 4.6.1
-  - [DOC] Removed outdated compatibility notice [#tbd](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/tbd)
+  - [DOC] Removed outdated compatibility notice [#124](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/124)
 
 ## 4.6.0
   - Feat: added option to specify proxy for ES [#114](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/114)
