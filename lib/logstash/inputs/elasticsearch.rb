@@ -315,10 +315,28 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
   def scroll_request scroll_id
     client.scroll(:body => { :scroll_id => scroll_id }, :scroll => @scroll)
+  rescue => e
+    if stop?
+      @logger.error("Error performing scroll request to Elasticsearch", :error => e.class, :message => e.message)
+      raise e
+    else
+      @logger.error("Error performing scroll request to Elasticsearch. Retrying..", :error => e.class, :message => e.message)
+      sleep 1
+      retry
+    end
   end
 
   def search_request(options)
     client.search(options)
+  rescue => e
+    if stop?
+      @logger.error("Error performing search request to Elasticsearch", :error => e.class, :message => e.message)
+      raise e
+    else
+      @logger.error("Error performing search request to Elasticsearch. Retrying..", :error => e.class, :message => e.message)
+      sleep 1
+      retry
+    end
   end
 
   attr_reader :client
