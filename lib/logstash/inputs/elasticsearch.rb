@@ -280,11 +280,9 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
       has_hits = r['hits']['hits'].any?
       scroll_id = r['_scroll_id']
 
-      while has_hits &&  scroll_id && !stop?
-        r = process_next_scroll(output_queue, scroll_id)
-        logger.debug("Slice progress", slice_id: slice_id, slices: @slices) unless slice_id.nil?
-        has_hits = r['has_hits']
-        scroll_id = r['_scroll_id']
+      while has_hits && scroll_id && !stop?
+        has_hits, scroll_id = process_next_scroll(output_queue, scroll_id)
+        logger.debug("Slice progress", slice_id: slice_id, slices: @slices) if logger.debug? && slice_id
       end
       logger.info("Slice complete", slice_id: slice_id, slices: @slices) unless slice_id.nil?
     ensure
@@ -300,7 +298,12 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   def process_next_scroll(output_queue, scroll_id)
     r = scroll_request(scroll_id)
     r['hits']['hits'].each { |hit| push_hit(hit, output_queue) }
-    {'has_hits' => r['hits']['hits'].any?, '_scroll_id' => r['_scroll_id']}
+    [r['hits']['hits'].any?, r['_scroll_id']]
+  rescue => e
+    # this will typically be triggered by a scroll timeout
+    logger.error("Scroll request error, aborting scroll", error: e.inspect)
+    # return no hits and original scroll_id so we can try to clear it
+    [false, scroll_id]
   end
 
   def push_hit(hit, output_queue)
