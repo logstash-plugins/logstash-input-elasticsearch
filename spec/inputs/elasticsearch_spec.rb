@@ -8,9 +8,13 @@ require "stud/temporary"
 require "time"
 require "date"
 
-describe LogStash::Inputs::Elasticsearch do
+class LogStash::Inputs::TestableElasticsearch < LogStash::Inputs::Elasticsearch
+  attr_reader :client
+end
 
-  let(:plugin) { LogStash::Inputs::Elasticsearch.new(config) }
+describe LogStash::Inputs::TestableElasticsearch do
+
+  let(:plugin) { LogStash::Inputs::TestableElasticsearch.new(config) }
   let(:queue) { Queue.new }
 
   it_behaves_like "an interruptible input plugin" do
@@ -32,6 +36,7 @@ describe LogStash::Inputs::Elasticsearch do
       }
       allow(esclient).to receive(:search) { { "hits" => { "hits" => [hit] } } }
       allow(esclient).to receive(:scroll) { { "hits" => { "hits" => [hit] } } }
+      allow(esclient).to receive(:clear_scroll).and_return(nil)
     end
   end
 
@@ -76,6 +81,7 @@ describe LogStash::Inputs::Elasticsearch do
     expect(Elasticsearch::Client).to receive(:new).with(any_args).and_return(client)
     expect(client).to receive(:search).with(any_args).and_return(response)
     expect(client).to receive(:scroll).with({ :body => { :scroll_id => "cXVlcnlUaGVuRmV0Y2g" }, :scroll=> "1m" }).and_return(scroll_reponse)
+    expect(client).to receive(:clear_scroll).and_return(nil)
 
     event = input(config) do |pipeline, queue|
       queue.pop
@@ -257,6 +263,8 @@ describe LogStash::Inputs::Elasticsearch do
         expect(Elasticsearch::Client).to receive(:new).with(any_args).and_return(client)
         plugin.register
 
+        expect(client).to receive(:clear_scroll).and_return(nil)
+
         # SLICE0 is a three-page scroll in which the last page is empty
         slice0_query = LogStash::Json.dump(query.merge('slice' => { 'id' => 0, 'max' => 2}))
         expect(client).to receive(:search).with(hash_including(:body => slice0_query)).and_return(slice0_response0)
@@ -360,6 +368,7 @@ describe LogStash::Inputs::Elasticsearch do
       expect(Elasticsearch::Client).to receive(:new).with(any_args).and_return(client)
       expect(client).to receive(:search).with(any_args).and_return(response)
       allow(client).to receive(:scroll).with({ :body => {:scroll_id => "cXVlcnlUaGVuRmV0Y2g"}, :scroll => "1m" }).and_return(scroll_reponse)
+      allow(client).to receive(:clear_scroll).and_return(nil)
     end
 
     context 'when defining docinfo' do
@@ -405,6 +414,7 @@ describe LogStash::Inputs::Elasticsearch do
             "docinfo_target" => 'metadata_with_string'
         } }
         it 'thows an exception if the `docinfo_target` exist but is not of type hash' do
+          expect(client).not_to receive(:clear_scroll)
           plugin.register
           expect { plugin.run([]) }.to raise_error(Exception, /incompatible event/)
         end
