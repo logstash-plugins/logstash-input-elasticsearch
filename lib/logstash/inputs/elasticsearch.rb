@@ -204,9 +204,12 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
     transport_options[:proxy] = @proxy.to_s if @proxy && !@proxy.eql?('')
 
-    @client = Elasticsearch::Client.new(:hosts => hosts, :transport_options => transport_options,
-                                        :transport_class => ::Elasticsearch::Transport::Transport::HTTP::Manticore,
-                                        :ssl => ssl_options)
+    @client = Elasticsearch::Client.new(
+      :hosts => hosts,
+      :transport_options => transport_options,
+      :transport_class => ::Elasticsearch::Transport::Transport::HTTP::Manticore,
+      :ssl => ssl_options
+    )
   end
 
   ##
@@ -266,19 +269,32 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     slice_options = @options.merge(:body => LogStash::Json.dump(slice_query) )
 
     logger.info("Slice starting", slice_id: slice_id, slices: @slices) unless slice_id.nil?
-    r = search_request(slice_options)
 
-    r['hits']['hits'].each { |hit| push_hit(hit, output_queue) }
-    logger.debug("Slice progress", slice_id: slice_id, slices: @slices) unless slice_id.nil?
+    scroll_id = nil
+    begin
+      r = search_request(slice_options)
 
-    has_hits = r['hits']['hits'].any?
-
-    while has_hits && r['_scroll_id'] && !stop?
-      r = process_next_scroll(output_queue, r['_scroll_id'])
+      r['hits']['hits'].each { |hit| push_hit(hit, output_queue) }
       logger.debug("Slice progress", slice_id: slice_id, slices: @slices) unless slice_id.nil?
-      has_hits = r['has_hits']
+
+      has_hits = r['hits']['hits'].any?
+      scroll_id = r['_scroll_id']
+
+      while has_hits &&  scroll_id && !stop?
+        r = process_next_scroll(output_queue, scroll_id)
+        logger.debug("Slice progress", slice_id: slice_id, slices: @slices) unless slice_id.nil?
+        has_hits = r['has_hits']
+        scroll_id = r['_scroll_id']
+      end
+      logger.info("Slice complete", slice_id: slice_id, slices: @slices) unless slice_id.nil?
+    ensure
+      begin
+        @client.clear_scroll(scroll_id: scroll_id) if scroll_id
+      rescue => e
+        # ignore & log any clear_scroll errors
+        logger.warn("Ignoring clear_scroll exception", message: e.message)
+      end
     end
-    logger.info("Slice complete", slice_id: slice_id, slices: @slices) unless slice_id.nil?
   end
 
   def process_next_scroll(output_queue, scroll_id)
@@ -314,14 +330,12 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   end
 
   def scroll_request scroll_id
-    client.scroll(:body => { :scroll_id => scroll_id }, :scroll => @scroll)
+    @client.scroll(:body => { :scroll_id => scroll_id }, :scroll => @scroll)
   end
 
   def search_request(options)
-    client.search(options)
+    @client.search(options)
   end
-
-  attr_reader :client
 
   def hosts_default?(hosts)
     hosts.nil? || ( hosts.is_a?(Array) && hosts.empty? )
