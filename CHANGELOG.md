@@ -1,3 +1,6 @@
+## 4.7.0
+  - Added api_key support [#131](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/131)
+
 ## 4.6.2
   - Added scroll clearing and better handling of scroll expiration [#128](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/128)
 
