@@ -286,15 +286,15 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
       end
       logger.info("Slice complete", slice_id: slice_id, slices: @slices) unless slice_id.nil?
     ensure
-      begin
-        @client.clear_scroll(scroll_id: scroll_id) if scroll_id
-      rescue => e
-        # ignore & log any clear_scroll errors
-        logger.warn("Ignoring clear_scroll exception", message: e.message)
-      end
+      clear_scroll(scroll_id)
     end
   end
 
+  ##
+  # @param output_queue [#<<]
+  # @param scroll_id [String]: a scroll id to resume
+  # @return [Array(Boolean,String)]: a tuple representing whether the response
+  #
   def process_next_scroll(output_queue, scroll_id)
     r = scroll_request(scroll_id)
     r['hits']['hits'].each { |hit| push_hit(hit, output_queue) }
@@ -330,6 +330,13 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     decorate(event)
 
     output_queue << event
+  end
+
+  def clear_scroll(scroll_id)
+    @client.clear_scroll(scroll_id: scroll_id) if scroll_id
+  rescue => e
+    # ignore & log any clear_scroll errors
+    logger.warn("Ignoring clear_scroll exception", message: e.message)
   end
 
   def scroll_request scroll_id
