@@ -70,11 +70,6 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # Port defaults to 9200
   config :hosts, :validate => :array
 
-  # Cloud ID, from the Elastic Cloud web console. If set `hosts` should not be used.
-  #
-  # For more info, check out the https://www.elastic.co/guide/en/logstash/current/connecting-to-cloud.html#_cloud_id[Logstash-to-Cloud documentation]
-  config :cloud_id, :validate => :string
-
   # The index or alias to search.
   config :index, :validate => :string, :default => "logstash-*"
 
@@ -140,10 +135,19 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # Basic Auth - password
   config :password, :validate => :password
 
+  # Cloud ID, from the Elastic Cloud web console. If set `hosts` should not be used.
+  #
+  # For more info, check out the https://www.elastic.co/guide/en/logstash/current/connecting-to-cloud.html#_cloud_id[Logstash-to-Cloud documentation]
+  config :cloud_id, :validate => :string
+
   # Cloud authentication string ("<username>:<password>" format) is an alternative for the `user`/`password` configuration.
   #
   # For more info, check out the https://www.elastic.co/guide/en/logstash/current/connecting-to-cloud.html#_cloud_auth[Logstash-to-Cloud documentation]
   config :cloud_auth, :validate => :password
+
+  # Authenticate using Elasticsearch API key.
+  # format is id:api_key (as returned by https://www.elastic.co/guide/en/elasticsearch/reference/current/security-api-create-api-key.html[Create API key])
+  config :api_key, :validate => :password
 
   # Set the address of a forward HTTP proxy.
   config :proxy, :validate => :uri_or_empty
@@ -177,28 +181,17 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
       @slices < 1 && fail(LogStash::ConfigurationError, "Elasticsearch Input Plugin's `slices` option must be greater than zero, got `#{@slices}`")
     end
 
-    transport_options = {}
-
+    validate_authentication
     fill_user_password_from_cloud_auth
-
-    if @user && @password
-      token = Base64.strict_encode64("#{@user}:#{@password.value}")
-      transport_options[:headers] = { :Authorization => "Basic #{token}" }
-    end
-
     fill_hosts_from_cloud_id
-    @hosts = Array(@hosts).map { |host| host.to_s } # potential SafeURI#to_s
 
-    hosts = if @ssl
-      @hosts.map do |h|
-        host, port = h.split(":")
-        { :host => host, :scheme => 'https', :port => port }
-      end
-    else
-      @hosts
-    end
-    ssl_options = { :ssl  => true, :ca_file => @ca_file } if @ssl && @ca_file
-    ssl_options ||= {}
+
+    transport_options = {:headers => {}}
+    transport_options[:headers].merge!(setup_basic_auth(user, password))
+    transport_options[:headers].merge!(setup_api_key(api_key))
+
+    hosts = setup_hosts
+    ssl_options = setup_ssl
 
     @logger.warn "Supplied proxy setting (proxy => '') has no effect" if @proxy.eql?('')
 
@@ -351,6 +344,58 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     hosts.nil? || ( hosts.is_a?(Array) && hosts.empty? )
   end
 
+  def validate_authentication
+    authn_options = 0
+    authn_options += 1 if @cloud_auth
+    authn_options += 1 if (@api_key && @api_key.value)
+    authn_options += 1 if (@user || (@password && @password.value))
+
+    if authn_options > 1
+      raise LogStash::ConfigurationError, 'Multiple authentication options are specified, please only use one of user/password, cloud_auth or api_key'
+    end
+
+    if @api_key && @api_key.value && @ssl != true
+      raise(LogStash::ConfigurationError, "Using api_key authentication requires SSL/TLS secured communication using the `ssl => true` option")
+    end
+  end
+
+  def setup_ssl
+    @ssl && @ca_file ? { :ssl  => true, :ca_file => @ca_file } : {}
+  end
+
+  def setup_hosts
+    @hosts = Array(@hosts).map { |host| host.to_s } # potential SafeURI#to_s
+    if @ssl
+      @hosts.map do |h|
+        host, port = h.split(":")
+        { :host => host, :scheme => 'https', :port => port }
+      end
+    else
+      @hosts
+    end
+  end
+
+  def setup_basic_auth(user, password)
+    return {} unless user && password && password.value
+
+    token = ::Base64.strict_encode64("#{user}:#{password.value}")
+    { Authorization: "Basic #{token}" }
+  end
+
+  def setup_api_key(api_key)
+    return {} unless (api_key && api_key.value)
+
+    token = ::Base64.strict_encode64(api_key.value)
+    { Authorization: "ApiKey #{token}" }
+  end
+
+  def fill_user_password_from_cloud_auth
+    return unless @cloud_auth
+
+    @user, @password = parse_user_password_from_cloud_auth(@cloud_auth)
+    params['user'], params['password'] = @user, @password
+  end
+
   def fill_hosts_from_cloud_id
     return unless @cloud_id
 
@@ -358,16 +403,6 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
       raise LogStash::ConfigurationError, 'Both cloud_id and hosts specified, please only use one of those.'
     end
     @hosts = parse_host_uri_from_cloud_id(@cloud_id)
-  end
-
-  def fill_user_password_from_cloud_auth
-    return unless @cloud_auth
-
-    if @user || @password
-      raise LogStash::ConfigurationError, 'Both cloud_auth and user/password specified, please only use one.'
-    end
-    @user, @password = parse_user_password_from_cloud_auth(@cloud_auth)
-    params['user'], params['password'] = @user, @password
   end
 
   def parse_host_uri_from_cloud_id(cloud_id)

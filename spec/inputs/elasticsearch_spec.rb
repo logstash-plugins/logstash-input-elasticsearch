@@ -583,7 +583,37 @@ describe LogStash::Inputs::TestableElasticsearch do
         let(:config) { super.merge({ 'cloud_auth' => 'elastic:my-passwd-00', 'user' => 'another' }) }
 
         it "should fail" do
-          expect { plugin.register }.to raise_error LogStash::ConfigurationError, /cloud_auth and user/
+          expect { plugin.register }.to raise_error LogStash::ConfigurationError, /Multiple authentication options are specified/
+        end
+      end
+    end if LOGSTASH_VERSION > '6.0'
+
+    describe "api_key" do
+      context "without ssl" do
+        let(:config) { super.merge({ 'api_key' => LogStash::Util::Password.new('foo:bar') }) }
+
+        it "should fail" do
+          expect { plugin.register }.to raise_error LogStash::ConfigurationError, /api_key authentication requires SSL\/TLS/
+        end
+      end
+
+      context "with ssl" do
+        let(:config) { super.merge({ 'api_key' => LogStash::Util::Password.new('foo:bar'), "ssl" => true }) }
+
+        it "should set authorization" do
+          plugin.register
+          client = plugin.send(:client)
+          auth_header = client.transport.options[:transport_options][:headers][:Authorization]
+
+          expect( auth_header ).to eql "ApiKey #{Base64.strict_encode64('foo:bar')}"
+        end
+
+        context 'user also set' do
+          let(:config) { super.merge({ 'api_key' => 'foo:bar', 'user' => 'another' }) }
+
+          it "should fail" do
+            expect { plugin.register }.to raise_error LogStash::ConfigurationError, /Multiple authentication options are specified/
+          end
         end
       end
     end if LOGSTASH_VERSION > '6.0'
