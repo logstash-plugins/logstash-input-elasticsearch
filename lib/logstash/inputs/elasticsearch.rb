@@ -205,22 +205,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     )
   end
 
-  ##
-  # @override to handle proxy => '' as if none was set
-  # @param value [Array<Object>]
-  # @param validator [nil,Array,Symbol]
-  # @return [Array(true,Object)]: if validation is a success, a tuple containing `true` and the coerced value
-  # @return [Array(false,String)]: if validation is a failure, a tuple containing `false` and the failure reason.
-  def self.validate_value(value, validator)
-    return super unless validator == :uri_or_empty
 
-    value = deep_replace(value)
-    value = hash_or_array(value)
-
-    return true, value.first if value.size == 1 && value.first.empty?
-
-    return super(value, :uri)
-  end
 
   def run(output_queue)
     if @schedule
@@ -438,5 +423,25 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     end
     [ cloud_auth.username, cloud_auth.password ]
   end
+
+  module URIOrEmptyValidator
+    ##
+    # @override to provide :uri_or_empty validator
+    # @param value [Array<Object>]
+    # @param validator [nil,Array,Symbol]
+    # @return [Array(true,Object)]: if validation is a success, a tuple containing `true` and the coerced value
+    # @return [Array(false,String)]: if validation is a failure, a tuple containing `false` and the failure reason.
+    def validate_value(value, validator)
+      return super unless validator == :uri_or_empty
+
+      value = deep_replace(value)
+      value = hash_or_array(value)
+
+      return true, value.first if value.size == 1 && value.first.empty?
+
+      return super(value, :uri)
+    end
+  end
+  extend(URIOrEmptyValidator)
 
 end
