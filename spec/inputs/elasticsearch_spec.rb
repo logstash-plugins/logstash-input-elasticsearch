@@ -640,6 +640,54 @@ describe LogStash::Inputs::TestableElasticsearch do
         end
       end
     end
+
+    shared_examples'configurable timeout' do |config_name, manticore_transport_option|
+      let(:config_value) { fail NotImplementedError }
+      let(:config) { super().merge(config_name => config_value) }
+      {
+          :string   => 'banana',
+          :negative => -123,
+          :zero     => 0,
+      }.each do |value_desc, value|
+        let(:config_value) { value }
+        context "with an invalid #{value_desc} value" do
+          it 'prevents instantiation with a helpful message' do
+            expect(described_class.logger).to receive(:error).with(/Expected positive whole number/)
+            expect { described_class.new(config) }.to raise_error(LogStash::ConfigurationError)
+          end
+        end
+      end
+
+      context 'with a valid value' do
+        let(:config_value) { 17 }
+
+        it "instantiates the elasticsearch client with the timeout value set via #{manticore_transport_option} in the transport options" do
+          expect(Elasticsearch::Client).to receive(:new) do |new_elasticsearch_client_params|
+            # We rely on Manticore-specific transport options, fail early if we are using a different
+            # transport or are allowing the client to determine its own transport class.
+            expect(new_elasticsearch_client_params).to include(:transport_class)
+            expect(new_elasticsearch_client_params[:transport_class].name).to match(/\bManticore\b/)
+
+            expect(new_elasticsearch_client_params).to include(:transport_options)
+            transport_options = new_elasticsearch_client_params[:transport_options]
+            expect(transport_options).to include(manticore_transport_option)
+            expect(transport_options[manticore_transport_option]).to eq(config_value.to_i)
+          end
+
+          plugin.register
+        end
+      end
+    end
+
+    context 'connect_timeout_seconds' do
+      include_examples('configurable timeout', 'connect_timeout_seconds', :connect_timeout)
+    end
+    context 'request_timeout_seconds' do
+      include_examples('configurable timeout', 'request_timeout_seconds', :request_timeout)
+    end
+    context 'socket_timeout_seconds' do
+      include_examples('configurable timeout', 'socket_timeout_seconds', :socket_timeout)
+    end
   end
 
   context "when scheduling" do

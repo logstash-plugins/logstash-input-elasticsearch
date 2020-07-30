@@ -135,6 +135,15 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # Basic Auth - password
   config :password, :validate => :password
 
+  # Connection Timeout, in Seconds
+  config :connect_timeout_seconds, :validate => :positive_whole_number, :default => 10
+
+  # Request Timeout, in Seconds
+  config :request_timeout_seconds, :validate => :positive_whole_number, :default => 60
+
+  # Socket Timeout, in Seconds
+  config :socket_timeout_seconds, :validate => :positive_whole_number, :default => 10
+
   # Cloud ID, from the Elastic Cloud web console. If set `hosts` should not be used.
   #
   # For more info, check out the https://www.elastic.co/guide/en/logstash/current/connecting-to-cloud.html#_cloud_id[Logstash-to-Cloud documentation]
@@ -189,6 +198,9 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     transport_options = {:headers => {}}
     transport_options[:headers].merge!(setup_basic_auth(user, password))
     transport_options[:headers].merge!(setup_api_key(api_key))
+    transport_options[:request_timeout] = @request_timeout_seconds unless @request_timeout_seconds.nil?
+    transport_options[:connect_timeout] = @connect_timeout_seconds unless @connect_timeout_seconds.nil?
+    transport_options[:socket_timeout]  = @socket_timeout_seconds  unless @socket_timeout_seconds.nil?
 
     hosts = setup_hosts
     ssl_options = setup_ssl
@@ -444,4 +456,22 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   end
   extend(URIOrEmptyValidator)
 
+  module PositiveWholeNumberValidator
+    ##
+    # @override to provide :positive_whole_number validator
+    # @param value [Array<Object>]
+    # @param validator [nil,Array,Symbol]
+    # @return [Array(true,Object)]: if validation is a success, a tuple containing `true` and the coerced value
+    # @return [Array(false,String)]: if validation is a failure, a tuple containing `false` and the failure reason.
+    def validate_value(value, validator)
+      return super unless validator == :positive_whole_number
+
+      is_number, coerced_number = super(value, :number)
+
+      return [true, coerced_number.to_i] if is_number && coerced_number.denominator == 1 && coerced_number > 0
+
+      return [false, "Expected positive whole number, got `#{value.inspect}`"]
+    end
+  end
+  extend(PositiveWholeNumberValidator)
 end

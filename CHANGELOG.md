@@ -1,3 +1,6 @@
+## 4.8.0
+  - Added the ability to configure connection-, request-, and socket-timeouts with `connect_timeout_seconds`, `request_timeout_seconds`, and `socket_timeout_seconds` [#121](https://github.com/logstash-plugins/logstash-input-elasticsearch/issues/121)
+
 ## 4.7.1
   - [DOC] Updated sliced scroll link to resolve to correct location after doc structure change [#135](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/135)
   - [DOC] Added usage example of docinfo metadata [#98](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/98)
