@@ -1,3 +1,7 @@
+## 4.7.1
+  - [DOC] Updated sliced scroll link to resolve to correct location after doc structure change [#135](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/135)
+  - [DOC] Added usage example of docinfo metadata [#98](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/98)
+
 ## 4.7.0
   - Added api_key support [#131](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/131)
 
