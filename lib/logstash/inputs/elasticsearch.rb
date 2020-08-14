@@ -142,7 +142,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   config :request_timeout_seconds, :validate => :positive_whole_number, :default => 60
 
   # Socket Timeout, in Seconds
-  config :socket_timeout_seconds, :validate => :positive_whole_number, :default => 10
+  config :socket_timeout_seconds, :validate => :positive_whole_number, :default => 60
 
   # Cloud ID, from the Elastic Cloud web console. If set `hosts` should not be used.
   #

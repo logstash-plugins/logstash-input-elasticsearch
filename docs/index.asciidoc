@@ -360,7 +360,7 @@ server (i.e. HTTPS will be used instead of plain HTTP).
 ===== `socket_timeout_seconds`
 
   * Value type is <<number,number>>
-  * Default value is `10`
+  * Default value is `60`
 
 The maximum amount of time, in seconds, to wait on an incomplete response from Elasticsearch while no additional data has been appended.
 Socket timeouts usually occur while waiting for the first byte of a response, such as when executing a particularly complex query.
