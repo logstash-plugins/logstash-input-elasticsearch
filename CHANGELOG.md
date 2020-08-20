@@ -1,3 +1,6 @@
+## 4.8.1
+  - Fixed connection error when using multiple `slices`. [#133](https://github.com/logstash-plugins/logstash-input-elasticsearch/issues/133)
+
 ## 4.8.0
   - Added the ability to configure connection-, request-, and socket-timeouts with `connect_timeout_seconds`, `request_timeout_seconds`, and `socket_timeout_seconds` [#121](https://github.com/logstash-plugins/logstash-input-elasticsearch/issues/121)
 

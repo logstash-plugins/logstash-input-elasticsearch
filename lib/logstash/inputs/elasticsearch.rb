@@ -4,6 +4,7 @@ require "logstash/namespace"
 require "logstash/json"
 require "logstash/util/safe_uri"
 require "base64"
+require_relative "patch"
 
 
 # .Compatibility Note
