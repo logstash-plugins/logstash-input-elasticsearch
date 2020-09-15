@@ -77,6 +77,11 @@ Authentication to a secure Elasticsearch cluster is possible using _one_ of the 
 * <<plugins-{type}s-{plugin}-cloud_auth>>
 * <<plugins-{type}s-{plugin}-api_key>>
 
+[id="plugins-{type}s-{plugin}-autz"]
+==== Authorization
+
+Authorization to a secure Elasticsearch cluster requires `read` permission at index level and `monitoring` permissions at cluster level.
+The `monitoring` permission at cluster level is necessary to perform periodic connectivity checks.
 
 [id="plugins-{type}s-{plugin}-options"]
 ==== Elasticsearch Input Configuration Options
