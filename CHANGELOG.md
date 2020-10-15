@@ -1,3 +1,6 @@
+## 4.8.2
+  - [DOC] Document the permissions required in secured clusters [#137](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/137)
+
 ## 4.8.1
   - Fixed connection error when using multiple `slices`. [#133](https://github.com/logstash-plugins/logstash-input-elasticsearch/issues/133)
 
