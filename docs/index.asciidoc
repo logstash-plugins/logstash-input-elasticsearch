@@ -1,7 +1,6 @@
 :plugin: elasticsearch
 :type: input
 :default_codec: json
-:branch: current
 
 ///////////////////////////////////////////
 START - GENERATED VARIABLES, DO NOT EDIT!
@@ -130,7 +129,7 @@ Authenticate using Elasticsearch API key. Note that this option also requires en
 
 Format is `id:api_key` where `id` and `api_key` are as returned by the
 Elasticsearch
-https://www.elastic.co/guide/en/elasticsearch/reference/{branch}/security-api-create-api-key.html[Create
+https://www.elastic.co/guide/en/elasticsearch/reference/current/security-api-create-api-key.html[Create
 API key API].
 
 [id="plugins-{type}s-{plugin}-ca_file"]
@@ -150,7 +149,7 @@ SSL Certificate Authority file in PEM encoded format, must also include any chai
 Cloud authentication string ("<username>:<password>" format) is an alternative for the `user`/`password` pair.
 
 For more info, check out the
-https://www.elastic.co/guide/en/logstash/{branch}/connecting-to-cloud.html[Logstash-to-Cloud
+https://www.elastic.co/guide/en/logstash/current/connecting-to-cloud.html[Logstash-to-Cloud
 documentation]
 
 [id="plugins-{type}s-{plugin}-cloud_id"]
@@ -162,7 +161,7 @@ documentation]
 Cloud ID, from the Elastic Cloud web console. If set `hosts` should not be used.
 
 For more info, check out the
-https://www.elastic.co/guide/en/logstash/{branch}/connecting-to-cloud.html[Logstash-to-Cloud
+https://www.elastic.co/guide/en/logstash/current/connecting-to-cloud.html[Logstash-to-Cloud
 documentation]
 
 [id="plugins-{type}s-{plugin}-connect_timeout_seconds"]
@@ -261,7 +260,7 @@ can be either IP, HOST, IP:port, or HOST:port. The port defaults to
   * Default value is `"logstash-*"`
 
 The index or alias to search. See
-https://www.elastic.co/guide/en/elasticsearch/reference/{branch}/multi-index.html[Multi Indices documentation]
+https://www.elastic.co/guide/en/elasticsearch/reference/current/multi-index.html[Multi Indices documentation]
 in the Elasticsearch documentation for more information on how to reference
 multiple indices.
 
@@ -293,7 +292,7 @@ environment variables e.g. `proxy => '${LS_PROXY:}'`.
   * Default value is `'{ "sort": [ "_doc" ] }'`
 
 The query to be executed. Read the
-https://www.elastic.co/guide/en/elasticsearch/reference/{branch}/query-dsl.html[Elasticsearch query DSL documentation]
+https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html[Elasticsearch query DSL documentation]
 for more information.
 
 [id="plugins-{type}s-{plugin}-request_timeout_seconds"]
@@ -345,7 +344,7 @@ This allows you to set the maximum number of hits returned per scroll.
 
 In some cases, it is possible to improve overall throughput by consuming multiple
 distinct slices of a query simultaneously using
-https://www.elastic.co/guide/en/elasticsearch/reference/{branch}/paginate-search-results.html#slice-scroll[sliced scrolls],
+https://www.elastic.co/guide/en/elasticsearch/reference/current/paginate-search-results.html#slice-scroll[sliced scrolls],
 especially if the pipeline is spending significant time waiting on Elasticsearch
 to provide results.
 
@@ -393,5 +392,4 @@ empty string authentication will be disabled.
 [id="plugins-{type}s-{plugin}-common-options"]
 include::{include_path}/{type}.asciidoc[]
 
-:branch!:
 :default_codec!:
