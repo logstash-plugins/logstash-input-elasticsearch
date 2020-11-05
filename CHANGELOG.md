@@ -1,3 +1,6 @@
+## 4.8.3
+  - [DOC] Fixed links to restructured Logstash-to-cloud docs [#139](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/139)
+
 ## 4.8.2
   - [DOC] Document the permissions required in secured clusters [#137](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/137)
 
