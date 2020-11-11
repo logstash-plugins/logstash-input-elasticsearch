@@ -175,6 +175,9 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # exactly once.
   config :schedule, :validate => :string
 
+  # If set, the _source of each hit will be added nested under the target instead of at the top-level
+  config :target, :validate => :field_reference
+
   def register
     require "elasticsearch"
     require "rufus/scheduler"
@@ -298,7 +301,12 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   end
 
   def push_hit(hit, output_queue)
-    event = LogStash::Event.new(hit['_source'])
+    if @target.nil?
+      event = LogStash::Event.new(hit['_source'])
+    else
+      event = LogStash::Event.new
+      event.set(@target, hit['_source'])
+    end
 
     if @docinfo
       # do not assume event[@docinfo_target] to be in-place updatable. first get it, update it, then at the end set it in the event.
@@ -475,4 +483,31 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     end
   end
   extend(PositiveWholeNumberValidator)
+
+  module FieldReferenceValidator
+    field_name = /[^\[\]]+/                       # anything but brackets
+    path_fragment = /\[#{field_name}\]/           # bracket-wrapped field name
+    field_reference_literal = /#{path_fragment}+/ # one or more path fragments
+
+    # anchored pattern matching either a stand-alone field name, or a field reference literal
+    FIELD_REFERENCE_PATTERN = /\A#{Regexp.union(field_name,field_reference_literal)}\z/
+    private_constant :FIELD_REFERENCE_PATTERN
+
+    def validate_value(value, validator)
+      return super unless validator == :field_reference
+
+      value = deep_replace(value)
+      value = hash_or_array(value)
+
+      return [false, "Expected exactly one entry, got `#{value.inspect}`"] unless value.size <= 1
+      return [true, nil] if value.empty? || value.first.nil? || value.first.empty?
+
+      candidate = value.first
+
+      return [false, "Expected a valid field reference, got `#{candidate.inspect}`"] unless FIELD_REFERENCE_PATTERN =~ candidate
+
+      return [true, candidate]
+    end
+  end
+  extend(FieldReferenceValidator)
 end
