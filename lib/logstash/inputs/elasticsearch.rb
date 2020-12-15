@@ -3,6 +3,7 @@ require "logstash/inputs/base"
 require "logstash/namespace"
 require "logstash/json"
 require "logstash/util/safe_uri"
+require 'logstash/plugin_mixins/validator_support/field_reference_validation_adapter'
 require "base64"
 require_relative "patch"
 
@@ -62,6 +63,8 @@ require_relative "patch"
 #
 #
 class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
+  extend LogStash::PluginMixins::ValidatorSupport::FieldReferenceValidationAdapter
+
   config_name "elasticsearch"
 
   default :codec, "json"
@@ -174,6 +177,9 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # There is no schedule by default. If no schedule is given, then the statement is run
   # exactly once.
   config :schedule, :validate => :string
+
+  # If set, the _source of each hit will be added nested under the target instead of at the top-level
+  config :target, :validate => :field_reference
 
   def register
     require "elasticsearch"
@@ -298,7 +304,12 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   end
 
   def push_hit(hit, output_queue)
-    event = LogStash::Event.new(hit['_source'])
+    if @target.nil?
+      event = LogStash::Event.new(hit['_source'])
+    else
+      event = LogStash::Event.new
+      event.set(@target, hit['_source'])
+    end
 
     if @docinfo
       # do not assume event[@docinfo_target] to be in-place updatable. first get it, update it, then at the end set it in the event.

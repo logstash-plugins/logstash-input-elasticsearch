@@ -4,6 +4,42 @@
 # Ensure you have Docker installed locally and set the ELASTIC_STACK_VERSION environment variable.
 set -e
 
+
+download_and_load_docker_snapshot_artifact() {
+  project="${1?project name required}"
+
+  artifact_type="docker-image"
+  artifact_name_base="${project}${DISTRIBUTION_SUFFIX}-${ELASTIC_STACK_VERSION}-${artifact_type}"
+  echo "Downloading snapshot docker image: ${project}${DISTRIBUTION_SUFFIX} (${ELASTIC_STACK_VERSION})"
+
+  artifact_name_noarch="${artifact_name_base}.tar.gz"
+  artifact_name_arch="${artifact_name_base}-x86_64.tar.gz"
+
+  jq_extract_artifact_url=".build.projects.\"${project}\".packages | (.\"${artifact_name_noarch}\" // .\"${artifact_name_arch}\") | .url"
+
+  artifact_list=$(curl --silent "https://artifacts-api.elastic.co/v1/versions/${ELASTIC_STACK_VERSION}/builds/latest")
+  artifact_url=$(echo "${artifact_list}" | jq --raw-output "${jq_extract_artifact_url}")
+
+  if [[ "${artifact_url}" == "null" ]]; then
+    echo "Failed to find '${artifact_name_noarch}'"
+    echo "Failed to find '${artifact_name_arch}'"
+    echo "Listing:"
+    echo "${artifact_list}" | jq --raw-output ".build.projects.\"${project}\".packages | keys | map(select(contains(\"${artifact_type}\")))"
+    return 1
+  fi
+
+  echo "${artifact_url}"
+
+  cd /tmp
+  curl "${artifact_url}" > "${project}-docker-image.tar.gz"
+  tar xfvz "${project}-docker-image.tar.gz" repositories
+  echo "Loading ${project} docker image: "
+  cat repositories
+  docker load < "${project}-docker-image.tar.gz"
+  rm "${project}-docker-image.tar.gz"
+  cd -
+}
+
 VERSION_URL="https://raw.githubusercontent.com/elastic/logstash/master/ci/logstash_releases.json"
 
 if [ "$ELASTIC_STACK_VERSION" ]; then
@@ -26,34 +62,9 @@ if [ "$ELASTIC_STACK_VERSION" ]; then
     echo "Testing against version: $ELASTIC_STACK_VERSION"
 
     if [[ "$ELASTIC_STACK_VERSION" = *"-SNAPSHOT" ]]; then
-        cd /tmp
-
-        jq=".build.projects.\"logstash\".packages.\"logstash-$ELASTIC_STACK_VERSION-docker-image.tar.gz\".url"
-        result=$(curl --silent https://artifacts-api.elastic.co/v1/versions/$ELASTIC_STACK_VERSION/builds/latest | jq -r $jq)
-        echo $result
-        curl $result > logstash-docker-image.tar.gz
-        tar xfvz logstash-docker-image.tar.gz  repositories
-        echo "Loading docker image: "
-        cat repositories
-        docker load < logstash-docker-image.tar.gz
-        rm logstash-docker-image.tar.gz
-        cd -
-
+        download_and_load_docker_snapshot_artifact "logstash"
         if [ "$INTEGRATION" == "true" ]; then
-
-          cd /tmp
-
-          jq=".build.projects.\"elasticsearch\".packages.\"elasticsearch-$ELASTIC_STACK_VERSION-docker-image.tar.gz\".url"
-          result=$(curl --silent https://artifacts-api.elastic.co/v1/versions/$ELASTIC_STACK_VERSION/builds/latest | jq -r $jq)
-          echo $result
-          curl $result > elasticsearch-docker-image.tar.gz
-          tar xfvz elasticsearch-docker-image.tar.gz  repositories
-          echo "Loading docker image: "
-          cat repositories
-          docker load < elasticsearch-docker-image.tar.gz
-          rm elasticsearch-docker-image.tar.gz
-          cd -
-
+            download_and_load_docker_snapshot_artifact "elasticsearch"
         fi
     fi
 
