@@ -3,6 +3,7 @@ require "logstash/inputs/base"
 require "logstash/namespace"
 require "logstash/json"
 require "logstash/util/safe_uri"
+require 'logstash/plugin_mixins/validator_support/field_reference_validation_adapter'
 require "base64"
 require_relative "patch"
 
@@ -62,6 +63,8 @@ require_relative "patch"
 #
 #
 class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
+  extend LogStash::PluginMixins::ValidatorSupport::FieldReferenceValidationAdapter
+
   config_name "elasticsearch"
 
   default :codec, "json"
@@ -483,31 +486,4 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     end
   end
   extend(PositiveWholeNumberValidator)
-
-  module FieldReferenceValidator
-    field_name = /[^\[\]]+/                       # anything but brackets
-    path_fragment = /\[#{field_name}\]/           # bracket-wrapped field name
-    field_reference_literal = /#{path_fragment}+/ # one or more path fragments
-
-    # anchored pattern matching either a stand-alone field name, or a field reference literal
-    FIELD_REFERENCE_PATTERN = /\A#{Regexp.union(field_name,field_reference_literal)}\z/
-    private_constant :FIELD_REFERENCE_PATTERN
-
-    def validate_value(value, validator)
-      return super unless validator == :field_reference
-
-      value = deep_replace(value)
-      value = hash_or_array(value)
-
-      return [false, "Expected exactly one entry, got `#{value.inspect}`"] unless value.size <= 1
-      return [true, nil] if value.empty? || value.first.nil? || value.first.empty?
-
-      candidate = value.first
-
-      return [false, "Expected a valid field reference, got `#{candidate.inspect}`"] unless FIELD_REFERENCE_PATTERN =~ candidate
-
-      return [true, candidate]
-    end
-  end
-  extend(FieldReferenceValidator)
 end
