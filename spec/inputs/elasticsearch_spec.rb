@@ -40,57 +40,91 @@ describe LogStash::Inputs::TestableElasticsearch do
     end
   end
 
-  it "should retrieve json event from elasticseach" do
-    config = %q[
-      input {
-        elasticsearch {
-          hosts => ["localhost"]
-          query => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }'
+  context 'creating events from Elasticsearch' do
+    let(:config) do
+      %q[
+        input {
+          elasticsearch {
+            hosts => ["localhost"]
+            query => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }'
+          }
         }
-      }
-    ]
-
-    response = {
-      "_scroll_id" => "cXVlcnlUaGVuRmV0Y2g",
-      "took" => 27,
-      "timed_out" => false,
-      "_shards" => {
-        "total" => 169,
-        "successful" => 169,
-        "failed" => 0
-      },
-      "hits" => {
-        "total" => 1,
-        "max_score" => 1.0,
-        "hits" => [ {
-          "_index" => "logstash-2014.10.12",
-          "_type" => "logs",
-          "_id" => "C5b2xLQwTZa76jBmHIbwHQ",
-          "_score" => 1.0,
-          "_source" => { "message" => ["ohayo"] }
-        } ]
-      }
-    }
-
-    scroll_reponse = {
-      "_scroll_id" => "r453Wc1jh0caLJhSDg",
-      "hits" => { "hits" => [] }
-    }
-
-    client = Elasticsearch::Client.new
-    expect(Elasticsearch::Client).to receive(:new).with(any_args).and_return(client)
-    expect(client).to receive(:search).with(any_args).and_return(response)
-    expect(client).to receive(:scroll).with({ :body => { :scroll_id => "cXVlcnlUaGVuRmV0Y2g" }, :scroll=> "1m" }).and_return(scroll_reponse)
-    expect(client).to receive(:clear_scroll).and_return(nil)
-
-    event = input(config) do |pipeline, queue|
-      queue.pop
+      ]
     end
 
-    expect(event).to be_a(LogStash::Event)
-    expect(event.get("message")).to eql [ "ohayo" ]
-  end
+    let(:mock_response) do
+      {
+          "_scroll_id" => "cXVlcnlUaGVuRmV0Y2g",
+          "took" => 27,
+          "timed_out" => false,
+          "_shards" => {
+              "total" => 169,
+              "successful" => 169,
+              "failed" => 0
+          },
+          "hits" => {
+              "total" => 1,
+              "max_score" => 1.0,
+              "hits" => [ {
+                              "_index" => "logstash-2014.10.12",
+                              "_type" => "logs",
+                              "_id" => "C5b2xLQwTZa76jBmHIbwHQ",
+                              "_score" => 1.0,
+                              "_source" => { "message" => ["ohayo"] }
+                          } ]
+          }
+      }
+    end
 
+    let(:mock_scroll_response) do
+      {
+          "_scroll_id" => "r453Wc1jh0caLJhSDg",
+          "hits" => { "hits" => [] }
+      }
+    end
+
+    before(:each) do
+      client = Elasticsearch::Client.new
+      expect(Elasticsearch::Client).to receive(:new).with(any_args).and_return(client)
+      expect(client).to receive(:search).with(any_args).and_return(mock_response)
+      expect(client).to receive(:scroll).with({ :body => { :scroll_id => "cXVlcnlUaGVuRmV0Y2g" }, :scroll=> "1m" }).and_return(mock_scroll_response)
+      expect(client).to receive(:clear_scroll).and_return(nil)
+    end
+
+    it 'creates the events from the hits' do
+      event = input(config) do |pipeline, queue|
+        queue.pop
+      end
+
+      expect(event).to be_a(LogStash::Event)
+      puts event.to_hash_with_metadata
+      expect(event.get("message")).to eql [ "ohayo" ]
+    end
+
+    context 'when a target is set' do
+      let(:config) do
+        %q[
+          input {
+            elasticsearch {
+              hosts => ["localhost"]
+              query => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }'
+              target => "[@metadata][_source]"
+            }
+          }
+        ]
+      end
+
+      it 'creates the event using the target' do
+        event = input(config) do |pipeline, queue|
+          queue.pop
+        end
+
+        expect(event).to be_a(LogStash::Event)
+        puts event.to_hash_with_metadata
+        expect(event.get("[@metadata][_source][message]")).to eql [ "ohayo" ]
+      end
+    end
+  end
 
   # This spec is an adapter-spec, ensuring that we send the right sequence of messages to our Elasticsearch Client
   # to support sliced scrolling. The underlying implementation will spawn its own threads to consume, so we must be

@@ -1,7 +1,7 @@
 # Logstash Plugin
 
 [![Gem Version](https://badge.fury.io/rb/logstash-input-elasticsearch.svg)](https://badge.fury.io/rb/logstash-input-elasticsearch)
-[![Travis Build Status](https://travis-ci.org/logstash-plugins/logstash-input-elasticsearch.svg)](https://travis-ci.org/logstash-plugins/logstash-input-elasticsearch)
+[![Travis Build Status](https://travis-ci.com/logstash-plugins/logstash-input-elasticsearch.svg)](https://travis-ci.com/logstash-plugins/logstash-input-elasticsearch)
 
 This is a plugin for [Logstash](https://github.com/elastic/logstash).
 
