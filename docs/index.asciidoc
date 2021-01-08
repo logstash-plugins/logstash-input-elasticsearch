@@ -217,7 +217,7 @@ Example
       elasticsearch {
         docinfo => true
         add_field => {
-          identifier => %{[@metadata][_index]}:%{[@metadata][_type]}:%{[@metadata][_id]}"
+          identifier => "%{[@metadata][_index]}:%{[@metadata][_type]}:%{[@metadata][_id]}"
         }
       }
     }
