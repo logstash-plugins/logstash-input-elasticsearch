@@ -1,3 +1,7 @@
+## 4.9.1
+  - [DOC] Replaced hard-coded links with shared attributes [#143](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/143)
+  - [DOC] Added missing quote to docinfo_fields example [#145](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/145)
+
 ## 4.9.0
   - Added `target` option, allowing the hit's source to target a specific field instead of being expanded at the root of the event. This allows the input to play nicer with the Elastic Common Schema when the input does not follow the schema. [#117](https://github.com/logstash-plugins/logstash-input-elasticsearch/issues/117)
 
