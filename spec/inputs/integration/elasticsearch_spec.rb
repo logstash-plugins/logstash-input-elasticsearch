@@ -51,7 +51,7 @@ describe LogStash::Inputs::Elasticsearch do
     let(:password) { 'abc123' }
     let(:ca_file) { "spec/fixtures/test_certs/test.crt" }
     let(:client_options) {{:ca_file => ca_file, :user => user, :password => password}}
-    let(:config)   { super.merge({
+    let(:config)   { super().merge({
                        'user' => user,
                        'password' => password,
                        'ssl' => true,
