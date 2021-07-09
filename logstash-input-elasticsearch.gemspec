@@ -23,7 +23,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency "logstash-mixin-validator_support", '~> 1.0'
   s.add_runtime_dependency "logstash-core-plugin-api", ">= 1.60", "<= 2.99"
 
-  s.add_runtime_dependency 'elasticsearch', '>= 5.0.3'
+  s.add_runtime_dependency 'elasticsearch', '>= 7.13.0'
 
   s.add_runtime_dependency 'logstash-codec-json'
   s.add_runtime_dependency 'logstash-codec-plain'
@@ -32,7 +32,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'tzinfo-data'
   s.add_runtime_dependency 'rufus-scheduler'
   s.add_runtime_dependency 'manticore', "~> 0.6"
-  s.add_runtime_dependency 'faraday', "~> 0.15.4"
+  s.add_runtime_dependency 'faraday', "~> 1"
 
   s.add_development_dependency 'logstash-devutils'
   s.add_development_dependency 'timecop'
