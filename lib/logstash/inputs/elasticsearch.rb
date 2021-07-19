@@ -271,7 +271,6 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
     logger.info("Slice starting", slice_id: slice_id, slices: @slices) unless slice_id.nil?
 
-    scroll_id = nil
     begin
       r = search_request(slice_options)
 
