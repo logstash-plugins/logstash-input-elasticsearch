@@ -4,6 +4,7 @@ require "logstash/namespace"
 require "logstash/json"
 require "logstash/util/safe_uri"
 require 'logstash/plugin_mixins/validator_support/field_reference_validation_adapter'
+require 'logstash/plugin_mixins/event_support/event_factory_adapter'
 require "base64"
 require_relative "patch"
 
@@ -63,6 +64,9 @@ require_relative "patch"
 #
 #
 class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
+
+  include LogStash::PluginMixins::EventSupport::EventFactoryAdapter
+
   extend LogStash::PluginMixins::ValidatorSupport::FieldReferenceValidationAdapter
 
   config_name "elasticsearch"
@@ -304,12 +308,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   end
 
   def push_hit(hit, output_queue)
-    if @target.nil?
-      event = LogStash::Event.new(hit['_source'])
-    else
-      event = LogStash::Event.new
-      event.set(@target, hit['_source'])
-    end
+    event = targeted_event_factory.new_event hit['_source']
 
     if @docinfo
       # do not assume event[@docinfo_target] to be in-place updatable. first get it, update it, then at the end set it in the event.
