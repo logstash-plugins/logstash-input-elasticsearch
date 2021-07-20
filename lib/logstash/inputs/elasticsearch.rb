@@ -306,28 +306,27 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
   def push_hit(hit, output_queue)
     event = targeted_event_factory.new_event hit['_source']
+    set_docinfo_fields(event) if @docinfo
+    decorate(event)
+    output_queue << event
+  end
 
-    if @docinfo
-      # do not assume event[@docinfo_target] to be in-place updatable. first get it, update it, then at the end set it in the event.
-      docinfo_target = event.get(@docinfo_target) || {}
+  def set_docinfo_fields(event)
+    # do not assume event[@docinfo_target] to be in-place updatable. first get it, update it, then at the end set it in the event.
+    docinfo_target = event.get(@docinfo_target) || {}
 
-      unless docinfo_target.is_a?(Hash)
-        @logger.error("Elasticsearch Input: Incompatible Event, incompatible type for the docinfo_target=#{@docinfo_target} field in the `_source` document, expected a hash got:", :docinfo_target_type => docinfo_target.class, :event => event)
+    unless docinfo_target.is_a?(Hash)
+      @logger.error("Incompatible Event, incompatible type for the docinfo_target=#{@docinfo_target} field in the `_source` document, expected a hash got:", :docinfo_target_type => docinfo_target.class, :event => event.to_hash_with_metadata)
 
-        # TODO: (colin) I am not sure raising is a good strategy here?
-        raise Exception.new("Elasticsearch input: incompatible event")
-      end
-
-      @docinfo_fields.each do |field|
-        docinfo_target[field] = hit[field]
-      end
-
-      event.set(@docinfo_target, docinfo_target)
+      # TODO: (colin) I am not sure raising is a good strategy here?
+      raise Exception.new("Elasticsearch input: incompatible event")
     end
 
-    decorate(event)
+    @docinfo_fields.each do |field|
+      docinfo_target[field] = hit[field]
+    end
 
-    output_queue << event
+    event.set(@docinfo_target, docinfo_target)
   end
 
   def clear_scroll(scroll_id)
