@@ -299,7 +299,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     [r['hits']['hits'].any?, r['_scroll_id']]
   rescue => e
     # this will typically be triggered by a scroll timeout
-    logger.error("Scroll request error, aborting scroll", error: e.inspect)
+    logger.error("Scroll request error, aborting scroll", message: e.message, exception: e.class)
     # return no hits and original scroll_id so we can try to clear it
     [false, scroll_id]
   end
@@ -333,7 +333,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     @client.clear_scroll(scroll_id: scroll_id) if scroll_id
   rescue => e
     # ignore & log any clear_scroll errors
-    logger.warn("Ignoring clear_scroll exception", message: e.message)
+    logger.warn("Ignoring clear_scroll exception", message: e.message, exception: e.class)
   end
 
   def scroll_request scroll_id
