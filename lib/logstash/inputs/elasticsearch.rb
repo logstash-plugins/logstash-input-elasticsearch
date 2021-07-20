@@ -306,12 +306,12 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
   def push_hit(hit, output_queue)
     event = targeted_event_factory.new_event hit['_source']
-    set_docinfo_fields(event) if @docinfo
+    set_docinfo_fields(hit, event) if @docinfo
     decorate(event)
     output_queue << event
   end
 
-  def set_docinfo_fields(event)
+  def set_docinfo_fields(hit, event)
     # do not assume event[@docinfo_target] to be in-place updatable. first get it, update it, then at the end set it in the event.
     docinfo_target = event.get(@docinfo_target) || {}
 
