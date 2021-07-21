@@ -27,7 +27,6 @@ Gem::Specification.new do |s|
 
   s.add_runtime_dependency 'elasticsearch', '>= 5.0.3'
 
-  s.add_runtime_dependency 'logstash-codec-plain'
   s.add_runtime_dependency 'sequel'
   s.add_runtime_dependency 'tzinfo'
   s.add_runtime_dependency 'tzinfo-data'
@@ -35,6 +34,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'manticore', "~> 0.6"
   s.add_runtime_dependency 'faraday', "~> 0.15.4"
 
+  s.add_development_dependency 'logstash-codec-plain'
   s.add_development_dependency 'logstash-devutils'
   s.add_development_dependency 'timecop'
 end
