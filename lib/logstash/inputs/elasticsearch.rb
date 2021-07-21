@@ -5,6 +5,8 @@ require "logstash/json"
 require "logstash/util/safe_uri"
 require 'logstash/plugin_mixins/validator_support/field_reference_validation_adapter'
 require 'logstash/plugin_mixins/event_support/event_factory_adapter'
+require 'logstash/plugin_mixins/ecs_compatibility_support'
+require 'logstash/plugin_mixins/ecs_compatibility_support/target_check'
 require "base64"
 require_relative "patch"
 
@@ -64,6 +66,9 @@ require_relative "patch"
 #
 #
 class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
+
+  include LogStash::PluginMixins::ECSCompatibilitySupport(:disabled, :v1, :v8 => :v1)
+  include LogStash::PluginMixins::ECSCompatibilitySupport::TargetCheck
 
   include LogStash::PluginMixins::EventSupport::EventFactoryAdapter
 
