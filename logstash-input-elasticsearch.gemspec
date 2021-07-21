@@ -26,8 +26,6 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency "logstash-mixin-validator_support", '~> 1.0'
 
   s.add_runtime_dependency 'elasticsearch', '>= 5.0.3'
-
-  s.add_runtime_dependency 'sequel'
   s.add_runtime_dependency 'tzinfo'
   s.add_runtime_dependency 'tzinfo-data'
   s.add_runtime_dependency 'rufus-scheduler'
