@@ -83,8 +83,15 @@ Authentication to a secure Elasticsearch cluster is possible using _one_ of the 
 Authorization to a secure Elasticsearch cluster requires `read` permission at index level and `monitoring` permissions at cluster level.
 The `monitoring` permission at cluster level is necessary to perform periodic connectivity checks.
 
+[id="plugins-{type}s-{plugin}-ecs"]
+==== Compatibility with the Elastic Common Schema (ECS)
+
+The plugin behaves the same regardless of ECS compatibility, except giving a warning when ECS is enabled and `target` isn't set.
+
+TIP: Set the `target` option to avoid potential schema conflicts.
+
 [id="plugins-{type}s-{plugin}-options"]
-==== Elasticsearch Input Configuration Options
+==== Elasticsearch Input configuration options
 
 This plugin supports the following configuration options plus the <<plugins-{type}s-{plugin}-common-options>> described later.
 
@@ -99,6 +106,7 @@ This plugin supports the following configuration options plus the <<plugins-{typ
 | <<plugins-{type}s-{plugin}-docinfo>> |<<boolean,boolean>>|No
 | <<plugins-{type}s-{plugin}-docinfo_fields>> |<<array,array>>|No
 | <<plugins-{type}s-{plugin}-docinfo_target>> |<<string,string>>|No
+| <<plugins-{type}s-{plugin}-ecs_compatibility>> |<<string,string>>|No
 | <<plugins-{type}s-{plugin}-hosts>> |<<array,array>>|No
 | <<plugins-{type}s-{plugin}-index>> |<<string,string>>|No
 | <<plugins-{type}s-{plugin}-password>> |<<password,password>>|No
@@ -241,6 +249,19 @@ more information.
 If document metadata storage is requested by enabling the `docinfo`
 option, this option names the field under which to store the metadata
 fields as subfields.
+
+[id="plugins-{type}s-{plugin}-ecs_compatibility"]
+===== `ecs_compatibility`
+
+  * Value type is <<string,string>>
+  * Supported values are:
+    ** `disabled`: CSV data added at root level
+    ** `v1`,`v8`: Elastic Common Schema compliant behavior
+  * Default value depends on which version of Logstash is running:
+    ** When Logstash provides a `pipeline.ecs_compatibility` setting, its value is used as the default
+    ** Otherwise, the default value is `disabled`
+
+Controls this plugin's compatibility with the {ecs-ref}[Elastic Common Schema (ECS)].
 
 [id="plugins-{type}s-{plugin}-hosts"]
 ===== `hosts` 
