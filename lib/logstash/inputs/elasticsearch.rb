@@ -63,6 +63,10 @@ require_relative "patch"
 #
 #
 class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
+
+  include LogStash::PluginMixins::ECSCompatibilitySupport
+  include LogStash::PluginMixins::ECSCompatibilitySupport::TargetCheck
+
   extend LogStash::PluginMixins::ValidatorSupport::FieldReferenceValidationAdapter
 
   config_name "elasticsearch"
