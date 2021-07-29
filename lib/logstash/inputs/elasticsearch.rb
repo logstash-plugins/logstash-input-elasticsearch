@@ -133,7 +133,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   config :docinfo, :validate => :boolean, :default => false
 
   # Where to move the Elasticsearch document information. By default we use the @metadata field.
-  config :docinfo_target, :validate=> :string, :default => LogStash::Event::METADATA
+  config :docinfo_target, :validate=> :field_reference, :default => LogStash::Event::METADATA
 
   # List of document metadata to move to the `docinfo_target` field.
   # To learn more about Elasticsearch metadata fields read
