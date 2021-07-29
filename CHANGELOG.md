@@ -1,3 +1,6 @@
+## 4.10.0
+  - Feat: added ecs_compatibility + event_factory support [#149](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/149)
+
 ## 4.9.1
   - [DOC] Replaced hard-coded links with shared attributes [#143](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/143)
   - [DOC] Added missing quote to docinfo_fields example [#145](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/145)
