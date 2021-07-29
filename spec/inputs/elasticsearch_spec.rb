@@ -8,11 +8,13 @@ require "stud/temporary"
 require "time"
 require "date"
 
+require 'logstash/plugin_mixins/ecs_compatibility_support/spec_helper'
+
 class LogStash::Inputs::TestableElasticsearch < LogStash::Inputs::Elasticsearch
   attr_reader :client
 end
 
-describe LogStash::Inputs::TestableElasticsearch do
+describe LogStash::Inputs::TestableElasticsearch, :ecs_compatibility_support do
 
   let(:plugin) { LogStash::Inputs::TestableElasticsearch.new(config) }
   let(:queue) { Queue.new }
@@ -40,7 +42,13 @@ describe LogStash::Inputs::TestableElasticsearch do
     end
   end
 
-  context 'creating events from Elasticsearch' do
+
+  ecs_compatibility_matrix(:disabled, :v1, :v8) do |ecs_select|
+
+    before(:each) do
+      allow_any_instance_of(described_class).to receive(:ecs_compatibility).and_return(ecs_compatibility)
+    end
+
     let(:config) do
       %q[
         input {
@@ -124,6 +132,7 @@ describe LogStash::Inputs::TestableElasticsearch do
         expect(event.get("[@metadata][_source][message]")).to eql [ "ohayo" ]
       end
     end
+
   end
 
   # This spec is an adapter-spec, ensuring that we send the right sequence of messages to our Elasticsearch Client
