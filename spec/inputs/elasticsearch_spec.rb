@@ -10,13 +10,9 @@ require "date"
 
 require 'logstash/plugin_mixins/ecs_compatibility_support/spec_helper'
 
-class LogStash::Inputs::TestableElasticsearch < LogStash::Inputs::Elasticsearch
-  attr_reader :client
-end
+describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
 
-describe LogStash::Inputs::TestableElasticsearch, :ecs_compatibility_support do
-
-  let(:plugin) { LogStash::Inputs::TestableElasticsearch.new(config) }
+  let(:plugin) { described_class.new(config) }
   let(:queue) { Queue.new }
 
   it_behaves_like "an interruptible input plugin" do
@@ -105,7 +101,6 @@ describe LogStash::Inputs::TestableElasticsearch, :ecs_compatibility_support do
       end
 
       expect(event).to be_a(LogStash::Event)
-      puts event.to_hash_with_metadata
       expect(event.get("message")).to eql [ "ohayo" ]
     end
 
@@ -128,7 +123,6 @@ describe LogStash::Inputs::TestableElasticsearch, :ecs_compatibility_support do
         end
 
         expect(event).to be_a(LogStash::Event)
-        puts event.to_hash_with_metadata
         expect(event.get("[@metadata][_source][message]")).to eql [ "ohayo" ]
       end
     end
@@ -144,6 +138,7 @@ describe LogStash::Inputs::TestableElasticsearch, :ecs_compatibility_support do
           'query' => "#{LogStash::Json.dump(query)}",
           'slices' => slices,
           'docinfo' => true, # include ids
+          'docinfo_target' => '[@metadata]'
       }
     end
     let(:query) do
@@ -414,127 +409,142 @@ describe LogStash::Inputs::TestableElasticsearch, :ecs_compatibility_support do
       allow(client).to receive(:clear_scroll).and_return(nil)
     end
 
-    context 'when defining docinfo' do
-      let(:config_metadata) do
-        %q[
+    ecs_compatibility_matrix(:disabled, :v1, :v8) do |ecs_select|
+
+      before(:each) do
+        allow_any_instance_of(described_class).to receive(:ecs_compatibility).and_return(ecs_compatibility)
+      end
+
+      context 'with docinfo enabled' do
+        let(:config_metadata) do
+          %q[
+              input {
+                elasticsearch {
+                  hosts => ["localhost"]
+                  query => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }'
+                  docinfo => true
+                }
+              }
+          ]
+        end
+
+        it "provides document info under metadata" do
+          event = input(config_metadata) do |pipeline, queue|
+            queue.pop
+          end
+
+          puts event.to_hash_with_metadata.inspect
+
+          if ecs_select.active_mode == :disabled
+            expect(event.get("[@metadata][_index]")).to eq('logstash-2014.10.12')
+            expect(event.get("[@metadata][_type]")).to eq('logs')
+            expect(event.get("[@metadata][_id]")).to eq('C5b2xLQwTZa76jBmHIbwHQ')
+          else
+            expect(event.get("[@metadata][input][elasticsearch][_index]")).to eq('logstash-2014.10.12')
+            expect(event.get("[@metadata][input][elasticsearch][_type]")).to eq('logs')
+            expect(event.get("[@metadata][input][elasticsearch][_id]")).to eq('C5b2xLQwTZa76jBmHIbwHQ')
+          end
+        end
+
+        it 'merges values if the `docinfo_target` already exist in the `_source` document' do
+          config_metadata_with_hash = %Q[
+              input {
+                elasticsearch {
+                  hosts => ["localhost"]
+                  query => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }'
+                  docinfo => true
+                  docinfo_target => 'metadata_with_hash'
+                }
+              }
+          ]
+
+          event = input(config_metadata_with_hash) do |pipeline, queue|
+            queue.pop
+          end
+
+          expect(event.get("[metadata_with_hash][_index]")).to eq('logstash-2014.10.12')
+          expect(event.get("[metadata_with_hash][_type]")).to eq('logs')
+          expect(event.get("[metadata_with_hash][_id]")).to eq('C5b2xLQwTZa76jBmHIbwHQ')
+          expect(event.get("[metadata_with_hash][awesome]")).to eq("logstash")
+        end
+
+        context 'if the `docinfo_target` exist but is not of type hash' do
+          let (:config) { {
+              "hosts" => ["localhost"],
+              "query" => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }',
+              "docinfo" => true,
+              "docinfo_target" => 'metadata_with_string'
+          } }
+          it 'thows an exception if the `docinfo_target` exist but is not of type hash' do
+            expect(client).not_to receive(:clear_scroll)
+            plugin.register
+            expect { plugin.run([]) }.to raise_error(Exception, /incompatible event/)
+          end
+        end
+
+        it 'should move the document information to the specified field' do
+          config = %q[
+              input {
+                elasticsearch {
+                  hosts => ["localhost"]
+                  query => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }'
+                  docinfo => true
+                  docinfo_target => 'meta'
+                }
+              }
+          ]
+          event = input(config) do |pipeline, queue|
+            queue.pop
+          end
+
+          expect(event.get("[meta][_index]")).to eq('logstash-2014.10.12')
+          expect(event.get("[meta][_type]")).to eq('logs')
+          expect(event.get("[meta][_id]")).to eq('C5b2xLQwTZa76jBmHIbwHQ')
+        end
+
+        it "allows to specify which fields from the document info to save to metadata" do
+          fields = ["_index"]
+          config = %Q[
+              input {
+                elasticsearch {
+                  hosts => ["localhost"]
+                  query => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }'
+                  docinfo => true
+                  docinfo_fields => #{fields}
+                }
+              }]
+
+          event = input(config) do |pipeline, queue|
+            queue.pop
+          end
+
+          meta_base = event.get(ecs_select.active_mode == :disabled ? "@metadata" : "[@metadata][input][elasticsearch]")
+          expect(meta_base.keys).to eq(fields)
+        end
+
+        it 'should be able to reference metadata fields in `add_field` decorations' do
+          config = %q[
             input {
               elasticsearch {
                 hosts => ["localhost"]
                 query => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }'
                 docinfo => true
+                add_field => {
+                  'identifier' => "foo:%{[@metadata][_type]}:%{[@metadata][_id]}"
+                }
               }
             }
-        ]
+          ]
+
+          event = input(config) do |pipeline, queue|
+            queue.pop
+          end
+
+          expect(event.get('identifier')).to eq('foo:logs:C5b2xLQwTZa76jBmHIbwHQ')
+        end if ecs_select.active_mode == :disabled
+
       end
 
-      it 'merges the values if the `docinfo_target` already exist in the `_source` document' do
-        config_metadata_with_hash = %Q[
-            input {
-              elasticsearch {
-                hosts => ["localhost"]
-                query => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }'
-                docinfo => true
-                docinfo_target => 'metadata_with_hash'
-              }
-            }
-        ]
-
-        event = input(config_metadata_with_hash) do |pipeline, queue|
-          queue.pop
-        end
-
-        expect(event.get("[metadata_with_hash][_index]")).to eq('logstash-2014.10.12')
-        expect(event.get("[metadata_with_hash][_type]")).to eq('logs')
-        expect(event.get("[metadata_with_hash][_id]")).to eq('C5b2xLQwTZa76jBmHIbwHQ')
-        expect(event.get("[metadata_with_hash][awesome]")).to eq("logstash")
-      end
-
-      context 'if the `docinfo_target` exist but is not of type hash' do
-        let (:config) { {
-            "hosts" => ["localhost"],
-            "query" => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }',
-            "docinfo" => true,
-            "docinfo_target" => 'metadata_with_string'
-        } }
-        it 'thows an exception if the `docinfo_target` exist but is not of type hash' do
-          expect(client).not_to receive(:clear_scroll)
-          plugin.register
-          expect { plugin.run([]) }.to raise_error(Exception, /incompatible event/)
-        end
-      end
-
-      it "should move the document info to the @metadata field" do
-        event = input(config_metadata) do |pipeline, queue|
-          queue.pop
-        end
-
-        expect(event.get("[@metadata][_index]")).to eq('logstash-2014.10.12')
-        expect(event.get("[@metadata][_type]")).to eq('logs')
-        expect(event.get("[@metadata][_id]")).to eq('C5b2xLQwTZa76jBmHIbwHQ')
-      end
-
-      it 'should move the document information to the specified field' do
-        config = %q[
-            input {
-              elasticsearch {
-                hosts => ["localhost"]
-                query => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }'
-                docinfo => true
-                docinfo_target => 'meta'
-              }
-            }
-        ]
-        event = input(config) do |pipeline, queue|
-          queue.pop
-        end
-
-        expect(event.get("[meta][_index]")).to eq('logstash-2014.10.12')
-        expect(event.get("[meta][_type]")).to eq('logs')
-        expect(event.get("[meta][_id]")).to eq('C5b2xLQwTZa76jBmHIbwHQ')
-      end
-
-      it "should allow to specify which fields from the document info to save to the @metadata field" do
-        fields = ["_index"]
-        config = %Q[
-            input {
-              elasticsearch {
-                hosts => ["localhost"]
-                query => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }'
-                docinfo => true
-                docinfo_fields => #{fields}
-              }
-            }]
-
-        event = input(config) do |pipeline, queue|
-          queue.pop
-        end
-
-        expect(event.get("@metadata").keys).to eq(fields)
-        expect(event.get("[@metadata][_type]")).to eq(nil)
-        expect(event.get("[@metadata][_index]")).to eq('logstash-2014.10.12')
-        expect(event.get("[@metadata][_id]")).to eq(nil)
-      end
-
-      it 'should be able to reference metadata fields in `add_field` decorations' do
-        config = %q[
-          input {
-            elasticsearch {
-              hosts => ["localhost"]
-              query => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }'
-              docinfo => true
-              add_field => {
-                'identifier' => "foo:%{[@metadata][_type]}:%{[@metadata][_id]}"
-              }
-            }
-          }
-        ]
-
-        event = input(config) do |pipeline, queue|
-          queue.pop
-        end
-
-        expect(event.get('identifier')).to eq('foo:logs:C5b2xLQwTZa76jBmHIbwHQ')
-      end
     end
 
     context "when not defining the docinfo" do
@@ -551,9 +561,7 @@ describe LogStash::Inputs::TestableElasticsearch, :ecs_compatibility_support do
           queue.pop
         end
 
-        expect(event.get("[@metadata][_index]")).to eq(nil)
-        expect(event.get("[@metadata][_type]")).to eq(nil)
-        expect(event.get("[@metadata][_id]")).to eq(nil)
+        expect(event.get("[@metadata]")).to be_empty
       end
     end
   end

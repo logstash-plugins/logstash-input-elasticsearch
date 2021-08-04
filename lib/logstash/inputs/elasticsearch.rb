@@ -132,8 +132,9 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   #
   config :docinfo, :validate => :boolean, :default => false
 
-  # Where to move the Elasticsearch document information. By default we use the @metadata field.
-  config :docinfo_target, :validate=> :field_reference, :default => LogStash::Event::METADATA
+  # Where to move the Elasticsearch document information.
+  # default: [@metadata][input][elasticsearch] in ECS mode, @metadata field otherwise
+  config :docinfo_target, :validate=> :field_reference
 
   # List of document metadata to move to the `docinfo_target` field.
   # To learn more about Elasticsearch metadata fields read
@@ -188,6 +189,14 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # If set, the _source of each hit will be added nested under the target instead of at the top-level
   config :target, :validate => :field_reference
 
+  def initialize(params={})
+    super(params)
+
+    if docinfo_target.nil?
+      @docinfo_target = ecs_select[disabled: '@metadata', v1: '[@metadata][input][elasticsearch]']
+    end
+  end
+
   def register
     require "elasticsearch"
     require "rufus/scheduler"
@@ -230,8 +239,6 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
       :ssl => ssl_options
     )
   end
-
-
 
   def run(output_queue)
     if @schedule
@@ -447,6 +454,9 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     end
     [ cloud_auth.username, cloud_auth.password ]
   end
+
+  # @private used by unit specs
+  attr_reader :client
 
   module URIOrEmptyValidator
     ##
