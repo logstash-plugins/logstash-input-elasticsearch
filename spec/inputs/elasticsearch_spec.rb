@@ -568,13 +568,13 @@ describe LogStash::Inputs::TestableElasticsearch do
       it "should set host(s)" do
         plugin.register
         client = plugin.send(:client)
-        expect( client.transport.hosts ).to eql [{
-                                                     :scheme => "https",
-                                                     :host => "ac31ebb90241773157043c34fd26fd46.us-central1.gcp.cloud.es.io",
-                                                     :port => 9243,
-                                                     :path => "",
-                                                     :protocol => "https"
-                                                 }]
+        expect( client.transport.instance_variable_get(:@hosts) ).to eql [{
+                                                                              :scheme => "https",
+                                                                              :host => "ac31ebb90241773157043c34fd26fd46.us-central1.gcp.cloud.es.io",
+                                                                              :port => 9243,
+                                                                              :path => "",
+                                                                              :protocol => "https"
+                                                                          }]
       end
 
       context 'invalid' do
@@ -600,7 +600,7 @@ describe LogStash::Inputs::TestableElasticsearch do
       it "should set authorization" do
         plugin.register
         client = plugin.send(:client)
-        auth_header = client.transport.options[:transport_options][:headers][:Authorization]
+        auth_header = client.transport.instance_variable_get(:@options)[:transport_options][:headers][:Authorization]
 
         expect( auth_header ).to eql "Basic #{Base64.encode64('elastic:my-passwd-00').rstrip}"
       end
@@ -637,7 +637,7 @@ describe LogStash::Inputs::TestableElasticsearch do
         it "should set authorization" do
           plugin.register
           client = plugin.send(:client)
-          auth_header = client.transport.options[:transport_options][:headers][:Authorization]
+          auth_header = client.transport.instance_variable_get(:@options)[:transport_options][:headers][:Authorization]
 
           expect( auth_header ).to eql "ApiKey #{Base64.strict_encode64('foo:bar')}"
         end
@@ -658,7 +658,7 @@ describe LogStash::Inputs::TestableElasticsearch do
       it "should set proxy" do
         plugin.register
         client = plugin.send(:client)
-        proxy = client.transport.options[:transport_options][:proxy]
+        proxy = client.transport.instance_variable_get(:@options)[:transport_options][:proxy]
 
         expect( proxy ).to eql "http://localhost:1234"
       end
@@ -670,7 +670,7 @@ describe LogStash::Inputs::TestableElasticsearch do
           plugin.register
           client = plugin.send(:client)
 
-          expect( client.transport.options[:transport_options] ).to_not include(:proxy)
+          expect( client.transport.instance_variable_get(:@options)[:transport_options] ).to_not include(:proxy)
         end
       end
     end
