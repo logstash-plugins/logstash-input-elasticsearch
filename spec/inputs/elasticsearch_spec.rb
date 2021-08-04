@@ -585,13 +585,13 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       it "should set host(s)" do
         plugin.register
         client = plugin.send(:client)
-        expect( client.transport.instance_variable_get(:@hosts) ).to eql [{
-                                                                              :scheme => "https",
-                                                                              :host => "ac31ebb90241773157043c34fd26fd46.us-central1.gcp.cloud.es.io",
-                                                                              :port => 9243,
-                                                                              :path => "",
-                                                                              :protocol => "https"
-                                                                          }]
+        expect( extract_client_transport_hosts(client) ).to eql [{
+                                                                     :scheme => "https",
+                                                                     :host => "ac31ebb90241773157043c34fd26fd46.us-central1.gcp.cloud.es.io",
+                                                                     :port => 9243,
+                                                                     :path => "",
+                                                                     :protocol => "https"
+                                                                 }]
       end
 
       context 'invalid' do
@@ -772,5 +772,10 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       Timecop.return
     end
 
+  end
+
+  # @note the hosts method got removed and @hosts i-var was changed to @seeds in elasticsearch 7.14.0
+  def extract_client_transport_hosts(client)
+    client.transport.instance_variable_get(:@hosts) || client.transport.instance_variable_get(:@seeds)
   end
 end
