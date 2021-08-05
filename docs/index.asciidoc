@@ -86,7 +86,10 @@ The `monitoring` permission at cluster level is necessary to perform periodic co
 [id="plugins-{type}s-{plugin}-ecs"]
 ==== Compatibility with the Elastic Common Schema (ECS)
 
-The plugin behaves the same regardless of ECS compatibility, except giving a warning when ECS is enabled and `target` isn't set.
+When ECS compatibility is disabled, `docinfo_target` uses the `"@metadata"` field as a default, with ECS enabled the plugin
+uses a naming convention `"[@metadata][input][elasticsearch]"` as a default target for placing document information.
+
+The plugin logs a warning when ECS is enabled and `target` isn't set.
 
 TIP: Set the `target` option to avoid potential schema conflicts.
 
@@ -205,13 +208,14 @@ Example
         size => 500
         scroll => "5m"
         docinfo => true
+        docinfo_target => "[@metadata][doc]"
       }
     }
     output {
       elasticsearch {
-        index => "copy-of-production.%{[@metadata][_index]}"
-        document_type => "%{[@metadata][_type]}"
-        document_id => "%{[@metadata][_id]}"
+        index => "copy-of-production.%{[@metadata][doc][_index]}"
+        document_type => "%{[@metadata][doc][_type]}"
+        document_id => "%{[@metadata][doc][_id]}"
       }
     }
 
@@ -222,8 +226,9 @@ Example
     input {
       elasticsearch {
         docinfo => true
+        docinfo_target => "[@metadata][doc]"
         add_field => {
-          identifier => "%{[@metadata][_index]}:%{[@metadata][_type]}:%{[@metadata][_id]}"
+          identifier => "%{[@metadata][doc][_index]}:%{[@metadata][doc][_type]}:%{[@metadata][doc][_id]}"
         }
       }
     }
@@ -424,4 +429,4 @@ empty string authentication will be disabled.
 [id="plugins-{type}s-{plugin}-common-options"]
 include::{include_path}/{type}.asciidoc[]
 
-:default_codec!:
+:no_codec!:
