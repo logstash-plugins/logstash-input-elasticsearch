@@ -433,8 +433,6 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
             queue.pop
           end
 
-          puts event.to_hash_with_metadata.inspect
-
           if ecs_select.active_mode == :disabled
             expect(event.get("[@metadata][_index]")).to eq('logstash-2014.10.12')
             expect(event.get("[@metadata][_type]")).to eq('logs')
@@ -585,13 +583,13 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       it "should set host(s)" do
         plugin.register
         client = plugin.send(:client)
-        expect( extract_client_transport_hosts(client) ).to eql [{
-                                                                     :scheme => "https",
-                                                                     :host => "ac31ebb90241773157043c34fd26fd46.us-central1.gcp.cloud.es.io",
-                                                                     :port => 9243,
-                                                                     :path => "",
-                                                                     :protocol => "https"
-                                                                 }]
+        expect( extract_transport(client).hosts ).to eql [{
+                                                              :scheme => "https",
+                                                              :host => "ac31ebb90241773157043c34fd26fd46.us-central1.gcp.cloud.es.io",
+                                                              :port => 9243,
+                                                              :path => "",
+                                                              :protocol => "https"
+                                                          }]
       end
 
       context 'invalid' do
@@ -617,7 +615,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       it "should set authorization" do
         plugin.register
         client = plugin.send(:client)
-        auth_header = client.transport.instance_variable_get(:@options)[:transport_options][:headers][:Authorization]
+        auth_header = extract_transport(client).options[:transport_options][:headers][:Authorization]
 
         expect( auth_header ).to eql "Basic #{Base64.encode64('elastic:my-passwd-00').rstrip}"
       end
@@ -654,7 +652,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
         it "should set authorization" do
           plugin.register
           client = plugin.send(:client)
-          auth_header = client.transport.instance_variable_get(:@options)[:transport_options][:headers][:Authorization]
+          auth_header = extract_transport(client).options[:transport_options][:headers][:Authorization]
 
           expect( auth_header ).to eql "ApiKey #{Base64.strict_encode64('foo:bar')}"
         end
@@ -675,7 +673,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       it "should set proxy" do
         plugin.register
         client = plugin.send(:client)
-        proxy = client.transport.instance_variable_get(:@options)[:transport_options][:proxy]
+        proxy = extract_transport(client).options[:transport_options][:proxy]
 
         expect( proxy ).to eql "http://localhost:1234"
       end
@@ -687,7 +685,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
           plugin.register
           client = plugin.send(:client)
 
-          expect( client.transport.instance_variable_get(:@options)[:transport_options] ).to_not include(:proxy)
+          expect( extract_transport(client).options[:transport_options] ).to_not include(:proxy)
         end
       end
     end
@@ -774,8 +772,9 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
 
   end
 
-  # @note the hosts method got removed and @hosts i-var was changed to @seeds in elasticsearch 7.14.0
-  def extract_client_transport_hosts(client)
-    client.transport.instance_variable_get(:@hosts) || client.transport.instance_variable_get(:@seeds)
+  # @note can be removed once we depends on elasticsearch gem >= 6.x
+  def extract_transport(client) # on 7.x client.transport is a ES::Transport::Client
+    client.transport.respond_to?(:transport) ? client.transport.transport : client.transport
   end
+
 end
