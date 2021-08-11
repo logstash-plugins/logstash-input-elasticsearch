@@ -10,11 +10,11 @@ module ESHelper
   def self.get_client(options)
     require 'elasticsearch/transport/transport/http/faraday' # supports user/password options
     host, port = get_host_port.split(':')
-    host_opts = { :host => host, :port => port, :scheme => 'http' }
-    ssl_options = {}
+    host_opts = { host: host, port: port, scheme: 'http' }
+    ssl_opts = {}
 
     if options[:ca_file]
-      ssl_options = { :ssl  => true, :ca_file => options[:ca_file] }
+      ssl_opts = { ssl: true, ca_file: options[:ca_file], verify: false }
       host_opts[:scheme] = 'https'
     end
 
@@ -23,7 +23,7 @@ module ESHelper
       host_opts[:password] = options[:password]
     end
 
-    Elasticsearch::Client.new(hosts: [host_opts], ssl: ssl_options,
+    Elasticsearch::Client.new(hosts: [host_opts], ssl: ssl_opts,
                               transport_class: Elasticsearch::Transport::Transport::HTTP::Faraday)
   end
 
