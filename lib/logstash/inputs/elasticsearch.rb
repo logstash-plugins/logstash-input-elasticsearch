@@ -5,8 +5,8 @@ require "logstash/json"
 require "logstash/util/safe_uri"
 require 'logstash/plugin_mixins/validator_support/field_reference_validation_adapter'
 require "base64"
-require_relative "patch"
 
+require_relative "patches/_elasticsearch_transport_connections_selector_round_robin"
 
 # .Compatibility Note
 # [NOTE]
