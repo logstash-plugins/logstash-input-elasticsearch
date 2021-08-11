@@ -17,7 +17,7 @@ if Gem.loaded_specs['elasticsearch-transport'].version < Gem::Version.new("7.2.0
             # "Round-robin" selector strategy (default).
             #
             class RoundRobin
-              include Base
+              #include Base
 
               # @option arguments [Connections::Collection] :connections Collection with connections.
               #
