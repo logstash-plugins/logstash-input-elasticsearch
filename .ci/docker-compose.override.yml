@@ -16,10 +16,15 @@ services:
         - ELASTIC_STACK_VERSION=$ELASTIC_STACK_VERSION
         - INTEGRATION=${INTEGRATION:-false}
         - SECURE_INTEGRATION=${SECURE_INTEGRATION:-false}
+        - bootstrap.memory_lock=true
         - xpack.security.enabled=${SECURE_INTEGRATION:-false}
         - discovery.type=single-node
-        - ES_JAVA_OPTS=-Xms250m -Xmx800m
+        - ES_JAVA_OPTS=-Xms720m -Xmx720m
     tty: true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
     ports:
       - "9200:9200"
     user: elasticsearch
