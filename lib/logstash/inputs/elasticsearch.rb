@@ -6,7 +6,10 @@ require "logstash/util/safe_uri"
 require 'logstash/plugin_mixins/validator_support/field_reference_validation_adapter'
 require "base64"
 
-require_relative "patches/_elasticsearch_transport_connections_selector_round_robin"
+require "elasticsearch"
+require "elasticsearch/transport/transport/http/manticore"
+require_relative "elasticsearch/patches/_elasticsearch_transport_http_manticore"
+require_relative "elasticsearch/patches/_elasticsearch_transport_connections_selector_round_robin"
 
 # .Compatibility Note
 # [NOTE]
@@ -182,9 +185,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   config :target, :validate => :field_reference
 
   def register
-    require "elasticsearch"
     require "rufus/scheduler"
-    require "elasticsearch/transport/transport/http/manticore"
 
     @options = {
       :index => @index,
