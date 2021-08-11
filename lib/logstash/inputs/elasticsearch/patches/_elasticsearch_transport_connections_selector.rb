@@ -1,3 +1,6 @@
+require "elasticsearch"
+require "elasticsearch/transport/transport/http/manticore"
+
 if Gem.loaded_specs['elasticsearch-transport'].version >= Gem::Version.new("7.2.0")
   # elasticsearch-transport versions prior to 7.2.0 suffered of a race condition on accessing
   # the connection pool. This issue was fixed with https://github.com/elastic/elasticsearch-ruby/commit/15f9d78591a6e8823948494d94b15b0ca38819d1
