@@ -11,7 +11,7 @@ describe LogStash::Inputs::Elasticsearch do
                      'query' => '{ "query": { "match": { "message": "Not found"} }}' } }
   let(:plugin) { described_class.new(config) }
   let(:event)  { LogStash::Event.new({}) }
-  let(:client_options) {{}}
+  let(:client_options) { Hash.new }
 
   before(:each) do
     @es = ESHelper.get_client(client_options)
@@ -47,10 +47,10 @@ describe LogStash::Inputs::Elasticsearch do
   end
 
   describe 'against a secured elasticsearch', :secure_integration => true do
-    let(:user) { 'simpleuser' }
-    let(:password) { 'abc123' }
-    let(:ca_file) { "spec/fixtures/test_certs/test.crt" }
-    let(:client_options) {{:ca_file => ca_file, :user => user, :password => password}}
+    let(:user) { ENV['ELASTIC_USER'] || 'simpleuser' }
+    let(:password) { ENV['ELASTIC_PASSWORD'] || 'abc123' }
+    let(:ca_file) { "spec/fixtures/test_certs/ca/ca.crt" }
+    let(:client_options) { { :ca_file => ca_file, :user => user, :password => password } }
     let(:config)   { super().merge({
                        'user' => user,
                        'password' => password,
