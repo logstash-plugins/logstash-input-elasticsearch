@@ -16,7 +16,8 @@ services:
         - ELASTIC_STACK_VERSION=$ELASTIC_STACK_VERSION
         - INTEGRATION=${INTEGRATION:-false}
         - SECURE_INTEGRATION=${SECURE_INTEGRATION:-false}
-    command: /usr/share/elasticsearch/elasticsearch-run.sh
+        - discovery.type=single-node
+        - ES_JAVA_OPTS=-Xms250m -Xmx800m
     tty: true
     ports:
       - "9200:9200"
