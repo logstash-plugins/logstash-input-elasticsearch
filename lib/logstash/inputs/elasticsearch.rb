@@ -9,7 +9,7 @@ require "base64"
 require "elasticsearch"
 require "elasticsearch/transport/transport/http/manticore"
 require_relative "elasticsearch/patches/_elasticsearch_transport_http_manticore"
-require_relative "elasticsearch/patches/_elasticsearch_transport_connections_selector_round_robin"
+require_relative "elasticsearch/patches/_elasticsearch_transport_connections_selector"
 
 # .Compatibility Note
 # [NOTE]
