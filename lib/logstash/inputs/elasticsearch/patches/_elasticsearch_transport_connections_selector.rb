@@ -1,13 +1,13 @@
-require "elasticsearch"
-require "elasticsearch/transport/transport/http/manticore"
+require 'elasticsearch'
+require 'elasticsearch/transport/transport/connections/selector'
 
-if Gem.loaded_specs['elasticsearch-transport'].version >= Gem::Version.new("7.2.0")
+if Gem.loaded_specs['elasticsearch-transport'].version < Gem::Version.new("7.2.0")
   # elasticsearch-transport versions prior to 7.2.0 suffered of a race condition on accessing
-  # the connection pool. This issue was fixed with https://github.com/elastic/elasticsearch-ruby/commit/15f9d78591a6e8823948494d94b15b0ca38819d1
-  # This plugin, at the moment, is forced to use v5.x so we have to monkey patch the gem. When this requirement
-  # ceases, this patch could be removed.
-  puts "WARN remove the patch code into logstash-input-elasticsearch plugin"
-else
+  # the connection pool. This issue was fixed (in 7.2.0) with
+  # https://github.com/elastic/elasticsearch-ruby/commit/15f9d78591a6e8823948494d94b15b0ca38819d1
+  #
+  # This plugin, at the moment, is using elasticsearch >= 5.0.5
+  # When this requirement ceases, this patch could be removed.
   module Elasticsearch
     module Transport
       module Transport
