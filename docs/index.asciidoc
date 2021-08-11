@@ -252,6 +252,16 @@ List of one or more Elasticsearch hosts to use for querying. Each host
 can be either IP, HOST, IP:port, or HOST:port. The port defaults to
 9200.
 
+This option can accept an environment variable containing one or more hostnames separated by whitespace.
+Strings separated by whitespace are treated as separate entries.
+
+*Examples:*
+
+* `ES_HOSTS="es1.example.com es2.example.com:9201 es3.example.com:9201"`
+* `ES_HOSTS="127.0.0.1:9200 127.0.0.2:9200"`
+* `ES_HOSTS="http://127.0.0.1 http://127.0.0.2"`
+* `ES_HOSTS="https://127.0.0.1:9200/mypath https://127.0.0.2:9200/mypath"`
+
 [id="plugins-{type}s-{plugin}-index"]
 ===== `index` 
 
