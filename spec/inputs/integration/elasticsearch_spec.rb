@@ -50,14 +50,26 @@ describe LogStash::Inputs::Elasticsearch do
     let(:user) { ENV['ELASTIC_USER'] || 'simpleuser' }
     let(:password) { ENV['ELASTIC_PASSWORD'] || 'abc123' }
     let(:ca_file) { "spec/fixtures/test_certs/ca.crt" }
+
     let(:client_options) { { :ca_file => ca_file, :user => user, :password => password } }
-    let(:config)   { super().merge({
-                       'user' => user,
-                       'password' => password,
-                       'ssl' => true,
-                       'ca_file' => ca_file })
-    }
+
+    let(:config) { super().merge('user' => user, 'password' => password, 'ssl' => true, 'ca_file' => ca_file) }
+
     it_behaves_like 'an elasticsearch index plugin'
+
+    context "incorrect auth credentials" do
+
+      let(:config) do
+        super().merge('user' => 'archer', 'password' => 'b0gus!')
+      end
+
+      let(:queue) { [] }
+
+      it "fails to register plugin" do
+        plugin.register
+        expect { plugin.run queue }.to raise_error Elasticsearch::Transport::Transport::Errors::Unauthorized
+      end
+    end
+
   end
 end
-
