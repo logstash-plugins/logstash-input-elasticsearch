@@ -13,7 +13,7 @@ COPY --chown=elasticsearch:elasticsearch spec/fixtures/test_certs/* $es_path/con
 RUN if [ "$SECURE_INTEGRATION" = "true" ] ; then echo "xpack.security.http.ssl.enabled: true" >> $es_yml; fi
 RUN if [ "$SECURE_INTEGRATION" = "true" ] ; then echo "xpack.security.http.ssl.key: $es_path/config/test_certs/es.key" >> $es_yml; fi
 RUN if [ "$SECURE_INTEGRATION" = "true" ] ; then echo "xpack.security.http.ssl.certificate: $es_path/config/test_certs/es.crt" >> $es_yml; fi
-RUN if [ "$SECURE_INTEGRATION" = "true" ] ; then echo "xpack.security.http.ssl.certificate_authorities: [ '$es_path/config/test_certs/ca/ca.crt' ]" >> $es_yml; fi
+RUN if [ "$SECURE_INTEGRATION" = "true" ] ; then echo "xpack.security.http.ssl.certificate_authorities: [ '$es_path/config/test_certs/ca.crt' ]" >> $es_yml; fi
 RUN if [ "$SECURE_INTEGRATION" = "true" ] ; then echo "xpack.security.http.ssl.verification_mode: certificate" >> $es_yml; fi
 
 RUN if [ "$SECURE_INTEGRATION" = "true" ] ; then $es_path/bin/elasticsearch-users useradd simpleuser -p abc123 -r superuser; fi

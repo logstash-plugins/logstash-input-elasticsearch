@@ -49,7 +49,7 @@ describe LogStash::Inputs::Elasticsearch do
   describe 'against a secured elasticsearch', :secure_integration => true do
     let(:user) { ENV['ELASTIC_USER'] || 'simpleuser' }
     let(:password) { ENV['ELASTIC_PASSWORD'] || 'abc123' }
-    let(:ca_file) { "spec/fixtures/test_certs/ca/ca.crt" }
+    let(:ca_file) { "spec/fixtures/test_certs/ca.crt" }
     let(:client_options) { { :ca_file => ca_file, :user => user, :password => password } }
     let(:config)   { super().merge({
                        'user' => user,
