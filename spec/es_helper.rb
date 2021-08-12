@@ -14,7 +14,7 @@ module ESHelper
     ssl_opts = {}
 
     if options[:ca_file]
-      ssl_opts = { ssl: true, ca_file: options[:ca_file], verify: false }
+      ssl_opts = { ca_file: options[:ca_file], version: 'TLSv1.2', verify: false }
       host_opts[:scheme] = 'https'
     end
 
@@ -23,7 +23,8 @@ module ESHelper
       host_opts[:password] = options[:password]
     end
 
-    Elasticsearch::Client.new(hosts: [host_opts], ssl: ssl_opts,
+    Elasticsearch::Client.new(hosts: [host_opts],
+                              transport_options: { ssl: ssl_opts },
                               transport_class: Elasticsearch::Transport::Transport::HTTP::Faraday)
   end
 
