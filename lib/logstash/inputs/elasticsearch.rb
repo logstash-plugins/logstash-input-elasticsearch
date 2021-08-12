@@ -5,8 +5,11 @@ require "logstash/json"
 require "logstash/util/safe_uri"
 require 'logstash/plugin_mixins/validator_support/field_reference_validation_adapter'
 require "base64"
-require_relative "patch"
 
+require "elasticsearch"
+require "elasticsearch/transport/transport/http/manticore"
+require_relative "elasticsearch/patches/_elasticsearch_transport_http_manticore"
+require_relative "elasticsearch/patches/_elasticsearch_transport_connections_selector"
 
 # .Compatibility Note
 # [NOTE]
@@ -182,9 +185,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   config :target, :validate => :field_reference
 
   def register
-    require "elasticsearch"
     require "rufus/scheduler"
-    require "elasticsearch/transport/transport/http/manticore"
 
     @options = {
       :index => @index,
@@ -223,7 +224,6 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
       :ssl => ssl_options
     )
   end
-
 
 
   def run(output_queue)
@@ -267,7 +267,6 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
     logger.info("Slice starting", slice_id: slice_id, slices: @slices) unless slice_id.nil?
 
-    scroll_id = nil
     begin
       r = search_request(slice_options)
 
@@ -388,14 +387,14 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     return {} unless user && password && password.value
 
     token = ::Base64.strict_encode64("#{user}:#{password.value}")
-    { Authorization: "Basic #{token}" }
+    { 'Authorization' => "Basic #{token}" }
   end
 
   def setup_api_key(api_key)
     return {} unless (api_key && api_key.value)
 
     token = ::Base64.strict_encode64(api_key.value)
-    { Authorization: "ApiKey #{token}" }
+    { 'Authorization' => "ApiKey #{token}" }
   end
 
   def fill_user_password_from_cloud_auth

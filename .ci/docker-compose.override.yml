@@ -16,8 +16,17 @@ services:
         - ELASTIC_STACK_VERSION=$ELASTIC_STACK_VERSION
         - INTEGRATION=${INTEGRATION:-false}
         - SECURE_INTEGRATION=${SECURE_INTEGRATION:-false}
-    command: /usr/share/elasticsearch/elasticsearch-run.sh
+    environment:
+      #- ELASTIC_PASSWORD=$ELASTIC_PASSWORD a user is setup manually
+      - xpack.security.enabled=${SECURE_INTEGRATION:-false}
+      - bootstrap.memory_lock=true
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms640m -Xmx640m
     tty: true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
     ports:
       - "9200:9200"
     user: elasticsearch
