@@ -29,18 +29,15 @@ module ESHelper
   end
 
   def self.doc_type
-    if ESHelper.es_version_satisfies?(">=8")
-      nil
-    elsif ESHelper.es_version_satisfies?(">=7")
-      "_doc"
-    else
+    if ESHelper.es_version_satisfies?("<7")
       "doc"
+    else
+      nil
     end
   end
 
   def self.index_doc(es, params)
-    type = doc_type
-    params[:type] = doc_type unless type.nil?
+    params[:type] ||= doc_type if doc_type
     es.index(params)
   end
 
