@@ -1,3 +1,6 @@
+## next
+  - [DOC] Added examples for using space delimited strings for `hosts` option [#154](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/154)
+
 ## 4.9.1
   - [DOC] Replaced hard-coded links with shared attributes [#143](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/143)
   - [DOC] Added missing quote to docinfo_fields example [#145](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/145)
