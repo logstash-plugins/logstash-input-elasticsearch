@@ -65,7 +65,7 @@ describe LogStash::Inputs::Elasticsearch do
 
       let(:queue) { [] }
 
-      it "fails to register plugin" do
+      it "fails to run the plugin" do
         plugin.register
         expect { plugin.run queue }.to raise_error Elasticsearch::Transport::Transport::Errors::Unauthorized
       end
