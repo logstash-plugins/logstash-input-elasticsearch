@@ -226,7 +226,6 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   end
 
 
-
   def run(output_queue)
     if @schedule
       @scheduler = Rufus::Scheduler.new(:max_work_threads => 1)
@@ -268,7 +267,6 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
     logger.info("Slice starting", slice_id: slice_id, slices: @slices) unless slice_id.nil?
 
-    scroll_id = nil
     begin
       r = search_request(slice_options)
 
