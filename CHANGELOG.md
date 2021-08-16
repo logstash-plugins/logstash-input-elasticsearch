@@ -1,6 +1,12 @@
 ## 4.10.0
   - Feat: added ecs_compatibility + event_factory support [#149](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/149)
 
+## 4.9.2
+  - Fix: a regression (in LS 7.14.0) where due the elasticsearch client update (from 5.0.5 to 7.5.0) the `Authorization` 
+    header isn't passed, this leads to the plugin not being able to leverage `user`/`password` credentials set by the user.
+    [#153](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/153)
+
+
 ## 4.9.1
   - [DOC] Replaced hard-coded links with shared attributes [#143](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/143)
   - [DOC] Added missing quote to docinfo_fields example [#145](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/145)

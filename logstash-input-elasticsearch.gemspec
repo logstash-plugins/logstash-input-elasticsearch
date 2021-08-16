@@ -25,13 +25,15 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'logstash-mixin-event_support', '~> 1.0'
   s.add_runtime_dependency "logstash-mixin-validator_support", '~> 1.0'
 
-  s.add_runtime_dependency 'elasticsearch', '>= 5.0.3'
+  s.add_runtime_dependency 'elasticsearch', '>= 5.0.5' # LS >= 6.7 and < 7.14 all used version 5.0.5
+
   s.add_runtime_dependency 'tzinfo'
   s.add_runtime_dependency 'tzinfo-data'
   s.add_runtime_dependency 'rufus-scheduler'
   s.add_runtime_dependency 'manticore', "~> 0.6"
 
   s.add_development_dependency 'logstash-codec-plain'
+  s.add_development_dependency 'faraday', "~> 0.15.4"
   s.add_development_dependency 'logstash-devutils'
   s.add_development_dependency 'timecop'
 end

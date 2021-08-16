@@ -1,30 +1,31 @@
 module ESHelper
   def self.get_host_port
-    return "elasticsearch:9200" if ENV["INTEGRATION"] == "true" || ENV["SECURE_INTEGRATION"] == "true"
-    raise "This setting is only used for integration tests"
+    if ENV["INTEGRATION"] == "true" || ENV["SECURE_INTEGRATION"] == "true"
+      "elasticsearch:9200"
+    else
+      "localhost:9200" # for local running integration specs outside docker
+    end
   end
 
-  def self.get_client(options = {})
-    ssl_options = {}
-    hosts = [get_host_port]
+  def self.get_client(options)
+    require 'elasticsearch/transport/transport/http/faraday' # supports user/password options
+    host, port = get_host_port.split(':')
+    host_opts = { host: host, port: port, scheme: 'http' }
+    ssl_opts = {}
 
     if options[:ca_file]
-      ssl_options = { :ssl  => true, :ca_file => options[:ca_file] }
-      hosts.map! do |h|
-        host, port = h.split(":")
-        { :host => host, :scheme => 'https', :port => port }
-      end
+      ssl_opts = { ca_file: options[:ca_file], version: 'TLSv1.2', verify: false }
+      host_opts[:scheme] = 'https'
     end
-
-    transport_options = {}
 
     if options[:user] && options[:password]
-      token = Base64.strict_encode64("#{options[:user]}:#{options[:password]}")
-      transport_options[:headers] = { :Authorization => "Basic #{token}" }
+      host_opts[:user] = options[:user]
+      host_opts[:password] = options[:password]
     end
 
-    @client = Elasticsearch::Client.new(:hosts => hosts, :transport_options => transport_options, :ssl => ssl_options,
-                                        :transport_class => ::Elasticsearch::Transport::Transport::HTTP::Manticore)
+    Elasticsearch::Client.new(hosts: [host_opts],
+                              transport_options: { ssl: ssl_opts },
+                              transport_class: Elasticsearch::Transport::Transport::HTTP::Faraday)
   end
 
   def self.doc_type

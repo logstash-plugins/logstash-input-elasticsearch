@@ -615,7 +615,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       it "should set authorization" do
         plugin.register
         client = plugin.send(:client)
-        auth_header = extract_transport(client).options[:transport_options][:headers][:Authorization]
+        auth_header = extract_transport(client).options[:transport_options][:headers]['Authorization']
 
         expect( auth_header ).to eql "Basic #{Base64.encode64('elastic:my-passwd-00').rstrip}"
       end
@@ -652,7 +652,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
         it "should set authorization" do
           plugin.register
           client = plugin.send(:client)
-          auth_header = extract_transport(client).options[:transport_options][:headers][:Authorization]
+          auth_header = extract_transport(client).options[:transport_options][:headers]['Authorization']
 
           expect( auth_header ).to eql "ApiKey #{Base64.strict_encode64('foo:bar')}"
         end

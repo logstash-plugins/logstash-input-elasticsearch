@@ -8,8 +8,11 @@ require 'logstash/plugin_mixins/event_support/event_factory_adapter'
 require 'logstash/plugin_mixins/ecs_compatibility_support'
 require 'logstash/plugin_mixins/ecs_compatibility_support/target_check'
 require "base64"
-require_relative "patch"
 
+require "elasticsearch"
+require "elasticsearch/transport/transport/http/manticore"
+require_relative "elasticsearch/patches/_elasticsearch_transport_http_manticore"
+require_relative "elasticsearch/patches/_elasticsearch_transport_connections_selector"
 
 # .Compatibility Note
 # [NOTE]
@@ -198,9 +201,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   end
 
   def register
-    require "elasticsearch"
     require "rufus/scheduler"
-    require "elasticsearch/transport/transport/http/manticore"
 
     @options = {
       :index => @index,
@@ -239,6 +240,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
       :ssl => ssl_options
     )
   end
+
 
   def run(output_queue)
     if @schedule
@@ -395,14 +397,14 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     return {} unless user && password && password.value
 
     token = ::Base64.strict_encode64("#{user}:#{password.value}")
-    { Authorization: "Basic #{token}" }
+    { 'Authorization' => "Basic #{token}" }
   end
 
   def setup_api_key(api_key)
     return {} unless (api_key && api_key.value)
 
     token = ::Base64.strict_encode64(api_key.value)
-    { Authorization: "ApiKey #{token}" }
+    { 'Authorization' => "ApiKey #{token}" }
   end
 
   def fill_user_password_from_cloud_auth
