@@ -18,6 +18,14 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
   let(:plugin) { described_class.new(config) }
   let(:queue) { Queue.new }
 
+  before(:each) do
+#     client = Elasticsearch::Client.new
+#     expect(Elasticsearch::Client).to receive(:new).with(any_args).and_return(client)
+# #     expect(client).to receive(:ping).and_return(nil)
+#     allow(client).to receive(:ping)
+     Elasticsearch::Client.send(:define_method, :ping) { } # define no-action ping method
+  end
+
   it_behaves_like "an interruptible input plugin" do
     let(:esclient) { double("elasticsearch-client") }
     let(:config) do
@@ -38,6 +46,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       allow(esclient).to receive(:search) { { "hits" => { "hits" => [hit] } } }
       allow(esclient).to receive(:scroll) { { "hits" => { "hits" => [hit] } } }
       allow(esclient).to receive(:clear_scroll).and_return(nil)
+      allow(esclient).to receive(:ping)
     end
   end
 
@@ -96,6 +105,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       expect(client).to receive(:search).with(any_args).and_return(mock_response)
       expect(client).to receive(:scroll).with({ :body => { :scroll_id => "cXVlcnlUaGVuRmV0Y2g" }, :scroll=> "1m" }).and_return(mock_scroll_response)
       expect(client).to receive(:clear_scroll).and_return(nil)
+      expect(client).to receive(:ping)
     end
 
     it 'creates the events from the hits' do
@@ -311,6 +321,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
         expect(client).to receive(:search).with(hash_including(:body => slice0_query)).and_return(slice0_response0)
         expect(client).to receive(:scroll).with(hash_including(:body => { :scroll_id => slice0_scroll1 })).and_return(slice0_response1)
         expect(client).to receive(:scroll).with(hash_including(:body => { :scroll_id => slice0_scroll2 })).and_return(slice0_response2)
+        allow(client).to receive(:ping)
 
         # SLICE1 is a two-page scroll in which the last page has no next scroll id
         slice1_query = LogStash::Json.dump(query.merge('slice' => { 'id' => 1, 'max' => 2}))
@@ -410,6 +421,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       expect(client).to receive(:search).with(any_args).and_return(response)
       allow(client).to receive(:scroll).with({ :body => {:scroll_id => "cXVlcnlUaGVuRmV0Y2g"}, :scroll => "1m" }).and_return(scroll_reponse)
       allow(client).to receive(:clear_scroll).and_return(nil)
+      allow(client).to receive(:ping).and_return(nil)
     end
 
     ecs_compatibility_matrix(:disabled, :v1, :v8) do |ecs_select|
@@ -586,13 +598,14 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       it "should set host(s)" do
         plugin.register
         client = plugin.send(:client)
-        expect( extract_transport(client).hosts ).to eql [{
-                                                              :scheme => "https",
-                                                              :host => "ac31ebb90241773157043c34fd26fd46.us-central1.gcp.cloud.es.io",
-                                                              :port => 9243,
-                                                              :path => "",
-                                                              :protocol => "https"
-                                                          }]
+
+        expect( client.transport.instance_variable_get(:@seeds) ).to eql [{
+                                                                              :scheme => "https",
+                                                                              :host => "ac31ebb90241773157043c34fd26fd46.us-central1.gcp.cloud.es.io",
+                                                                              :port => 9243,
+                                                                              :path => "",
+                                                                              :protocol => "https"
+                                                                          }]
       end
 
       context 'invalid' do
@@ -843,7 +856,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       end
     end
 
-    shared_examples'configurable timeout' do |config_name, manticore_transport_option|
+    shared_examples 'configurable timeout' do |config_name, manticore_transport_option|
       let(:config_value) { fail NotImplementedError }
       let(:config) { super().merge(config_name => config_value) }
       {
@@ -874,6 +887,9 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
             transport_options = new_elasticsearch_client_params[:transport_options]
             expect(transport_options).to include(manticore_transport_option)
             expect(transport_options[manticore_transport_option]).to eq(config_value.to_i)
+            mock_client = double("fake_client")
+            allow(mock_client).to receive(:ping)
+            mock_client
           end
 
           plugin.register

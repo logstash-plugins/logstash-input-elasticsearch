@@ -240,6 +240,8 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
       :transport_class => ::Elasticsearch::Transport::Transport::HTTP::Manticore,
       :ssl => ssl_options
     )
+    test_connection!
+    @client
   end
 
 
@@ -472,6 +474,14 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
   # @private used by unit specs
   attr_reader :client
+
+  def test_connection!
+    begin
+      @client.ping
+    rescue Elasticsearch::UnsupportedProductError
+      raise LogStash::ConfigurationError, "Not a valid Elasticsearch"
+    end
+  end
 
   module URIOrEmptyValidator
     ##
