@@ -1,5 +1,5 @@
 ## 4.9.3
-  - Fixed SSL handshake hang indefinitely with proxy setup
+  - Fixed SSL handshake hang indefinitely with proxy setup [#156](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/156)
 
 ## 4.9.2
   - Fix: a regression (in LS 7.14.0) where due the elasticsearch client update (from 5.0.5 to 7.5.0) the `Authorization` 
