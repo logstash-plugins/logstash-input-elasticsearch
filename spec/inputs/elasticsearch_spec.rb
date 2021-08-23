@@ -19,11 +19,31 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
   let(:queue) { Queue.new }
 
   before(:each) do
-#     client = Elasticsearch::Client.new
-#     expect(Elasticsearch::Client).to receive(:new).with(any_args).and_return(client)
-# #     expect(client).to receive(:ping).and_return(nil)
-#     allow(client).to receive(:ping)
      Elasticsearch::Client.send(:define_method, :ping) { } # define no-action ping method
+  end
+
+  context "register" do
+    let(:config) do
+      {
+        "schedule" => "* * * * * UTC"
+      }
+    end
+
+    context "against authentic Elasticsearch" do
+      it "should not raise an exception" do
+       expect { plugin.register }.to_not raise_error
+     end
+    end
+
+    context "against not authentic Elasticsearch" do
+      before(:each) do
+         Elasticsearch::Client.send(:define_method, :ping) { raise Elasticsearch::UnsupportedProductError.new("Fake error") } # define error ping method
+      end
+
+      it "should raise ConfigurationError" do
+        expect { plugin.register }.to raise_error(LogStash::ConfigurationError)
+      end
+    end
   end
 
   it_behaves_like "an interruptible input plugin" do
