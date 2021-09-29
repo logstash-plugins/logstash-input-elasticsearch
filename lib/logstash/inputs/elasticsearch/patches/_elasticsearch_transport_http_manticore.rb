@@ -26,7 +26,6 @@ if es_client_version >= Gem::Version.new('7.2') && es_client_version < Gem::Vers
               # from https://github.com/elastic/elasticsearch-ruby/blob/v7.14.0/elasticsearch-transport/lib/elasticsearch/transport/transport/http/manticore.rb#L113-L114
               transport_user_agent = nil
               if (options && options[:transport_options] && options[:transport_options][:headers])
-                transport_headers = {}
                 transport_headers = options[:transport_options][:headers]
                 transport_user_agent = find_value(transport_headers, USER_AGENT_REGEX)
               end

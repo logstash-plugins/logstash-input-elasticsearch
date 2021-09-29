@@ -415,7 +415,6 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
       jvm_vendor = java.lang.System.getProperty('java.vendor')
       jvm_version = java.lang.System.getProperty('java.version')
 
-#      plugin_version = Gem.loaded_specs["logstash-#{@plugin_type}-#{config_name}"].version
       plugin_version = Gem.loaded_specs["logstash-input-elasticsearch"].version
       # example: logstash/7.14.1 (OS=Linux-5.4.0-84-generic-amd64; JVM=AdoptOpenJDK-11.0.11) logstash-input-elasticsearch/4.10.0
       "logstash/#{LOGSTASH_VERSION} (OS=#{os_name}-#{os_version}-#{os_arch}; JVM=#{jvm_vendor}-#{jvm_version}) logstash-#{@plugin_type}-#{config_name}/#{plugin_version}"
