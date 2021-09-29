@@ -7,6 +7,9 @@ require "timecop"
 require "stud/temporary"
 require "time"
 require "date"
+require "cabin"
+require "webrick"
+require "uri"
 
 require 'logstash/plugin_mixins/ecs_compatibility_support/spec_helper'
 
@@ -686,6 +689,156 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
           client = plugin.send(:client)
 
           expect( extract_transport(client).options[:transport_options] ).to_not include(:proxy)
+        end
+      end
+    end
+
+    class StoppableServer
+
+      attr_reader :port
+
+      def initialize()
+        queue = Queue.new
+        @first_req_waiter = java.util.concurrent.CountDownLatch.new(1)
+        @first_request = nil
+
+        @t = java.lang.Thread.new(
+          proc do
+            begin
+              @server = WEBrick::HTTPServer.new :Port => 0, :DocumentRoot => ".",
+                       :Logger => Cabin::Channel.get, # silence WEBrick logging
+                       :StartCallback => Proc.new {
+                             queue.push("started")
+                           }
+              @port = @server.config[:Port]
+              @server.mount_proc '/' do |req, res|
+                res.body = '''
+                {
+                    "name": "ce7ccfb438e8",
+                    "cluster_name": "docker-cluster",
+                    "cluster_uuid": "DyR1hN03QvuCWXRy3jtb0g",
+                    "version": {
+                        "number": "7.13.1",
+                        "build_flavor": "default",
+                        "build_type": "docker",
+                        "build_hash": "9a7758028e4ea59bcab41c12004603c5a7dd84a9",
+                        "build_date": "2021-05-28T17:40:59.346932922Z",
+                        "build_snapshot": false,
+                        "lucene_version": "8.8.2",
+                        "minimum_wire_compatibility_version": "6.8.0",
+                        "minimum_index_compatibility_version": "6.0.0-beta1"
+                    },
+                    "tagline": "You Know, for Search"
+                }
+                '''
+                res.status = 200
+                res['Content-Type'] = 'application/json'
+                @first_request = req
+                @first_req_waiter.countDown()
+              end
+
+              @server.mount_proc '/logstash_unit_test/_search' do |req, res|
+                res.body = '''
+                {
+                  "took" : 1,
+                  "timed_out" : false,
+                  "_shards" : {
+                    "total" : 1,
+                    "successful" : 1,
+                    "skipped" : 0,
+                    "failed" : 0
+                  },
+                  "hits" : {
+                    "total" : {
+                      "value" : 10000,
+                      "relation" : "gte"
+                    },
+                    "max_score" : 1.0,
+                    "hits" : [
+                      {
+                        "_index" : "test_bulk_index_2",
+                        "_type" : "_doc",
+                        "_id" : "sHe6A3wBesqF7ydicQvG",
+                        "_score" : 1.0,
+                        "_source" : {
+                          "@timestamp" : "2021-09-20T15:02:02.557Z",
+                          "message" : "{\"name\": \"Andrea\"}",
+                          "@version" : "1",
+                          "host" : "kalispera",
+                          "sequence" : 5
+                        }
+                      }
+                    ]
+                  }
+                }
+                '''
+                res.status = 200
+                res['Content-Type'] = 'application/json'
+                @first_request = req
+                @first_req_waiter.countDown()
+              end
+
+
+
+              @server.start
+            rescue => e
+              puts "Error in webserver thread #{e}"
+              # ignore
+            end
+          end
+        )
+        @t.daemon = true
+        @t.start
+        queue.pop # blocks until the server is up
+      end
+
+      def stop
+        @server.shutdown
+      end
+
+      def wait_receive_request
+        @first_req_waiter.await(2, java.util.concurrent.TimeUnit::SECONDS)
+        @first_request
+      end
+    end
+
+    describe "'user-agent' header" do
+      let!(:webserver) { StoppableServer.new } # webserver must be started before the call, so no lazy "let"
+
+      after :each do
+        webserver.stop
+      end
+
+      it "server should be started" do
+        require 'net/http'
+        response = nil
+        Net::HTTP.start('localhost', webserver.port) {|http|
+          response = http.request_get('/')
+        }
+        expect(response.code.to_i).to eq(200)
+      end
+
+      context "used by plugin" do
+        let(:config) do
+          {
+            "hosts" => ["localhost:#{webserver.port}"],
+            "query" => '{ "query": { "match": { "statuscode": 200 } }, "sort": [ "_doc" ] }',
+            "index" => "logstash_unit_test"
+          }
+        end
+        let(:plugin) { described_class.new(config) }
+        let(:event)  { LogStash::Event.new({}) }
+
+        it "client should sent the expect user-agent" do
+          plugin.register
+
+          queue = []
+          plugin.run(queue)
+
+          request = webserver.wait_receive_request
+
+          expect(request.header['user-agent'].size).to eq(1)
+          expect(request.header['user-agent'][0]).to match(/logstash\/\d*\.\d*\.\d* \(OS=.*; JVM=.*\) logstash-input-elasticsearch\/\d*\.\d*\.\d*/)
         end
       end
     end

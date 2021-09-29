@@ -36,4 +36,6 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'faraday', "~> 0.15.4"
   s.add_development_dependency 'logstash-devutils'
   s.add_development_dependency 'timecop'
+  s.add_development_dependency 'cabin', ['~> 0.6']
+  s.add_development_dependency 'webrick'
 end

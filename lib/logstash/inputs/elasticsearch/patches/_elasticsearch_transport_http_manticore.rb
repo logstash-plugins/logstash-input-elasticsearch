@@ -20,7 +20,18 @@ if es_client_version >= Gem::Version.new('7.2') && es_client_version < Gem::Vers
             def apply_headers(request_options, options)
               headers = (options && options[:headers]) || {}
               headers[CONTENT_TYPE_STR] = find_value(headers, CONTENT_TYPE_REGEX) || DEFAULT_CONTENT_TYPE
-              headers[USER_AGENT_STR] = find_value(headers, USER_AGENT_REGEX) || user_agent_header
+
+              # this code is necessary to grab the correct user-agent header
+              # when this method is invoked with apply_headers(@request_options, options)
+              # from https://github.com/elastic/elasticsearch-ruby/blob/v7.14.0/elasticsearch-transport/lib/elasticsearch/transport/transport/http/manticore.rb#L113-L114
+              transport_user_agent = nil
+              if (options && options[:transport_options] && options[:transport_options][:headers])
+                transport_headers = {}
+                transport_headers = options[:transport_options][:headers]
+                transport_user_agent = find_value(transport_headers, USER_AGENT_REGEX)
+              end
+
+              headers[USER_AGENT_STR] = transport_user_agent || find_value(headers, USER_AGENT_REGEX) || user_agent_header
               headers[ACCEPT_ENCODING] = GZIP if use_compression?
               (request_options[:headers] ||= {}).merge!(headers) # this line was changed
             end
