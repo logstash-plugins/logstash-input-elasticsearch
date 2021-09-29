@@ -479,7 +479,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     begin
       @client.ping
     rescue Elasticsearch::UnsupportedProductError
-      raise LogStash::ConfigurationError, "Not a valid Elasticsearch"
+      raise LogStash::ConfigurationError, "Could not connect to a compatible version of Elasticsearch"
     end
   end
 
