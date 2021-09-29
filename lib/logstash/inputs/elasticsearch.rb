@@ -222,6 +222,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     transport_options = {:headers => {}}
     transport_options[:headers].merge!(setup_basic_auth(user, password))
     transport_options[:headers].merge!(setup_api_key(api_key))
+    transport_options[:headers].merge!({'user-agent' => prepare_user_agent()})
     transport_options[:request_timeout] = @request_timeout_seconds unless @request_timeout_seconds.nil?
     transport_options[:connect_timeout] = @connect_timeout_seconds unless @connect_timeout_seconds.nil?
     transport_options[:socket_timeout]  = @socket_timeout_seconds  unless @socket_timeout_seconds.nil?
@@ -405,6 +406,18 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
     token = ::Base64.strict_encode64(api_key.value)
     { 'Authorization' => "ApiKey #{token}" }
+  end
+
+  def prepare_user_agent
+      os_name = java.lang.System.getProperty('os.name')
+      os_version = java.lang.System.getProperty('os.version')
+      os_arch = java.lang.System.getProperty('os.arch')
+      jvm_vendor = java.lang.System.getProperty('java.vendor')
+      jvm_version = java.lang.System.getProperty('java.version')
+
+      plugin_version = Gem.loaded_specs["logstash-input-elasticsearch"].version
+      # example: logstash/7.14.1 (OS=Linux-5.4.0-84-generic-amd64; JVM=AdoptOpenJDK-11.0.11) logstash-input-elasticsearch/4.10.0
+      "logstash/#{LOGSTASH_VERSION} (OS=#{os_name}-#{os_version}-#{os_arch}; JVM=#{jvm_vendor}-#{jvm_version}) logstash-#{@plugin_type}-#{config_name}/#{plugin_version}"
   end
 
   def fill_user_password_from_cloud_auth

@@ -1,3 +1,6 @@
+## 4.11.0
+  - Feat: add user-agent header passed to the Elasticsearch HTTP connection [#158](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/158)
+
 ## 4.10.0
   - Feat: added ecs_compatibility + event_factory support [#149](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/149)
 
