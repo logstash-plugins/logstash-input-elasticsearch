@@ -476,11 +476,9 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   attr_reader :client
 
   def test_connection!
-    begin
-      @client.ping
-    rescue Elasticsearch::UnsupportedProductError
-      raise LogStash::ConfigurationError, "Could not connect to a compatible version of Elasticsearch"
-    end
+    @client.ping
+  rescue Elasticsearch::UnsupportedProductError
+    raise LogStash::ConfigurationError, "Could not connect to a compatible version of Elasticsearch"
   end
 
   module URIOrEmptyValidator
