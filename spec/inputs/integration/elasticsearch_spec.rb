@@ -24,7 +24,6 @@ describe LogStash::Inputs::Elasticsearch do
       ESHelper.index_doc(@es, :index => 'logs', :body => { :response => 404, :message=> 'Not Found'})
     end
     @es.indices.refresh
-    plugin.register
   end
 
   after(:each) do
@@ -33,6 +32,10 @@ describe LogStash::Inputs::Elasticsearch do
   end
 
   shared_examples 'an elasticsearch index plugin' do
+    before(:each) do
+      plugin.register
+    end
+
     it 'should retrieve json event from elasticsearch' do
       queue = []
       plugin.run(queue)
@@ -43,6 +46,10 @@ describe LogStash::Inputs::Elasticsearch do
   end
 
   describe 'against an unsecured elasticsearch', :integration => true do
+    before(:each) do
+      plugin.register
+    end
+
     it_behaves_like 'an elasticsearch index plugin'
   end
 
@@ -66,8 +73,7 @@ describe LogStash::Inputs::Elasticsearch do
       let(:queue) { [] }
 
       it "fails to run the plugin" do
-        plugin.register
-        expect { plugin.run queue }.to raise_error Elasticsearch::Transport::Transport::Errors::Unauthorized
+        expect { plugin.register }.to raise_error Elasticsearch::Transport::Transport::Errors::Unauthorized
       end
     end
 

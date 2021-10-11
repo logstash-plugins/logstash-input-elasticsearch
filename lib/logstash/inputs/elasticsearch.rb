@@ -240,6 +240,8 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
       :transport_class => ::Elasticsearch::Transport::Transport::HTTP::Manticore,
       :ssl => ssl_options
     )
+    test_connection!
+    @client
   end
 
 
@@ -472,6 +474,12 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
   # @private used by unit specs
   attr_reader :client
+
+  def test_connection!
+    @client.ping
+  rescue Elasticsearch::UnsupportedProductError
+    raise LogStash::ConfigurationError, "Could not connect to a compatible version of Elasticsearch"
+  end
 
   module URIOrEmptyValidator
     ##
