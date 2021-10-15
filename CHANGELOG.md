@@ -1,3 +1,6 @@
+## 4.12.1
+  - Fixed too_long_frame_exception by passing scroll_id in the body [#159](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/159)
+
 ## 4.12.0
   - Feat: Update Elasticsearch client to 7.14.0 [#157](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/157)
 
