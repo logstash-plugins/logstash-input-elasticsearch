@@ -6,6 +6,8 @@ ARG es_path=/usr/share/elasticsearch
 ARG es_yml=$es_path/config/elasticsearch.yml
 ARG SECURE_INTEGRATION
 
+ENV ES_SSL_SUPPORTED_PROTOCOLS=$ES_SSL_SUPPORTED_PROTOCOLS
+
 RUN rm -f $es_path/config/scripts
 
 COPY --chown=elasticsearch:elasticsearch spec/fixtures/test_certs/* $es_path/config/test_certs/
