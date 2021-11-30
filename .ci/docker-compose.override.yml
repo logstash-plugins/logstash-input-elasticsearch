@@ -5,9 +5,9 @@ services:
   logstash:
     command: /usr/share/plugins/plugin/.ci/logstash-run.sh
     environment:
+        - ELASTIC_STACK_VERSION=$ELASTIC_STACK_VERSION
         - INTEGRATION=${INTEGRATION:-false}
         - SECURE_INTEGRATION=${SECURE_INTEGRATION:-false}
-        - ELASTIC_STACK_VERSION=$ELASTIC_STACK_VERSION
         - ES_SSL_SUPPORTED_PROTOCOLS=$ES_SSL_SUPPORTED_PROTOCOLS
   elasticsearch:
     build:
