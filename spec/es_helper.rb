@@ -14,7 +14,7 @@ module ESHelper
     ssl_opts = {}
 
     if options[:ca_file]
-      ssl_opts = { ca_file: options[:ca_file], version: 'TLSv1.2', verify: false }
+      ssl_opts = { ca_file: options[:ca_file], verify: false }
       host_opts[:scheme] = 'https'
     end
 
