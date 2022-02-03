@@ -9,5 +9,3 @@ if Dir.exist?(logstash_path) && use_logstash_source
   gem 'logstash-core', :path => "#{logstash_path}/logstash-core"
   gem 'logstash-core-plugin-api', :path => "#{logstash_path}/logstash-core-plugin-api"
 end
-
-gem 'jruby-openssl', '>= 0.12.1', require: false, groups: ['development', 'test'] # TLS 1.3
