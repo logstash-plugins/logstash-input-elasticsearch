@@ -21,7 +21,7 @@ wait_for_es() {
 }
 
 if [[ "$INTEGRATION" != "true" ]]; then
-  jruby -rbundler/setup -S rspec -fd --tag ~integration spec/inputs
+  jruby -rbundler/setup -S rspec -fd --tag ~integration --tag ~secure_integration spec/inputs
 else
   if [[ "$SECURE_INTEGRATION" == "true" ]]; then
     extra_tag_args="--tag secure_integration"

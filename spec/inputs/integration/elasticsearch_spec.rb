@@ -4,7 +4,7 @@ require "logstash/plugin"
 require "logstash/inputs/elasticsearch"
 require_relative "../../../spec/es_helper"
 
-describe LogStash::Inputs::Elasticsearch, integration: true do
+describe LogStash::Inputs::Elasticsearch do
 
   SECURE_INTEGRATION = ENV['SECURE_INTEGRATION'].eql? 'true'
 
@@ -51,7 +51,7 @@ describe LogStash::Inputs::Elasticsearch, integration: true do
     end
   end
 
-  describe 'against an unsecured elasticsearch' do
+  describe 'against an unsecured elasticsearch', integration: true do
     before(:each) do
       plugin.register
     end
@@ -82,7 +82,7 @@ describe LogStash::Inputs::Elasticsearch, integration: true do
 
   end
 
-  context 'setting host:port' do
+  context 'setting host:port', integration: true do
 
     let(:config) do
       super().merge "hosts" => [ESHelper.get_host_port]
