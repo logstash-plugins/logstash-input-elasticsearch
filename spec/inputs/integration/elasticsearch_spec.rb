@@ -15,6 +15,10 @@ describe LogStash::Inputs::Elasticsearch, integration: true do
   let(:event)  { LogStash::Event.new({}) }
   let(:client_options) { Hash.new }
 
+  let(:user) { ENV['ELASTIC_USER'] || 'simpleuser' }
+  let(:password) { ENV['ELASTIC_PASSWORD'] || 'abc123' }
+  let(:ca_file) { "spec/fixtures/test_certs/ca.crt" }
+
   before(:each) do
     @es = ESHelper.get_client(client_options)
     # Delete all templates first.
@@ -55,10 +59,7 @@ describe LogStash::Inputs::Elasticsearch, integration: true do
     it_behaves_like 'an elasticsearch index plugin'
   end
 
-  describe 'against a secured elasticsearch' do
-    let(:user) { ENV['ELASTIC_USER'] || 'simpleuser' }
-    let(:password) { ENV['ELASTIC_PASSWORD'] || 'abc123' }
-    let(:ca_file) { "spec/fixtures/test_certs/ca.crt" }
+  describe 'against a secured elasticsearch', secure_integration: true do
 
     let(:client_options) { { :ca_file => ca_file, :user => user, :password => password } }
 
@@ -79,18 +80,25 @@ describe LogStash::Inputs::Elasticsearch, integration: true do
       end
     end
 
-  end if SECURE_INTEGRATION
+  end
 
-  context 'setting host:port (and ssl)' do
+  context 'setting host:port' do
 
-    let(:user) { ENV['ELASTIC_USER'] || 'simpleuser' }
-    let(:password) { ENV['ELASTIC_PASSWORD'] || 'abc123' }
-    let(:ca_file) { "spec/fixtures/test_certs/ca.crt" }
+    let(:config) do
+      super().merge "hosts" => [ESHelper.get_host_port]
+    end
+
+    it_behaves_like 'an elasticsearch index plugin'
+
+  end
+
+  context 'setting host:port (and ssl)', secure_integration: true do
+
+    let(:client_options) { { :ca_file => ca_file, :user => user, :password => password } }
 
     let(:config) do
       config = super().merge "hosts" => [ESHelper.get_host_port]
-      config.merge!('user' => user, 'password' => password, 'ssl' => true, 'ca_file' => ca_file) if SECURE_INTEGRATION
-      config
+      config.merge('user' => user, 'password' => password, 'ssl' => true, 'ca_file' => ca_file)
     end
 
     it_behaves_like 'an elasticsearch index plugin'

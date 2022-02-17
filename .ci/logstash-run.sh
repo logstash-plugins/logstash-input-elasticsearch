@@ -24,9 +24,9 @@ if [[ "$INTEGRATION" != "true" ]]; then
   jruby -rbundler/setup -S rspec -fd --tag ~integration spec/inputs
 else
   if [[ "$SECURE_INTEGRATION" == "true" ]]; then
-    extra_tag_args="--tag integration" # secure filtered in spec (we run scenarios both under http as well as https)
+    extra_tag_args="--tag secure_integration"
   else
-    extra_tag_args="--tag integration"
+    extra_tag_args="--tag ~secure_integration --tag integration"
   fi
   wait_for_es
   jruby -rbundler/setup -S rspec -fd $extra_tag_args --tag es_version:$ELASTIC_STACK_VERSION spec/inputs/integration
