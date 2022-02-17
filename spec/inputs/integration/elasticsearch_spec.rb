@@ -4,7 +4,7 @@ require "logstash/plugin"
 require "logstash/inputs/elasticsearch"
 require_relative "../../../spec/es_helper"
 
-describe LogStash::Inputs::Elasticsearch, :integration => true do
+describe LogStash::Inputs::Elasticsearch, integration: true do
 
   SECURE_INTEGRATION = ENV['SECURE_INTEGRATION'].eql? 'true'
 
@@ -55,7 +55,7 @@ describe LogStash::Inputs::Elasticsearch, :integration => true do
     it_behaves_like 'an elasticsearch index plugin'
   end
 
-  describe 'against a secured elasticsearch', :secure_integration => true do
+  describe 'against a secured elasticsearch', integration: 'secure' do
     let(:user) { ENV['ELASTIC_USER'] || 'simpleuser' }
     let(:password) { ENV['ELASTIC_PASSWORD'] || 'abc123' }
     let(:ca_file) { "spec/fixtures/test_certs/ca.crt" }
@@ -81,7 +81,7 @@ describe LogStash::Inputs::Elasticsearch, :integration => true do
 
   end
 
-  context 'setting host:port (and ssl)' do
+  context 'setting host:port (and ssl)', integration: SECURE_INTEGRATION ? 'secure' : true do
 
     let(:config) do
       super().merge "hosts" => [ESHelper.get_host_port], "ssl" => SECURE_INTEGRATION
