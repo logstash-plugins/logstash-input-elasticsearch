@@ -6,7 +6,9 @@ require_relative "../../../spec/es_helper"
 
 describe LogStash::Inputs::Elasticsearch do
 
-  let(:config)   { { 'hosts' => [ESHelper.get_host_port],
+  SECURE_INTEGRATION = ENV['SECURE_INTEGRATION'].eql? 'true'
+
+  let(:config)   { { 'hosts' => ["http#{SECURE_INTEGRATION ? 's' : nil}://#{ESHelper.get_host_port}"],
                      'index' => 'logs',
                      'query' => '{ "query": { "match": { "message": "Not found"} }}' } }
   let(:plugin) { described_class.new(config) }
@@ -78,4 +80,15 @@ describe LogStash::Inputs::Elasticsearch do
     end
 
   end
+
+  context 'setting host:port (and ssl)' do
+
+    let(:config) do
+      super().merge "hosts" => [ESHelper.get_host_port], "ssl" => SECURE_INTEGRATION
+    end
+
+    it_behaves_like 'an elasticsearch index plugin'
+
+  end
+
 end
