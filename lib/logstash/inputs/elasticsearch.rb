@@ -386,13 +386,13 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
   def setup_hosts
     @hosts = Array(@hosts).map { |host| host.to_s } # potential SafeURI#to_s
-    if @ssl
-      @hosts.map do |h|
-        host, port = h.split(":")
-        { :host => host, :scheme => 'https', :port => port }
+    @hosts.map do |h|
+      if h.start_with?('http:', 'https:')
+        h
+      else
+        host, port = h.split(':')
+        { host: host, port: port, scheme: (@ssl ? 'https' : 'http') }
       end
-    else
-      @hosts
     end
   end
 
