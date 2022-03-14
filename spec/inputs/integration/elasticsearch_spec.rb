@@ -6,12 +6,18 @@ require_relative "../../../spec/es_helper"
 
 describe LogStash::Inputs::Elasticsearch do
 
-  let(:config)   { { 'hosts' => [ESHelper.get_host_port],
+  SECURE_INTEGRATION = ENV['SECURE_INTEGRATION'].eql? 'true'
+
+  let(:config)   { { 'hosts' => ["http#{SECURE_INTEGRATION ? 's' : nil}://#{ESHelper.get_host_port}"],
                      'index' => 'logs',
                      'query' => '{ "query": { "match": { "message": "Not found"} }}' } }
   let(:plugin) { described_class.new(config) }
   let(:event)  { LogStash::Event.new({}) }
   let(:client_options) { Hash.new }
+
+  let(:user) { ENV['ELASTIC_USER'] || 'simpleuser' }
+  let(:password) { ENV['ELASTIC_PASSWORD'] || 'abc123' }
+  let(:ca_file) { "spec/fixtures/test_certs/ca.crt" }
 
   before(:each) do
     @es = ESHelper.get_client(client_options)
@@ -45,7 +51,7 @@ describe LogStash::Inputs::Elasticsearch do
     end
   end
 
-  describe 'against an unsecured elasticsearch', :integration => true do
+  describe 'against an unsecured elasticsearch', integration: true do
     before(:each) do
       plugin.register
     end
@@ -53,10 +59,7 @@ describe LogStash::Inputs::Elasticsearch do
     it_behaves_like 'an elasticsearch index plugin'
   end
 
-  describe 'against a secured elasticsearch', :secure_integration => true do
-    let(:user) { ENV['ELASTIC_USER'] || 'simpleuser' }
-    let(:password) { ENV['ELASTIC_PASSWORD'] || 'abc123' }
-    let(:ca_file) { "spec/fixtures/test_certs/ca.crt" }
+  describe 'against a secured elasticsearch', secure_integration: true do
 
     let(:client_options) { { :ca_file => ca_file, :user => user, :password => password } }
 
@@ -78,4 +81,28 @@ describe LogStash::Inputs::Elasticsearch do
     end
 
   end
+
+  context 'setting host:port', integration: true do
+
+    let(:config) do
+      super().merge "hosts" => [ESHelper.get_host_port]
+    end
+
+    it_behaves_like 'an elasticsearch index plugin'
+
+  end
+
+  context 'setting host:port (and ssl)', secure_integration: true do
+
+    let(:client_options) { { :ca_file => ca_file, :user => user, :password => password } }
+
+    let(:config) do
+      config = super().merge "hosts" => [ESHelper.get_host_port]
+      config.merge('user' => user, 'password' => password, 'ssl' => true, 'ca_file' => ca_file)
+    end
+
+    it_behaves_like 'an elasticsearch index plugin'
+
+  end
+
 end
