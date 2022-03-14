@@ -7,25 +7,26 @@ module ESHelper
     end
   end
 
-  def self.get_client(options)
-    require 'elasticsearch/transport/transport/http/faraday' # supports user/password options
-    host, port = get_host_port.split(':')
-    host_opts = { host: host, port: port, scheme: 'http' }
-    ssl_opts = {}
-
-    if options[:ca_file]
-      ssl_opts = { ca_file: options[:ca_file], verify: false }
-      host_opts[:scheme] = 'https'
+  def self.curl_and_get_json_response(url, method: :get, args: nil); require 'open3'
+    cmd = "curl -s -v --show-error #{args} -X #{method.to_s.upcase} -k #{url}"
+    begin
+      out, err, status = Open3.capture3(cmd)
+    rescue Errno::ENOENT
+      fail "curl not available, make sure curl binary is installed and available on $PATH"
     end
 
-    if options[:user] && options[:password]
-      host_opts[:user] = options[:user]
-      host_opts[:password] = options[:password]
-    end
+    if status.success?
+      http_status = err.match(/< HTTP\/1.1 (.*?)/)[1] || '0' # < HTTP/1.1 200 OK\r\n
+      if http_status.strip[0].to_i > 2
+        warn out
+        fail "#{cmd.inspect} unexpected response: #{http_status}\n\n#{err}"
+      end
 
-    Elasticsearch::Client.new(hosts: [host_opts],
-                              transport_options: { ssl: ssl_opts },
-                              transport_class: Elasticsearch::Transport::Transport::HTTP::Faraday)
+      LogStash::Json.load(out)
+    else
+      warn out
+      fail "#{cmd.inspect} process failed: #{status}\n\n#{err}"
+    end
   end
 
   def self.doc_type
