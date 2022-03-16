@@ -933,7 +933,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       {
         "hosts" => ["localhost"],
         "query" => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }',
-        "schedule" => "* * * * * UTC"
+        "schedule" => "* * * * * * UTC" # every second
       }
     end
 
@@ -942,21 +942,14 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
     end
 
     it "should properly schedule" do
-      Timecop.travel(Time.new(2000))
-      Timecop.scale(60)
-      runner = Thread.new do
-        expect(plugin).to receive(:do_run) {
-          queue << LogStash::Event.new({})
-        }.at_least(:twice)
-
-        plugin.run(queue)
-      end
-      sleep 3
+      expect(plugin).to receive(:do_run) {
+        queue << LogStash::Event.new({})
+      }.at_least(:twice)
+      runner = Thread.start { plugin.run(queue) }
+      sleep 3.0
       plugin.stop
-      runner.kill
       runner.join
-      expect(queue.size).to eq(2)
-      Timecop.return
+      expect(queue.size).to be >= 2
     end
 
   end
