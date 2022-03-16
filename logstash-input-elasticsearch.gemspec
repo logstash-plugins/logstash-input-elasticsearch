@@ -33,7 +33,6 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'manticore', ">= 0.7.1"
 
   s.add_development_dependency 'logstash-codec-plain'
-  s.add_development_dependency 'faraday', "~> 1"
   s.add_development_dependency 'logstash-devutils'
   s.add_development_dependency 'timecop'
   s.add_development_dependency 'cabin', ['~> 0.6']

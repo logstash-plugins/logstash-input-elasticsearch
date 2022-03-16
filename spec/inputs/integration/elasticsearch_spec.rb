@@ -11,6 +11,7 @@ describe LogStash::Inputs::Elasticsearch do
   let(:config)   { { 'hosts' => ["http#{SECURE_INTEGRATION ? 's' : nil}://#{ESHelper.get_host_port}"],
                      'index' => 'logs',
                      'query' => '{ "query": { "match": { "message": "Not found"} }}' } }
+
   let(:plugin) { described_class.new(config) }
   let(:event)  { LogStash::Event.new({}) }
   let(:client_options) { Hash.new }
@@ -19,22 +20,32 @@ describe LogStash::Inputs::Elasticsearch do
   let(:password) { ENV['ELASTIC_PASSWORD'] || 'abc123' }
   let(:ca_file) { "spec/fixtures/test_certs/ca.crt" }
 
+  let(:es_url) do
+    es_url = ESHelper.get_host_port
+    SECURE_INTEGRATION ? "https://#{es_url}" : "http://#{es_url}"
+  end
+
+  let(:curl_args) do
+    config['user'] ? "-u #{config['user']}:#{config['password']}" : ''
+  end
+
   before(:each) do
-    @es = ESHelper.get_client(client_options)
     # Delete all templates first.
     # Clean ES of data before we start.
-    @es.indices.delete_template(:name => "*")
+    ESHelper.curl_and_get_json_response "#{es_url}/_index_template/*", method: 'DELETE', args: curl_args
     # This can fail if there are no indexes, ignore failure.
-    @es.indices.delete(:index => "*") rescue nil
+    ESHelper.curl_and_get_json_response( "#{es_url}/_index/*", method: 'DELETE', args: curl_args) rescue nil
+    doc_args = "#{curl_args} -H 'Content-Type: application/json' -d '{\"response\": 404, \"message\":\"Not Found\"}'"
     10.times do
-      ESHelper.index_doc(@es, :index => 'logs', :body => { :response => 404, :message=> 'Not Found'})
+      ESHelper.curl_and_get_json_response "#{es_url}/logs/_doc", method: 'POST', args: doc_args
     end
-    @es.indices.refresh
+    ESHelper.curl_and_get_json_response "#{es_url}/_refresh", method: 'POST', args: curl_args
   end
 
   after(:each) do
-    @es.indices.delete_template(:name => "*")
-    @es.indices.delete(:index => "*") rescue nil
+    ESHelper.curl_and_get_json_response "#{es_url}/_index_template/*", method: 'DELETE', args: curl_args
+    # This can fail if there are no indexes, ignore failure.
+    ESHelper.curl_and_get_json_response( "#{es_url}/_index/*", method: 'DELETE', args: curl_args) rescue nil
   end
 
   shared_examples 'an elasticsearch index plugin' do
