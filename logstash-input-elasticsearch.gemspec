@@ -27,7 +27,7 @@ Gem::Specification.new do |s|
 
   s.add_runtime_dependency 'elasticsearch', '>= 7.17.1'
 
-  #  nothing just to spin tests 1
+  #  nothing just to spin tests 2
 
   s.add_runtime_dependency 'tzinfo'
   s.add_runtime_dependency 'tzinfo-data'
