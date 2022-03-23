@@ -25,7 +25,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'logstash-mixin-event_support', '~> 1.0'
   s.add_runtime_dependency "logstash-mixin-validator_support", '~> 1.0'
 
-  s.add_runtime_dependency 'elasticsearch', '>= 7.14.0' # LS >= 6.7 and < 7.14 all used version 5.0.5
+  s.add_runtime_dependency 'elasticsearch', '>= 7.17.1'
 
   s.add_runtime_dependency 'tzinfo'
   s.add_runtime_dependency 'tzinfo-data'
