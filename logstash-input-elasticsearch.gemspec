@@ -27,8 +27,6 @@ Gem::Specification.new do |s|
 
   s.add_runtime_dependency 'elasticsearch', '>= 7.17.1'
 
-  #  nothing just to spin tests 4
-
   s.add_runtime_dependency 'tzinfo'
   s.add_runtime_dependency 'tzinfo-data'
   s.add_runtime_dependency 'rufus-scheduler'
