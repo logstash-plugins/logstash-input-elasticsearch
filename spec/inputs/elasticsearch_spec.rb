@@ -885,13 +885,16 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
     end
 
     it "should properly schedule" do
-      expect(plugin).to receive(:do_run) {
-        queue << LogStash::Event.new({})
-      }.at_least(:twice)
-      runner = Thread.start { plugin.run(queue) }
-      sleep 3.0
-      plugin.stop
-      runner.join
+      begin
+        expect(plugin).to receive(:do_run) {
+          queue << LogStash::Event.new({})
+        }.at_least(:twice)
+        runner = Thread.start { plugin.run(queue) }
+        sleep 3.0
+      ensure
+        plugin.do_stop
+        runner.join if runner
+      end
       expect(queue.size).to be >= 2
     end
 
