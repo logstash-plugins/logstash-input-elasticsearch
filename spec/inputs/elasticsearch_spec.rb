@@ -910,6 +910,8 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
 
           plugin.register
         end
+
+        after { plugin.do_stop }
       end
     end
 
