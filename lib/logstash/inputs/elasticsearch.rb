@@ -381,6 +381,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   end
 
   def setup_ssl
+    @ssl = true if @hosts.any? {|h| h.scheme == "https" }
     @ssl && @ca_file ? { :ssl  => true, :ca_file => @ca_file } : {}
   end
 
