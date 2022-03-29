@@ -123,7 +123,8 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
     end
 
     before(:each) do
-      expect(Elasticsearch::Client).to receive(:new).with(any_args).and_return client = Elasticsearch::Client.new
+      client = Elasticsearch::Client.new
+      expect(Elasticsearch::Client).to receive(:new).with(any_args).and_return(client)
       expect(client).to receive(:search).with(any_args).and_return(mock_response)
       expect(client).to receive(:scroll).with({ :body => { :scroll_id => "cXVlcnlUaGVuRmV0Y2g" }, :scroll=> "1m" }).and_return(mock_scroll_response)
       expect(client).to receive(:clear_scroll).and_return(nil)
