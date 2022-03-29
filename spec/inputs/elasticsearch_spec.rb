@@ -78,14 +78,10 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
     end
 
     let(:config) do
-      %q[
-        input {
-          elasticsearch {
-            hosts => ["localhost"]
-            query => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }'
-          }
-        }
-      ]
+      {
+          'hosts' => ["localhost"],
+          'query' => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }'
+      }
     end
 
     let(:mock_response) do
@@ -120,18 +116,18 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
     end
 
     before(:each) do
-      client = Elasticsearch::Client.new
-      expect(Elasticsearch::Client).to receive(:new).with(any_args).and_return(client)
+      expect(Elasticsearch::Client).to receive(:new).with(any_args).and_return client = Elasticsearch::Client.new
       expect(client).to receive(:search).with(any_args).and_return(mock_response)
       expect(client).to receive(:scroll).with({ :body => { :scroll_id => "cXVlcnlUaGVuRmV0Y2g" }, :scroll=> "1m" }).and_return(mock_scroll_response)
       expect(client).to receive(:clear_scroll).and_return(nil)
       expect(client).to receive(:ping)
     end
 
+    before { plugin.register }
+
     it 'creates the events from the hits' do
-      event = input(config) do |pipeline, queue|
-        queue.pop
-      end
+      plugin.run queue
+      event = queue.pop
 
       expect(event).to be_a(LogStash::Event)
       expect(event.get("message")).to eql [ "ohayo" ]
@@ -139,21 +135,16 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
 
     context 'when a target is set' do
       let(:config) do
-        %q[
-          input {
-            elasticsearch {
-              hosts => ["localhost"]
-              query => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }'
-              target => "[@metadata][_source]"
-            }
-          }
-        ]
+        {
+            'hosts' => ["localhost"],
+            'query' => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }',
+            'target' => "[@metadata][_source]"
+        }
       end
 
       it 'creates the event using the target' do
-        event = input(config) do |pipeline, queue|
-          queue.pop
-        end
+        plugin.run queue
+        event = queue.pop
 
         expect(event).to be_a(LogStash::Event)
         expect(event.get("[@metadata][_source][message]")).to eql [ "ohayo" ]
@@ -451,22 +442,18 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       end
 
       context 'with docinfo enabled' do
-        let(:config_metadata) do
-          %q[
-              input {
-                elasticsearch {
-                  hosts => ["localhost"]
-                  query => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }'
-                  docinfo => true
-                }
-              }
-          ]
+        let(:config) do
+          {
+              'hosts' => ["localhost"],
+              'query' => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }',
+              'docinfo' => true
+          }
         end
 
         it "provides document info under metadata" do
-          event = input(config_metadata) do |pipeline, queue|
-            queue.pop
-          end
+          plugin.register
+          plugin.run queue
+          event = queue.pop
 
           if ecs_select.active_mode == :disabled
             expect(event.get("[@metadata][_index]")).to eq('logstash-2014.10.12')
@@ -479,40 +466,44 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
           end
         end
 
-        it 'merges values if the `docinfo_target` already exist in the `_source` document' do
-          config_metadata_with_hash = %Q[
-              input {
-                elasticsearch {
-                  hosts => ["localhost"]
-                  query => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }'
-                  docinfo => true
-                  docinfo_target => 'metadata_with_hash'
-                }
-              }
-          ]
-
-          event = input(config_metadata_with_hash) do |pipeline, queue|
-            queue.pop
+        context 'with docinfo_target' do
+          let(:config) do
+            {
+                'hosts' => ["localhost"],
+                'query' => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }',
+                'docinfo' => true, 'docinfo_target' => 'metadata_with_hash'
+            }
           end
 
-          expect(event.get("[metadata_with_hash][_index]")).to eq('logstash-2014.10.12')
-          expect(event.get("[metadata_with_hash][_type]")).to eq('logs')
-          expect(event.get("[metadata_with_hash][_id]")).to eq('C5b2xLQwTZa76jBmHIbwHQ')
-          expect(event.get("[metadata_with_hash][awesome]")).to eq("logstash")
+          it 'merges values if the `docinfo_target` already exist in the `_source` document' do
+            plugin.register
+            plugin.run queue
+            event = queue.pop
+
+            expect(event.get("[metadata_with_hash][_index]")).to eq('logstash-2014.10.12')
+            expect(event.get("[metadata_with_hash][_type]")).to eq('logs')
+            expect(event.get("[metadata_with_hash][_id]")).to eq('C5b2xLQwTZa76jBmHIbwHQ')
+            expect(event.get("[metadata_with_hash][awesome]")).to eq("logstash")
+          end
+
         end
 
         context 'if the `docinfo_target` exist but is not of type hash' do
-          let (:config) { {
+          let (:config) do
+            {
               "hosts" => ["localhost"],
               "query" => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }',
               "docinfo" => true,
               "docinfo_target" => 'metadata_with_string'
-          } }
-          it 'thows an exception if the `docinfo_target` exist but is not of type hash' do
+            }
+          end
+
+          it 'raises an exception if the `docinfo_target` exist but is not of type hash' do
             expect(client).not_to receive(:clear_scroll)
             plugin.register
             expect { plugin.run([]) }.to raise_error(Exception, /incompatible event/)
           end
+
         end
 
         it 'should move the document information to the specified field' do
