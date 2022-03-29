@@ -740,9 +740,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
             begin
               @server = WEBrick::HTTPServer.new :Port => 0, :DocumentRoot => ".",
                        :Logger => Cabin::Channel.get, # silence WEBrick logging
-                       :StartCallback => Proc.new {
-                             queue.push("started")
-                           }
+                       :StartCallback => Proc.new { queue.push("started") }
               @port = @server.config[:Port]
               @server.mount_proc '/' do |req, res|
                 res.body = '''
@@ -811,11 +809,9 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
                 @first_req_waiter.countDown()
               end
 
-
-
               @server.start
             rescue => e
-              puts "Error in webserver thread #{e}"
+              warn "ERROR in webserver thread #{e.inspect}\n  #{e.backtrace.join("\n  ")}"
               # ignore
             end
           end
