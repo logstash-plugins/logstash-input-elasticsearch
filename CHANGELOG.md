@@ -1,3 +1,6 @@
+## 4.12.3
+  - Fix: update Elasticsearch Ruby client to correctly customize 'user-agent' header[#171](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/171)
+
 ## 4.12.2
   - Fix: hosts => "es_host:port" regression [#168](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/168)
 
@@ -17,7 +20,7 @@
   - Fixed SSL handshake hang indefinitely with proxy setup [#156](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/156)
 
 ## 4.9.2
-  - Fix: a regression (in LS 7.14.0) where due the elasticsearch client update (from 5.0.5 to 7.5.0) the `Authorization` 
+  - Fix: a regression (in LS 7.14.0) where due the elasticsearch client update (from 5.0.5 to 7.5.0) the `Authorization`
     header isn't passed, this leads to the plugin not being able to leverage `user`/`password` credentials set by the user.
     [#153](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/153)
 
@@ -61,7 +64,7 @@
   - Feat: Added support for cloud_id / cloud_auth configuration [#112](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/112)
 
 ## 4.4.0
-  - Changed Elasticsearch Client transport to use Manticore [#111](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/111) 
+  - Changed Elasticsearch Client transport to use Manticore [#111](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/111)
 
 ## 4.3.3
   - Loosen restrictions on Elasticsearch gem [#110](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/110)
@@ -100,7 +103,7 @@
 
 ## 4.0.2
   - Bump ES client to 5.0.2 to get content-type: json behavior
-  - Revert unneeded manticore change 
+  - Revert unneeded manticore change
 
 ## 4.0.1
   - Switch internal HTTP client to support TLSv1.2
@@ -113,7 +116,7 @@
     behavior
   - Improve documentation to show sort by \_doc, and how to add it to custom
     queries.
-    
+
 ## 3.0.2
   - Relax constraint on logstash-core-plugin-api to >= 1.60 <= 2.99
 

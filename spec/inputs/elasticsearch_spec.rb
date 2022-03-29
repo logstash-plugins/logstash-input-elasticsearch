@@ -47,7 +47,6 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
   end
 
   it_behaves_like "an interruptible input plugin" do
-    let(:esclient) { double("elasticsearch-client") }
     let(:config) do
       {
         "schedule" => "* * * * * UTC"
@@ -55,7 +54,8 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
     end
 
     before :each do
-      allow(Elasticsearch::Client).to receive(:new).and_return(esclient)
+      @esclient = double("elasticsearch-client")
+      allow(Elasticsearch::Client).to receive(:new).and_return(@esclient)
       hit = {
         "_index" => "logstash-2014.10.12",
         "_type" => "logs",
@@ -63,10 +63,10 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
         "_score" => 1.0,
         "_source" => { "message" => ["ohayo"] }
       }
-      allow(esclient).to receive(:search) { { "hits" => { "hits" => [hit] } } }
-      allow(esclient).to receive(:scroll) { { "hits" => { "hits" => [hit] } } }
-      allow(esclient).to receive(:clear_scroll).and_return(nil)
-      allow(esclient).to receive(:ping)
+      allow(@esclient).to receive(:search) { { "hits" => { "hits" => [hit] } } }
+      allow(@esclient).to receive(:scroll) { { "hits" => { "hits" => [hit] } } }
+      allow(@esclient).to receive(:clear_scroll).and_return(nil)
+      allow(@esclient).to receive(:ping)
     end
   end
 
