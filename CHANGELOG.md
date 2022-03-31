@@ -1,5 +1,5 @@
 ## 4.12.3
-  - Fix: update Elasticsearch Ruby client to correctly customize 'user-agent' header[#171](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/171)
+  - Fix: update Elasticsearch Ruby client to correctly customize 'user-agent' header [#171](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/171)
 
 ## 4.12.2
   - Fix: hosts => "es_host:port" regression [#168](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/168)
