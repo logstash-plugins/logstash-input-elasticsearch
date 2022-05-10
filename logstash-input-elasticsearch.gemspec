@@ -24,13 +24,13 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'logstash-mixin-ecs_compatibility_support', '~> 1.3'
   s.add_runtime_dependency 'logstash-mixin-event_support', '~> 1.0'
   s.add_runtime_dependency "logstash-mixin-validator_support", '~> 1.0'
+  s.add_runtime_dependency "logstash-mixin-scheduler", '~> 1.0'
 
   s.add_runtime_dependency 'elasticsearch', '>= 7.17.1'
   s.add_runtime_dependency 'logstash-mixin-ca_trusted_fingerprint_support', '~> 1.0'
 
   s.add_runtime_dependency 'tzinfo'
   s.add_runtime_dependency 'tzinfo-data'
-  s.add_runtime_dependency 'rufus-scheduler'
   s.add_runtime_dependency 'manticore', ">= 0.7.1"
 
   s.add_development_dependency 'logstash-codec-plain'

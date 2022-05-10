@@ -8,6 +8,7 @@ require 'logstash/plugin_mixins/event_support/event_factory_adapter'
 require 'logstash/plugin_mixins/ecs_compatibility_support'
 require 'logstash/plugin_mixins/ecs_compatibility_support/target_check'
 require 'logstash/plugin_mixins/ca_trusted_fingerprint_support'
+require "logstash/plugin_mixins/scheduler"
 require "base64"
 
 require "elasticsearch"
@@ -77,6 +78,8 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   include LogStash::PluginMixins::EventSupport::EventFactoryAdapter
 
   extend LogStash::PluginMixins::ValidatorSupport::FieldReferenceValidationAdapter
+
+  include LogStash::PluginMixins::Scheduler
 
   config_name "elasticsearch"
 
@@ -251,11 +254,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
   def run(output_queue)
     if @schedule
-      @scheduler = Rufus::Scheduler.new(:max_work_threads => 1)
-      @scheduler.cron @schedule do
-        do_run(output_queue)
-      end
-
+      @scheduler = start_cron_scheduler!(@schedule) { do_run(output_queue) }
       @scheduler.join
     else
       do_run(output_queue)
@@ -263,7 +262,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   end
 
   def stop
-    @scheduler.stop if @scheduler
+    @scheduler.shutdown if @scheduler
   end
 
   private
