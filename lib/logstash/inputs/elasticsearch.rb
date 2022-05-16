@@ -254,15 +254,11 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
   def run(output_queue)
     if @schedule
-      @scheduler = start_cron_scheduler!(@schedule) { do_run(output_queue) }
-      @scheduler.join
+      scheduler.cron(@schedule) { do_run(output_queue) }
+      scheduler.join
     else
       do_run(output_queue)
     end
-  end
-
-  def stop
-    @scheduler.shutdown if @scheduler
   end
 
   private
