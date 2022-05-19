@@ -103,7 +103,7 @@ describe LogStash::Inputs::Elasticsearch do
       let(:ca_trusted_fingerprint) { File.read("spec/fixtures/test_certs/ca.der.sha256").chomp }
       let(:config) { super().merge('ssl' => true, 'ca_trusted_fingerprint' => ca_trusted_fingerprint) }
 
-      if LOGSTASH_VERSION.split('.').first(3).map(&:to_i) >= [8,3,0]
+      if Gem::Version.create(LOGSTASH_VERSION) >= Gem::Version.create("8.3.0")
         it_behaves_like 'secured_elasticsearch'
       else
         it 'raises a configuration error' do
