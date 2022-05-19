@@ -1,3 +1,6 @@
+## 4.13.0
+- Added support for `ca_trusted_fingerprint` when run on Logstash 8.3+
+
 ## 4.12.3
   - Fix: update Elasticsearch Ruby client to correctly customize 'user-agent' header [#171](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/171)
 
@@ -23,7 +26,6 @@
   - Fix: a regression (in LS 7.14.0) where due the elasticsearch client update (from 5.0.5 to 7.5.0) the `Authorization`
     header isn't passed, this leads to the plugin not being able to leverage `user`/`password` credentials set by the user.
     [#153](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/153)
-
 
 ## 4.9.1
   - [DOC] Replaced hard-coded links with shared attributes [#143](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/143)
