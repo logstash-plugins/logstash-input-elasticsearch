@@ -38,4 +38,7 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'timecop'
   s.add_development_dependency 'cabin', ['~> 0.6']
   s.add_development_dependency 'webrick'
+
+  # 3.8.0 has breaking changes WRT to joining, which break our specs
+  s.add_development_dependency 'rufus-scheduler', '~> 3.0.9'
 end
