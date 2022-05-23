@@ -1,5 +1,5 @@
 ## 4.13.0
-- Added support for `ca_trusted_fingerprint` when run on Logstash 8.3+
+  - Added support for `ca_trusted_fingerprint` when run on Logstash 8.3+ [#178](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/178)
 
 ## 4.12.3
   - Fix: update Elasticsearch Ruby client to correctly customize 'user-agent' header [#171](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/171)

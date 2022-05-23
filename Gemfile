@@ -12,6 +12,3 @@ end
 
 gem 'manticore', ENV['MANTICORE_VERSION'] if ENV['MANTICORE_VERSION']
 gem 'elasticsearch', ENV['ELASTICSEARCH_VERSION'] if ENV['ELASTICSEARCH_VERSION']
-
-# Required until https://github.com/logstash-plugins/logstash-mixin-ca_trusted_fingerprint_support/pull/1 is merged
-gem 'logstash-mixin-ca_trusted_fingerprint_support', git: 'https://github.com/yaauie/logstash-mixin-ca_trusted_fingerprint_support.git', branch: 'init'
