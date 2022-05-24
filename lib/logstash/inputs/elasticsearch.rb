@@ -7,6 +7,7 @@ require 'logstash/plugin_mixins/validator_support/field_reference_validation_ada
 require 'logstash/plugin_mixins/event_support/event_factory_adapter'
 require 'logstash/plugin_mixins/ecs_compatibility_support'
 require 'logstash/plugin_mixins/ecs_compatibility_support/target_check'
+require 'logstash/plugin_mixins/ca_trusted_fingerprint_support'
 require "base64"
 
 require "elasticsearch"
@@ -191,6 +192,9 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
   # If set, the _source of each hit will be added nested under the target instead of at the top-level
   config :target, :validate => :field_reference
+
+  # config :ca_trusted_fingerprint, :validate => :sha_256_hex
+  include LogStash::PluginMixins::CATrustedFingerprintSupport
 
   def initialize(params={})
     super(params)
@@ -381,7 +385,13 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   end
 
   def setup_ssl
-    @ssl && @ca_file ? { :ssl  => true, :ca_file => @ca_file } : {}
+    ssl_options = {}
+
+    ssl_options[:ssl] = true if @ssl
+    ssl_options[:ca_file] = @ca_file if @ssl && @ca_file
+    ssl_options[:trust_strategy] = trust_strategy_for_ca_trusted_fingerprint
+
+    ssl_options
   end
 
   def setup_hosts

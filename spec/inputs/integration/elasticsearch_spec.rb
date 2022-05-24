@@ -72,25 +72,45 @@ describe LogStash::Inputs::Elasticsearch do
 
   describe 'against a secured elasticsearch', secure_integration: true do
 
+    # client_options is for an out-of-band helper
     let(:client_options) { { :ca_file => ca_file, :user => user, :password => password } }
 
-    let(:config) { super().merge('user' => user, 'password' => password, 'ssl' => true, 'ca_file' => ca_file) }
+    let(:config) { super().merge('user' => user, 'password' => password) }
 
-    it_behaves_like 'an elasticsearch index plugin'
+    shared_examples 'secured_elasticsearch' do
+      it_behaves_like 'an elasticsearch index plugin'
 
-    context "incorrect auth credentials" do
+      context "incorrect auth credentials" do
 
-      let(:config) do
-        super().merge('user' => 'archer', 'password' => 'b0gus!')
-      end
+        let(:config) do
+          super().merge('user' => 'archer', 'password' => 'b0gus!')
+        end
 
-      let(:queue) { [] }
+        let(:queue) { [] }
 
-      it "fails to run the plugin" do
-        expect { plugin.register }.to raise_error Elasticsearch::Transport::Transport::Errors::Unauthorized
+        it "fails to run the plugin" do
+          expect { plugin.register }.to raise_error Elasticsearch::Transport::Transport::Errors::Unauthorized
+        end
       end
     end
 
+    context 'with ca_file' do
+      let(:config) { super().merge('ssl' => true, 'ca_file' => ca_file) }
+      it_behaves_like 'secured_elasticsearch'
+    end
+
+    context 'with `ca_trusted_fingerprint`' do
+      let(:ca_trusted_fingerprint) { File.read("spec/fixtures/test_certs/ca.der.sha256").chomp }
+      let(:config) { super().merge('ssl' => true, 'ca_trusted_fingerprint' => ca_trusted_fingerprint) }
+
+      if Gem::Version.create(LOGSTASH_VERSION) >= Gem::Version.create("8.3.0")
+        it_behaves_like 'secured_elasticsearch'
+      else
+        it 'raises a configuration error' do
+          expect { plugin }.to raise_exception(LogStash::ConfigurationError, a_string_including("ca_trusted_fingerprint"))
+        end
+      end
+    end
   end
 
   context 'setting host:port', integration: true do
