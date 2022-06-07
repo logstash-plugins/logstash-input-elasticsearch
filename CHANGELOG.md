@@ -1,3 +1,6 @@
+## 4.14.0
+  - Refactor: switch to using scheduler mixin [#177](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/177)
+
 ## 4.13.0
   - Added support for `ca_trusted_fingerprint` when run on Logstash 8.3+ [#178](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/178)
 
