@@ -8,6 +8,7 @@ require 'logstash/plugin_mixins/event_support/event_factory_adapter'
 require 'logstash/plugin_mixins/ecs_compatibility_support'
 require 'logstash/plugin_mixins/ecs_compatibility_support/target_check'
 require 'logstash/plugin_mixins/ca_trusted_fingerprint_support'
+require "logstash/plugin_mixins/scheduler"
 require "base64"
 
 require "elasticsearch"
@@ -77,6 +78,8 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   include LogStash::PluginMixins::EventSupport::EventFactoryAdapter
 
   extend LogStash::PluginMixins::ValidatorSupport::FieldReferenceValidationAdapter
+
+  include LogStash::PluginMixins::Scheduler
 
   config_name "elasticsearch"
 
@@ -251,19 +254,11 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
   def run(output_queue)
     if @schedule
-      @scheduler = Rufus::Scheduler.new(:max_work_threads => 1)
-      @scheduler.cron @schedule do
-        do_run(output_queue)
-      end
-
-      @scheduler.join
+      scheduler.cron(@schedule) { do_run(output_queue) }
+      scheduler.join
     else
       do_run(output_queue)
     end
-  end
-
-  def stop
-    @scheduler.stop if @scheduler
   end
 
   private
@@ -274,9 +269,10 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
     logger.warn("managed slices for query is very large (#{@slices}); consider reducing") if @slices > 8
 
+    pipeline_id = execution_context&.pipeline_id || 'main'
     @slices.times.map do |slice_id|
       Thread.new do
-        LogStash::Util::set_thread_name("#{@id}_slice_#{slice_id}")
+        LogStash::Util::set_thread_name("[#{pipeline_id}]|input|elasticsearch|slice_#{slice_id}")
         do_run_slice(output_queue, slice_id)
       end
     end.map(&:join)
