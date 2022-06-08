@@ -269,7 +269,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
     logger.warn("managed slices for query is very large (#{@slices}); consider reducing") if @slices > 8
 
-    pipeline_id = (respond_to?(:execution_context) && execution_context&.pipeline_id) || 'main'
+    pipeline_id = execution_context&.pipeline_id || 'main'
     @slices.times.map do |slice_id|
       Thread.new do
         LogStash::Util::set_thread_name("[#{pipeline_id}]|input|elasticsearch|slice_#{slice_id}")
