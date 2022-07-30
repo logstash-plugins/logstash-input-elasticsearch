@@ -10,6 +10,7 @@ require 'logstash/plugin_mixins/ecs_compatibility_support/target_check'
 require 'logstash/plugin_mixins/ca_trusted_fingerprint_support'
 require "logstash/plugin_mixins/scheduler"
 require "base64"
+require 'logstash/helpers/loggable_try'
 
 require "elasticsearch"
 require "elasticsearch/transport/transport/http/manticore"
@@ -98,6 +99,9 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
   # This allows you to set the maximum number of hits returned per scroll.
   config :size, :validate => :number, :default => 1000
+
+  # The number of try for the schedule job
+  config :tries, :validate => :number, :default => 1
 
   # This parameter controls the keepalive time in seconds of the scrolling
   # request and initiates the scrolling process. The timeout applies per
@@ -221,6 +225,8 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
       @slices < 1 && fail(LogStash::ConfigurationError, "Elasticsearch Input Plugin's `slices` option must be greater than zero, got `#{@slices}`")
     end
 
+    @tries < 1 && fail(LogStash::ConfigurationError, "Elasticsearch Input Plugin's `tries` option must be greater than zero, got `#{@tries}`")
+
     validate_authentication
     fill_user_password_from_cloud_auth
     fill_hosts_from_cloud_id
@@ -262,10 +268,12 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   end
 
   private
-
+  JOB_NAME = "run query"
   def do_run(output_queue)
     # if configured to run a single slice, don't bother spinning up threads
-    return do_run_slice(output_queue) if @slices.nil? || @slices <= 1
+    return retryable(JOB_NAME) do
+      do_run_slice(output_queue)
+    end if @slices.nil? || @slices <= 1
 
     logger.warn("managed slices for query is very large (#{@slices}); consider reducing") if @slices > 8
 
@@ -273,9 +281,24 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     @slices.times.map do |slice_id|
       Thread.new do
         LogStash::Util::set_thread_name("[#{pipeline_id}]|input|elasticsearch|slice_#{slice_id}")
-        do_run_slice(output_queue, slice_id)
+        retryable(JOB_NAME) do
+          do_run_slice(output_queue, slice_id)
+        end
       end
     end.map(&:join)
+  end
+
+  def retryable(job_name, &block)
+    begin
+      stud_try = ::LogStash::Helpers::LoggableTry.new(logger, job_name)
+      stud_try.try(@tries.times) {
+        block.call
+      }
+    rescue => e
+      error_details = {:message => e.message, :cause => e.cause}
+      error_details[:backtrace] = e.backtrace if logger.debug?
+      logger.error("Tried #{@tries} times #{job_name} unsuccessfully", error_details)
+    end
   end
 
   def do_run_slice(output_queue, slice_id=nil)
