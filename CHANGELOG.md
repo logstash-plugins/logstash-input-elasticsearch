@@ -1,3 +1,6 @@
+## 4.15.0
+  - Feat: add `tries` option. allow retry for failing query [#179](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/179)
+
 ## 4.14.0
   - Refactor: switch to using scheduler mixin [#177](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/177)
 
