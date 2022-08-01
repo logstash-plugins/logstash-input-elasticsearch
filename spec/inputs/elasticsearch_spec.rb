@@ -900,6 +900,28 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
 
   end
 
+  context "when raise error in search request" do
+    let(:config) do
+      {
+        "hosts" => ["localhost"],
+        "query" => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }',
+        "tries" => 2
+      }
+    end
+
+    it "should retry and log error" do
+      expect(plugin.logger).to receive(:error).with(/Tried 2 times/,
+                                                    hash_including(:message => 'Manticore::UnknownException'))
+      expect(plugin.logger).to receive(:warn).twice.with(/Attempt to #{LogStash::Inputs::Elasticsearch::JOB_NAME} but failed/,
+                                                         hash_including(:exception => "Manticore::UnknownException"))
+      expect(plugin).to receive(:search_request).with(instance_of(Hash)).and_raise(Manticore::UnknownException).at_least(:twice)
+
+      plugin.register
+
+      expect{ plugin.run(queue) }.not_to raise_error
+    end
+  end
+
   # @note can be removed once we depends on elasticsearch gem >= 6.x
   def extract_transport(client) # on 7.x client.transport is a ES::Transport::Client
     client.transport.respond_to?(:transport) ? client.transport.transport : client.transport
