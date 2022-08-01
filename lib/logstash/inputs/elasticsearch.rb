@@ -100,7 +100,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # This allows you to set the maximum number of hits returned per scroll.
   config :size, :validate => :number, :default => 1000
 
-  # The number of try for the schedule job
+  # The number of tries to run the query. If the query fails after all tries, it logs an error message.
   config :tries, :validate => :number, :default => 1
 
   # This parameter controls the keepalive time in seconds of the scrolling
