@@ -901,12 +901,14 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
           queue << LogStash::Event.new({})
         }.at_least(:twice)
         runner = Thread.start { plugin.run(queue) }
-        sleep 4.0
+        expect(queue.pop).not_to be_nil
+        cron_jobs = plugin.instance_variable_get(:@_scheduler).instance_variable_get(:@impl).jobs
+        expect(cron_jobs[0].next_time - cron_jobs[0].last_time).to be <= 5.0
+        expect(queue.pop).not_to be_nil
       ensure
         plugin.do_stop
         runner.join if runner
       end
-      expect(queue.size).to be >= 2
     end
 
   end
