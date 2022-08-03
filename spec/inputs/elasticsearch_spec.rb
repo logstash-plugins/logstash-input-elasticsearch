@@ -901,7 +901,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
           queue << LogStash::Event.new({})
         }.at_least(:twice)
         runner = Thread.start { plugin.run(queue) }
-        sleep 3.0
+        sleep 4.0
       ensure
         plugin.do_stop
         runner.join if runner
