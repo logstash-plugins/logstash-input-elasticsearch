@@ -293,9 +293,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   def retryable(job_name, &block)
     begin
       stud_try = ::LogStash::Helpers::LoggableTry.new(logger, job_name)
-      stud_try.try((@retries + 1).times) {
-        block.call
-      }
+      stud_try.try((@retries + 1).times) { yield }
     rescue => e
       error_details = {:message => e.message, :cause => e.cause}
       error_details[:backtrace] = e.backtrace if logger.debug?
