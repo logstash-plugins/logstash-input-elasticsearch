@@ -51,6 +51,17 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
         expect { plugin.register }.to raise_error(LogStash::ConfigurationError)
       end
     end
+
+    context "retry" do
+      let(:config) do
+        {
+          "retries" => -1
+        }
+      end
+      it "should raise an exception with negative number" do
+        expect { plugin.register }.to raise_error(LogStash::ConfigurationError)
+      end
+    end
   end
 
   it_behaves_like "an interruptible input plugin" do
@@ -905,14 +916,14 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       {
         "hosts" => ["localhost"],
         "query" => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }',
-        "tries" => 2
+        "retries" => 1
       }
     end
 
     it "should retry and log error" do
-      expect(plugin.logger).to receive(:error).with(/Tried 2 times/,
+      expect(plugin.logger).to receive(:error).with(/Tried .* unsuccessfully/,
                                                     hash_including(:message => 'Manticore::UnknownException'))
-      expect(plugin.logger).to receive(:warn).twice.with(/Attempt to #{LogStash::Inputs::Elasticsearch::JOB_NAME} but failed/,
+      expect(plugin.logger).to receive(:warn).twice.with(/Attempt to .* but failed/,
                                                          hash_including(:exception => "Manticore::UnknownException"))
       expect(plugin).to receive(:search_request).with(instance_of(Hash)).and_raise(Manticore::UnknownException).at_least(:twice)
 

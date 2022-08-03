@@ -100,8 +100,8 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # This allows you to set the maximum number of hits returned per scroll.
   config :size, :validate => :number, :default => 1000
 
-  # The number of tries to run the query. If the query fails after all tries, it logs an error message.
-  config :tries, :validate => :number, :default => 1
+  # The number of retries to run the query. If the query fails after all retries, it logs an error message.
+  config :retries, :validate => :number, :default => 1
 
   # This parameter controls the keepalive time in seconds of the scrolling
   # request and initiates the scrolling process. The timeout applies per
@@ -225,7 +225,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
       @slices < 1 && fail(LogStash::ConfigurationError, "Elasticsearch Input Plugin's `slices` option must be greater than zero, got `#{@slices}`")
     end
 
-    @tries < 1 && fail(LogStash::ConfigurationError, "Elasticsearch Input Plugin's `tries` option must be greater than zero, got `#{@tries}`")
+    @retries < 0 && fail(LogStash::ConfigurationError, "Elasticsearch Input Plugin's `retries` option must be equal or greater than zero, got `#{@retries}`")
 
     validate_authentication
     fill_user_password_from_cloud_auth
@@ -271,9 +271,11 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   JOB_NAME = "run query"
   def do_run(output_queue)
     # if configured to run a single slice, don't bother spinning up threads
-    return retryable(JOB_NAME) do
-      do_run_slice(output_queue)
-    end if @slices.nil? || @slices <= 1
+    if @slices.nil? || @slices <= 1
+      return retryable(JOB_NAME) do
+        do_run_slice(output_queue)
+      end
+    end
 
     logger.warn("managed slices for query is very large (#{@slices}); consider reducing") if @slices > 8
 
@@ -291,13 +293,13 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   def retryable(job_name, &block)
     begin
       stud_try = ::LogStash::Helpers::LoggableTry.new(logger, job_name)
-      stud_try.try(@tries.times) {
+      stud_try.try((@retries + 1).times) {
         block.call
       }
     rescue => e
       error_details = {:message => e.message, :cause => e.cause}
       error_details[:backtrace] = e.backtrace if logger.debug?
-      logger.error("Tried #{@tries} times #{job_name} unsuccessfully", error_details)
+      logger.error("Tried #{job_name} unsuccessfully", error_details)
     end
   end
 
