@@ -101,7 +101,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   config :size, :validate => :number, :default => 1000
 
   # The number of retries to run the query. If the query fails after all retries, it logs an error message.
-  config :retries, :validate => :number, :default => 1
+  config :retries, :validate => :number, :default => 0
 
   # This parameter controls the keepalive time in seconds of the scrolling
   # request and initiates the scrolling process. The timeout applies per

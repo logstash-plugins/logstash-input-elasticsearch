@@ -430,10 +430,10 @@ It is also possible to target an entry in the event's metadata, which will be av
 ===== `retries`
 
 * Value type is <<number,number>>
-* Default value is `1`
+* Default value is `0`
 
 The number of retries to run the query. If the query fails after all retries, it logs an error message.
-This value should be equal or greater than zero.
+The default is 0, no retry. This value should be equal or greater than zero.
 
 
 [id="plugins-{type}s-{plugin}-user"]
