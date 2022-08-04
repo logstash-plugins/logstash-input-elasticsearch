@@ -432,7 +432,7 @@ It is also possible to target an entry in the event's metadata, which will be av
 * Value type is <<number,number>>
 * Default value is `0`
 
-The number of retries to run the query. If the query fails after all retries, it logs an error message.
+The number of times to re-run the query after the first failure. If the query fails after all retries, it logs an error message.
 The default is 0, no retry. This value should be equal or greater than zero.
 
 
