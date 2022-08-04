@@ -433,7 +433,7 @@ It is also possible to target an entry in the event's metadata, which will be av
 * Default value is `0`
 
 The number of times to re-run the query after the first failure. If the query fails after all retries, it logs an error message.
-The default is 0, no retry. This value should be equal or greater than zero.
+The default is 0 (no retry). This value should be equal to or greater than zero.
 
 
 [id="plugins-{type}s-{plugin}-user"]
