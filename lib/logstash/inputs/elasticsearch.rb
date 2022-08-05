@@ -272,34 +272,62 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   def do_run(output_queue)
     # if configured to run a single slice, don't bother spinning up threads
     if @slices.nil? || @slices <= 1
-      return retryable(JOB_NAME) do
-        do_run_slice(output_queue)
-      end
+      success, events = retryable_slice
+      success && events.each { |event| output_queue << event }
+      return
     end
 
     logger.warn("managed slices for query is very large (#{@slices}); consider reducing") if @slices > 8
 
-    pipeline_id = execution_context&.pipeline_id || 'main'
-    @slices.times.map do |slice_id|
-      Thread.new do
-        LogStash::Util::set_thread_name("[#{pipeline_id}]|input|elasticsearch|slice_#{slice_id}")
-        retryable(JOB_NAME) do
-          do_run_slice(output_queue, slice_id)
-        end
-      end
-    end.map(&:join)
+    slice_results = parallel_slice # array of tuple(ok, events)
+
+    # insert events to queue if all slices success
+    if slice_results.all?(&:first)
+      slice_results.flat_map { |success, events| events }
+                  .each { |event| output_queue << event }
+    end
+
+    logger.trace("#{@slices} slices completed")
   end
 
   def retryable(job_name, &block)
     begin
       stud_try = ::LogStash::Helpers::LoggableTry.new(logger, job_name)
-      stud_try.try((@retries + 1).times) { yield }
+      output = stud_try.try((@retries + 1).times) { yield }
+      [true, output]
     rescue => e
       error_details = {:message => e.message, :cause => e.cause}
       error_details[:backtrace] = e.backtrace if logger.debug?
       logger.error("Tried #{job_name} unsuccessfully", error_details)
+      [false, nil]
     end
   end
+
+
+  # @return [(ok, events)] : Array of tuple(Boolean, [Logstash::Event])
+  def parallel_slice
+    pipeline_id = execution_context&.pipeline_id || 'main'
+    @slices.times.map do |slice_id|
+      Thread.new do
+        LogStash::Util::set_thread_name("[#{pipeline_id}]|input|elasticsearch|slice_#{slice_id}")
+        retryable_slice(slice_id)
+      end
+    end.map do |t|
+      t.join
+      t.value
+    end
+  end
+
+  # @param scroll_id [Integer]
+  # @return (ok, events) [Boolean, Array(Logstash::Event)]
+  def retryable_slice(slice_id=nil)
+    retryable(JOB_NAME) do
+      output = []
+      do_run_slice(output, slice_id)
+      output
+    end
+  end
+
 
   def do_run_slice(output_queue, slice_id=nil)
     slice_query = @base_query
@@ -337,11 +365,6 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     r = scroll_request(scroll_id)
     r['hits']['hits'].each { |hit| push_hit(hit, output_queue) }
     [r['hits']['hits'].any?, r['_scroll_id']]
-  rescue => e
-    # this will typically be triggered by a scroll timeout
-    logger.error("Scroll request error, aborting scroll", message: e.message, exception: e.class)
-    # return no hits and original scroll_id so we can try to clear it
-    [false, scroll_id]
   end
 
   def push_hit(hit, output_queue)
@@ -376,7 +399,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     logger.warn("Ignoring clear_scroll exception", message: e.message, exception: e.class)
   end
 
-  def scroll_request scroll_id
+  def scroll_request(scroll_id)
     @client.scroll(:body => { :scroll_id => scroll_id }, :scroll => @scroll)
   end
 
