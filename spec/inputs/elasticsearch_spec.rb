@@ -389,7 +389,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
           expect(emitted_event_ids).to include('slice1-response0-item1')
         end
 
-        it 'emits the hitson the second page of the second slice' do
+        it 'emits the hits on the second page of the second slice' do
           expect(emitted_event_ids).to include('slice1-response1-item0')
           expect(emitted_event_ids).to include('slice1-response1-item1')
         end
@@ -955,7 +955,47 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
 
   end
 
-  context "when raise error in search request" do
+  context "retries" do
+    let(:mock_response) do
+      {
+        "_scroll_id" => "cXVlcnlUaGVuRmV0Y2g",
+        "took" => 27,
+        "timed_out" => false,
+        "_shards" => {
+          "total" => 169,
+          "successful" => 169,
+          "failed" => 0
+        },
+        "hits" => {
+          "total" => 1,
+          "max_score" => 1.0,
+          "hits" => [ {
+                        "_index" => "logstash-2014.10.12",
+                        "_type" => "logs",
+                        "_id" => "C5b2xLQwTZa76jBmHIbwHQ",
+                        "_score" => 1.0,
+                        "_source" => { "message" => ["ohayo"] }
+                      } ]
+        }
+      }
+    end
+
+    let(:mock_scroll_response) do
+      {
+        "_scroll_id" => "r453Wc1jh0caLJhSDg",
+        "hits" => { "hits" => [] }
+      }
+    end
+
+    before(:each) do
+      client = Elasticsearch::Client.new
+      allow(Elasticsearch::Client).to receive(:new).with(any_args).and_return(client)
+      allow(client).to receive(:search).with(any_args).and_return(mock_response)
+      allow(client).to receive(:scroll).with({ :body => { :scroll_id => "cXVlcnlUaGVuRmV0Y2g" }, :scroll=> "1m" }).and_return(mock_scroll_response)
+      allow(client).to receive(:clear_scroll).and_return(nil)
+      allow(client).to receive(:ping)
+    end
+
     let(:config) do
       {
         "hosts" => ["localhost"],
@@ -964,7 +1004,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       }
     end
 
-    it "should retry and log error" do
+    it "retry and log error when all search request fail" do
       expect(plugin.logger).to receive(:error).with(/Tried .* unsuccessfully/,
                                                     hash_including(:message => 'Manticore::UnknownException'))
       expect(plugin.logger).to receive(:warn).twice.with(/Attempt to .* but failed/,
@@ -975,6 +1015,18 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
 
       expect{ plugin.run(queue) }.not_to raise_error
       expect(queue.size).to eq(0)
+    end
+
+    it "retry successfully when search request fail for one time" do
+      expect(plugin.logger).to receive(:warn).once.with(/Attempt to .* but failed/,
+                                                         hash_including(:exception => "Manticore::UnknownException"))
+      expect(plugin).to receive(:search_request).with(instance_of(Hash)).once.and_raise(Manticore::UnknownException)
+      expect(plugin).to receive(:search_request).with(instance_of(Hash)).once.and_call_original
+
+      plugin.register
+
+      expect{ plugin.run(queue) }.not_to raise_error
+      expect(queue.size).to eq(1)
     end
   end
 
