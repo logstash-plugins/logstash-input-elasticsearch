@@ -698,6 +698,14 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
             expect { plugin.register }.to raise_error LogStash::ConfigurationError, /Multiple authentication options are specified/
           end
         end
+        
+        context 'ssl verification disabled' do
+          let(:config) { super().merge({ 'ssl_certificate_verification' => false }) }
+          it 'should warn data security risk' do
+            expect(plugin.logger).to receive(:warn).once.with("You have enabled encryption but DISABLED certificate verification, to make sure your data is secure remove `ssl_certificate_verification => false`")
+            plugin.register
+          end
+        end
       end
     end if LOGSTASH_VERSION > '6.0'
 

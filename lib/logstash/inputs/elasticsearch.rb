@@ -190,6 +190,11 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # SSL Certificate Authority file in PEM encoded format, must also include any chain certificates as necessary 
   config :ca_file, :validate => :path
 
+  # Option to validate the server's certificate. Disabling this severely compromises security.
+  # For more information on disabling certificate verification please read
+  # https://www.cs.utexas.edu/~shmat/shmat_ccs12.pdf
+  config :ssl_certificate_verification, :validate => :boolean, :default => true
+
   # Schedule of when to periodically run statement, in Cron format
   # for example: "* * * * *" (execute query every minute, on the minute)
   #
@@ -432,6 +437,11 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     ssl_options[:ssl] = true if @ssl
     ssl_options[:ca_file] = @ca_file if @ssl && @ca_file
     ssl_options[:trust_strategy] = trust_strategy_for_ca_trusted_fingerprint
+    if @ssl && !@ssl_certificate_verification
+      logger.warn "You have enabled encryption but DISABLED certificate verification, " +
+                    "to make sure your data is secure remove `ssl_certificate_verification => false`"
+      ssl_options[:verify] = :disable
+    end
 
     ssl_options
   end

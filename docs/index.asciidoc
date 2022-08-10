@@ -122,6 +122,7 @@ This plugin supports the following configuration options plus the <<plugins-{typ
 | <<plugins-{type}s-{plugin}-size>> |<<number,number>>|No
 | <<plugins-{type}s-{plugin}-slices>> |<<number,number>>|No
 | <<plugins-{type}s-{plugin}-ssl>> |<<boolean,boolean>>|No
+| <<plugins-{type}s-{plugin}-ssl_certificate_verification>> |<<boolean,boolean>>|No
 | <<plugins-{type}s-{plugin}-socket_timeout_seconds>> | <<number,number>>|No
 | <<plugins-{type}s-{plugin}-target>> | {logstash-ref}/field-references-deepdive.html[field reference] | No
 | <<plugins-{type}s-{plugin}-retries>> | <<number,number>>|No
@@ -413,6 +414,16 @@ instructions into the query.
 
 If enabled, SSL will be used when communicating with the Elasticsearch
 server (i.e. HTTPS will be used instead of plain HTTP).
+
+[id="plugins-{type}s-{plugin}-ssl_certificate_verification"]
+===== `ssl_certificate_verification`
+
+* Value type is <<boolean,boolean>>
+* Default value is `true`
+
+Option to validate the server's certificate. Disabling this severely compromises security.
+For more information on disabling certificate verification please read
+https://www.cs.utexas.edu/~shmat/shmat_ccs12.pdf
 
 [id="plugins-{type}s-{plugin}-socket_timeout_seconds"]
 ===== `socket_timeout_seconds`

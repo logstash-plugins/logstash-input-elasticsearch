@@ -1,3 +1,6 @@
+## 4.16.0
+  - Added `ssl_certificate_verification` option to control SSL certificate verification [#N](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/N)
+
 ## 4.15.0
   - Feat: add `retries` option. allow retry for failing query [#179](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/179)
 
