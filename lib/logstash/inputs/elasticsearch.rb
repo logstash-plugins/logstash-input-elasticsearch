@@ -191,7 +191,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   config :ca_file, :validate => :path
 
   # Option to validate the server's certificate. Disabling this severely compromises security.
-  # For more information on disabling certificate verification please read
+  # For more information on the importance of certificate verification please read
   # https://www.cs.utexas.edu/~shmat/shmat_ccs12.pdf
   config :ssl_certificate_verification, :validate => :boolean, :default => true
 

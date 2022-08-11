@@ -422,12 +422,12 @@ server (i.e. HTTPS will be used instead of plain HTTP).
 * Default value is `true`
 
 Option to validate the server's certificate. Disabling this severely compromises security.
-When certificate validation is disabled this plugin implicitly trusts the machine
-resolved at the given address without validating its proof-of-identity, which can
-lead to this plugin transmitting credentials to or processing data from an untrustworthy
+When certificate validation is disabled, this plugin implicitly trusts the machine
+resolved at the given address without validating its proof-of-identity.
+In this scenario, the plugin can transmit credentials to or process data from an untrustworthy
 man-in-the-middle or other compromised infrastructure.
-For more information on disabling certificate verification please read
-https://www.cs.utexas.edu/~shmat/shmat_ccs12.pdf
+More information on the importance of certificate verification:
+**https://www.cs.utexas.edu/~shmat/shmat_ccs12.pdf**.
 
 [id="plugins-{type}s-{plugin}-socket_timeout_seconds"]
 ===== `socket_timeout_seconds`
