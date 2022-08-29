@@ -153,7 +153,7 @@ API key API].
   * Value type is <<path,path>>
   * There is no default value for this setting.
 
-SSL Certificate Authority file in PEM encoded format, must also include any chain certificates as necessary.
+SSL Certificate Authority file in PEM encoded format, must also include any chain certificates as necessary. This setting is ignored unless `ssl` is set to true.
 
 [id="plugins-{type}s-{plugin}-ca_trusted_fingerprint"]
 ===== `ca_trusted_fingerprint`
