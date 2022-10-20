@@ -350,13 +350,33 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   end
 
   ##
+  # @param output_queue [#<<]
+  # @param scroll_id [String]: a scroll id to resume
+  # @return [Array(Boolean,String)]: a tuple representing whether the response
+  #
+  def process_next_scroll(output_queue, scroll_id)
+    r = scroll_request(scroll_id)
+    r['hits']['hits'].each { |hit| push_hit(hit, output_queue) }
+    [r['hits']['hits'].any?, r['_scroll_id']]
+  end
+
   # This can be called externally from the query_executor
   public
   def push_hit(hit, output_queue, root_field = '_source')
-    event = targeted_event_factory.new_event hit[root_field]
-    set_docinfo_fields(hit, event) if @docinfo
+    event = event_from_hit(hit, root_field)
     decorate(event)
     output_queue << event
+  end
+
+  def event_from_hit(hit, root_field)
+    event = targeted_event_factory.new_event hit[root_field]
+    set_docinfo_fields(hit, event) if @docinfo
+
+    event
+  rescue => e
+    serialized_hit = hit.to_json
+    logger.warn("Event creation error, original data now in [event][original] field", message: e.message, exception: e.class, data: serialized_hit)
+    return event_factory.new_event('event' => { 'original' => serialized_hit }, 'tags' => ['_elasticsearch_input_failure'])
   end
 
   def set_docinfo_fields(hit, event)
@@ -364,10 +384,8 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     docinfo_target = event.get(@docinfo_target) || {}
 
     unless docinfo_target.is_a?(Hash)
-      @logger.error("Incompatible Event, incompatible type for the docinfo_target=#{@docinfo_target} field in the `_source` document, expected a hash got:", :docinfo_target_type => docinfo_target.class, :event => event.to_hash_with_metadata)
-
-      # TODO: (colin) I am not sure raising is a good strategy here?
-      raise Exception.new("Elasticsearch input: incompatible event")
+      # expect error to be handled by `#event_from_hit`
+      fail RuntimeError, "Incompatible event; unable to merge docinfo fields into docinfo_target=`#{@docinfo_target}`"
     end
 
     @docinfo_fields.each do |field|
