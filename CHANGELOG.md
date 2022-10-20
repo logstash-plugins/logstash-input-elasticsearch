@@ -1,3 +1,6 @@
+## 4.20.5
+  - Fix: failure to create an Event from an Elasticsearch hit result will no longer crash this plugin. Instead, it will emit an Event tagged with `_elasticsearch_input_failure` whose `[event][original]` is a JSON-encoded string representation of the entire hit
+
 ## 4.20.4
   - Fix issue where the `index` parameter was being ignored when using `response_type => aggregations` [#209](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/209)
 
