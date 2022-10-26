@@ -100,8 +100,8 @@ When this input plugin cannot create a structured `Event` from a hit result, it 
 
 Common causes are:
 
- - When the hit result contains top-level fields that are {logstash-ref}/processing.html#reserved-fields[reserved in Logstash] but do not have the expected shape. Use the <<plugins-{type}s-{plugin}-target>> directive to avoid conflicts with the top-level namespace.
- - When <<plugins-{type}s-{plugin}-docinfo>> is enabled and the docinfo fields cannot be merged into the hit result. Combine <<plugins-{type}s-{plugin}-target>> and <<plugins-{type}s-{plugin}-docinfo_target>> to avoid conflict.
+ - The hit result contains top-level fields that are {logstash-ref}/processing.html#reserved-fields[reserved in Logstash], but do not have the expected shape. Use the <<plugins-{type}s-{plugin}-target>> directive to avoid conflicts with the top-level namespace.
+ - The <<plugins-{type}s-{plugin}-docinfo>> option is enabled, and the docinfo fields cannot be merged into the hit result. Combine <<plugins-{type}s-{plugin}-target>> and <<plugins-{type}s-{plugin}-docinfo_target>> to avoid conflict.
 
 [id="plugins-{type}s-{plugin}-options"]
 ==== Elasticsearch Input configuration options
