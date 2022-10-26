@@ -1,3 +1,6 @@
+## 4.16.1
+  - Fix: failure to create an Event from an Elasticsearch hit result will no longer crash this plugin. Instead, it will emit an Event tagged with `_elasticsearch_input_failure` whose `[event][original]` is a JSON-encoded string representation of the entire hit
+
 ## 4.16.0
   - Added `ssl_certificate_verification` option to control SSL certificate verification [#180](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/180)
 
