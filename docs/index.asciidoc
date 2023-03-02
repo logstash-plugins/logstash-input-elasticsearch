@@ -102,7 +102,7 @@ This plugin supports the following configuration options plus the <<plugins-{typ
 |=======================================================================
 |Setting |Input type|Required
 | <<plugins-{type}s-{plugin}-api_key>> |<<password,password>>|No
-| <<plugins-{type}s-{plugin}-ca_file>> |a valid filesystem path|No
+| <<plugins-{type}s-{plugin}-ca_file>> |a valid filesystem path|__Deprecated__
 | <<plugins-{type}s-{plugin}-ca_trusted_fingerprint>> |<<string,string>>|No
 | <<plugins-{type}s-{plugin}-cloud_auth>> |<<password,password>>|No
 | <<plugins-{type}s-{plugin}-cloud_id>> |<<string,string>>|No
@@ -121,8 +121,21 @@ This plugin supports the following configuration options plus the <<plugins-{typ
 | <<plugins-{type}s-{plugin}-scroll>> |<<string,string>>|No
 | <<plugins-{type}s-{plugin}-size>> |<<number,number>>|No
 | <<plugins-{type}s-{plugin}-slices>> |<<number,number>>|No
-| <<plugins-{type}s-{plugin}-ssl>> |<<boolean,boolean>>|No
-| <<plugins-{type}s-{plugin}-ssl_certificate_verification>> |<<boolean,boolean>>|No
+| <<plugins-{type}s-{plugin}-ssl>> |<<boolean,boolean>>|__Deprecated__
+| <<plugins-{type}s-{plugin}-ssl_certificate>> |<<path,path>>|No
+| <<plugins-{type}s-{plugin}-ssl_certificate_authorities>> |list of <<path,path>>|No
+| <<plugins-{type}s-{plugin}-ssl_certificate_verification>> |<<boolean,boolean>>|__Deprecated__
+| <<plugins-{type}s-{plugin}-ssl_cipher_suites>> |list of <<string,string>>|No
+| <<plugins-{type}s-{plugin}-ssl_enabled>> |<<boolean,boolean>>|No
+| <<plugins-{type}s-{plugin}-ssl_key>> |<<path,path>>|No
+| <<plugins-{type}s-{plugin}-ssl_keystore_password>> |<<password,password>>|No
+| <<plugins-{type}s-{plugin}-ssl_keystore_path>> |<<path,path>>|No
+| <<plugins-{type}s-{plugin}-ssl_keystore_type>> |<<string,string>>|No
+| <<plugins-{type}s-{plugin}-ssl_supported_protocols>> |<<string,string>>|No
+| <<plugins-{type}s-{plugin}-ssl_truststore_password>> |<<password,password>>|No
+| <<plugins-{type}s-{plugin}-ssl_truststore_path>> |<<path,path>>|No
+| <<plugins-{type}s-{plugin}-ssl_truststore_type>> |<<string,string>>|No
+| <<plugins-{type}s-{plugin}-ssl_verification_mode>> |<<string,string>>, one of `["full", "none"]`|No
 | <<plugins-{type}s-{plugin}-socket_timeout_seconds>> | <<number,number>>|No
 | <<plugins-{type}s-{plugin}-target>> | {logstash-ref}/field-references-deepdive.html[field reference] | No
 | <<plugins-{type}s-{plugin}-retries>> | <<number,number>>|No
@@ -140,7 +153,7 @@ input plugins.
   * Value type is <<password,password>>
   * There is no default value for this setting.
 
-Authenticate using Elasticsearch API key. Note that this option also requires enabling the `ssl` option.
+Authenticate using Elasticsearch API key. Note that this option also requires enabling the `ssl_enabled` option.
 
 Format is `id:api_key` where `id` and `api_key` are as returned by the
 Elasticsearch
@@ -149,6 +162,7 @@ API key API].
 
 [id="plugins-{type}s-{plugin}-ca_file"]
 ===== `ca_file` 
+deprecated[8.8.0, Replaced by <<plugins-{type}s-{plugin}-ssl_certificate_authorities>>]
 
   * Value type is <<path,path>>
   * There is no default value for this setting.
@@ -408,6 +422,7 @@ instructions into the query.
 
 [id="plugins-{type}s-{plugin}-ssl"]
 ===== `ssl` 
+deprecated[8.8.0, Replaced by <<plugins-{type}s-{plugin}-ssl_enabled>>]
 
   * Value type is <<boolean,boolean>>
   * Default value is `false`
@@ -415,11 +430,31 @@ instructions into the query.
 If enabled, SSL will be used when communicating with the Elasticsearch
 server (i.e. HTTPS will be used instead of plain HTTP).
 
+[id="plugins-{type}s-{plugin}-ssl_certificate"]
+===== `ssl_certificate`
+  * Value type is <<path,path>>
+  * There is no default value for this setting.
+
+SSL certificate to use to authenticate the client. This certificate should be an OpenSSL-style X.509 certificate file.
+
+NOTE: This setting can be used only if `ssl_key` is set.
+
+[id="plugins-{type}s-{plugin}-ssl_certificate_authorities"]
+===== `ssl_certificate_authorities`
+
+  * Value type is a list of <<path,path>>
+  * There is no default value for this setting
+
+The .cer or .pem files to validate the server's certificate.
+
+NOTE: You cannot use this setting and `ssl_truststore_path` at the same time.
+
 [id="plugins-{type}s-{plugin}-ssl_certificate_verification"]
 ===== `ssl_certificate_verification`
+deprecated[8.8.0, Replaced by <<plugins-{type}s-{plugin}-ssl_verification_mode>>]
 
-* Value type is <<boolean,boolean>>
-* Default value is `true`
+  * Value type is <<boolean,boolean>>
+  * Default value is `true`
 
 Option to validate the server's certificate. Disabling this severely compromises security.
 When certificate validation is disabled, this plugin implicitly trusts the machine
@@ -428,6 +463,121 @@ In this scenario, the plugin can transmit credentials to or process data from an
 man-in-the-middle or other compromised infrastructure.
 More information on the importance of certificate verification:
 **https://www.cs.utexas.edu/~shmat/shmat_ccs12.pdf**.
+
+[id="plugins-{type}s-{plugin}-ssl_cipher_suites"]
+===== `ssl_cipher_suites`
+  * Value type is a list of <<string,string>>
+  * There is no default value for this setting
+
+The list of cipher suites to use, listed by priorities.
+Supported cipher suites vary depending on the Java and protocol versions.
+
+
+[id="plugins-{type}s-{plugin}-ssl_enabled"]
+===== `ssl_enabled`
+
+  * Value type is <<boolean,boolean>>
+  * There is no default value for this setting.
+
+Enable SSL/TLS secured communication to Elasticsearch cluster.
+Leaving this unspecified will use whatever scheme is specified in the URLs listed in <<plugins-{type}s-{plugin}-hosts>> or extracted from the <<plugins-{type}s-{plugin}-cloud_id>>.
+If no explicit protocol is specified plain HTTP will be used.
+
+[id="plugins-{type}s-{plugin}-ssl_key"]
+===== `ssl_key`
+  * Value type is <<path,path>>
+  * There is no default value for this setting.
+
+OpenSSL-style RSA private key that corresponds to the `ssl_certificate`.
+
+NOTE: This setting can be used only if `ssl_certificate` is set.
+
+[id="plugins-{type}s-{plugin}-ssl_keystore_password"]
+===== `ssl_keystore_password`
+
+  * Value type is <<password,password>>
+  * There is no default value for this setting.
+
+Set the keystore password
+
+[id="plugins-{type}s-{plugin}-ssl_keystore_path"]
+===== `ssl_keystore_path`
+
+  * Value type is <<path,path>>
+  * There is no default value for this setting.
+
+The keystore used to present a certificate to the server.
+It can be either .jks or .p12
+
+NOTE: You cannot use this setting and `ssl_certificate` at the same time.
+
+[id="plugins-{type}s-{plugin}-ssl_keystore_type"]
+===== `ssl_keystore_type`
+
+  * Value can be any of: `jks`, `pkcs12`
+  * If not provided, the value will be inferred from the keystore filename.
+
+The format of the keystore file. It must be either `jks` or `pkcs12`.
+
+[id="plugins-{type}s-{plugin}-ssl_supported_protocols"]
+===== `ssl_supported_protocols`
+
+  * Value type is <<string,string>>
+  * Allowed values are: `'TLSv1.1'`, `'TLSv1.2'`, `'TLSv1.3'`
+  * Default depends on the JDK being used. With up-to-date Logstash, the default is `['TLSv1.2', 'TLSv1.3']`.
+  `'TLSv1.1'` is not considered secure and is only provided for legacy applications.
+
+List of allowed SSL/TLS versions to use when establishing a connection to the Elasticsearch cluster.
+
+For Java 8 `'TLSv1.3'` is supported  only since **8u262** (AdoptOpenJDK), but requires that you set the
+`LS_JAVA_OPTS="-Djdk.tls.client.protocols=TLSv1.3"` system property in Logstash.
+
+NOTE: If you configure the plugin to use `'TLSv1.1'` on any recent JVM, such as the one packaged with Logstash,
+the protocol is disabled by default and needs to be enabled manually by changing `jdk.tls.disabledAlgorithms` in
+the *$JDK_HOME/conf/security/java.security* configuration file. That is, `TLSv1.1` needs to be removed from the list.
+
+[id="plugins-{type}s-{plugin}-ssl_truststore_password"]
+===== `ssl_truststore_password`
+
+  * Value type is <<password,password>>
+  * There is no default value for this setting.
+
+Set the truststore password
+
+[id="plugins-{type}s-{plugin}-ssl_truststore_path"]
+===== `ssl_truststore_path`
+
+  * Value type is <<path,path>>
+  * There is no default value for this setting.
+
+The truststore to validate the server's certificate.
+It can be either .jks or .p12.
+
+NOTE: You cannot use this setting and `ssl_certificate_authorities` at the same time.
+
+[id="plugins-{type}s-{plugin}-ssl_truststore_type"]
+===== `ssl_truststore_type`
+
+  * Value can be any of: `jks`, `pkcs12`
+  * If not provided, the value will be inferred from the truststore filename.
+
+The format of the truststore file. It must be either `jks` or `pkcs12`.
+
+[id="plugins-{type}s-{plugin}-ssl_verification_mode"]
+===== `ssl_verification_mode`
+
+  * Value can be any of: `full`, `none`
+  * Default value is `full`
+
+Defines how to verify the certificates presented by another party in the TLS connection:
+
+`full` validates that the server certificate has an issue date that’s within
+the not_before and not_after dates; chains to a trusted Certificate Authority (CA), and
+has a hostname or IP address that matches the names within the certificate.
+
+`none` performs no certificate validation.
+
+WARNING: Setting certificate verification to `none` disables many security benefits of SSL/TLS, which is very dangerous. For more information on disabling certificate verification please read https://www.cs.utexas.edu/~shmat/shmat_ccs12.pdf
 
 [id="plugins-{type}s-{plugin}-socket_timeout_seconds"]
 ===== `socket_timeout_seconds`

@@ -681,7 +681,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       end
 
       context "with ssl" do
-        let(:config) { super().merge({ 'api_key' => LogStash::Util::Password.new('foo:bar'), "ssl" => true }) }
+        let(:config) { super().merge({ 'api_key' => LogStash::Util::Password.new('foo:bar'), "ssl_enabled" => true }) }
 
         it "should set authorization" do
           plugin.register
@@ -700,9 +700,9 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
         end
         
         context 'ssl verification disabled' do
-          let(:config) { super().merge({ 'ssl_certificate_verification' => false }) }
+          let(:config) { super().merge({ 'ssl_verification_mode' => 'none' }) }
           it 'should warn data security risk' do
-            expect(plugin.logger).to receive(:warn).once.with("You have enabled encryption but DISABLED certificate verification, to make sure your data is secure remove `ssl_certificate_verification => false`")
+            expect(plugin.logger).to receive(:warn).once.with("You have enabled encryption but DISABLED certificate verification, to make sure your data is secure set `ssl_verification_mode => full`")
             plugin.register
           end
         end
