@@ -1,5 +1,5 @@
 ## 4.17.0
-- Added SSL settings for: [#1115](https://github.com/logstash-plugins/logstash-output-elasticsearch/pull/1115)
+  - Added SSL settings for: [#185](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/185)
     - `ssl_enabled`: Enable/disable the SSL settings. If not provided, the value is inferred from the hosts scheme
     - `ssl_certificate`: OpenSSL-style X.509 certificate file to authenticate the client
     - `ssl_key`: OpenSSL-style RSA private key that corresponds to the `ssl_certificate`
@@ -11,7 +11,7 @@
     - `ssl_keystore_password`: The keystore password
     - `ssl_cipher_suites`: The list of cipher suites to use
     - `ssl_supported_protocols`: Supported protocols with versions
-- Reviewed and deprecated SSL settings to comply with Logstash's naming convention
+  - Reviewed and deprecated SSL settings to comply with Logstash's naming convention
     - Deprecated `ssl` in favor of `ssl_enabled`
     - Deprecated `ca_file` in favor of `ssl_certificate_authorities`
     - Deprecated `ssl_certificate_verification` in favor of `ssl_verification_mode`
