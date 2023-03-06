@@ -26,7 +26,7 @@ wait_for_es() {
 }
 
 if [[ "$INTEGRATION" != "true" ]]; then
-  jruby -rbundler/setup -S rspec -fd --tag ~integration --tag ~secure_integration spec/inputs
+  bundle exec rspec --format=documentation spec/inputs --tag ~integration --tag ~secure_integration
 else
   if [[ "$SECURE_INTEGRATION" == "true" ]]; then
     extra_tag_args="--tag secure_integration"
@@ -37,5 +37,5 @@ else
   echo "Waiting for elasticsearch to respond..."
   wait_for_es
   echo "Elasticsearch is Up !"
-  jruby -rbundler/setup -S rspec -fd $extra_tag_args --tag es_version:$ELASTIC_STACK_VERSION spec/inputs/integration
+  bundle exec rspec --format=documentation $extra_tag_args --tag update_tests:painless --tag es_version:$ELASTIC_STACK_VERSION spec/inputs/integration
 fi
