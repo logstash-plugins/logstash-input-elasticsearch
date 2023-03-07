@@ -32,7 +32,7 @@ describe "SSL options" do
       end
     end
 
-    context "false and cloud_id resolve host is https" do
+    context "false and cloud_id resolved host is https" do
       let(:settings) {{
         "ssl_enabled" => false,
         "hosts" => [],
