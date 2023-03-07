@@ -21,6 +21,32 @@ describe "SSL options" do
     subject.close
   end
 
+  context "when ssl_enabled is" do
+    context "true and there is no https hosts" do
+      let(:hosts) { %w[http://es01 http://es01] }
+
+      it "should not infer the ssl_enabled value" do
+        subject.register
+        expect(subject.instance_variable_get(:@ssl_enabled)).to eql(true)
+        expect(subject.params).to match hash_including("ssl_enabled" => true)
+      end
+    end
+
+    context "false and cloud_id resolve host is https" do
+      let(:settings) {{
+        "ssl_enabled" => false,
+        "hosts" => [],
+        "cloud_id" => "sample:dXMtY2VudHJhbDEuZ2NwLmNsb3VkLmVzLmlvJGFjMzFlYmI5MDI0MTc3MzE1NzA0M2MzNGZkMjZmZDQ2OjkyNDMkYTRjMDYyMzBlNDhjOGZjZTdiZTg4YTA3NGEzYmIzZTA6OTI0NA=="
+      }}
+
+      it "should not infer the ssl_enabled value" do
+        subject.register
+        expect(subject.instance_variable_get(:@ssl_enabled)).to eql(false)
+        expect(subject.params).to match hash_including("ssl_enabled" => false)
+      end
+    end
+  end
+
   context "when neither ssl nor ssl_enabled is set" do
     let(:settings) { super().reject { |k| %w[ssl ssl_enabled].include?(k) } }
 
@@ -38,6 +64,29 @@ describe "SSL options" do
       let(:hosts) { %w[https://sec-es01 https://sec-es01] }
 
       it "should infer the ssl_enabled value to true" do
+        subject.register
+        expect(subject.instance_variable_get(:@ssl_enabled)).to eql(true)
+        expect(subject.params).to match hash_including("ssl_enabled" => true)
+      end
+    end
+
+    context "and hosts have no scheme defined" do
+      let(:hosts) { %w[es01 es01] }
+
+      it "should infer the ssl_enabled value to false" do
+        subject.register
+        expect(subject.instance_variable_get(:@ssl_enabled)).to eql(false)
+        expect(subject.params).to match hash_including("ssl_enabled" => false)
+      end
+    end
+
+    context "and cloud_id resolved host is https" do
+      let(:settings) {{
+        "hosts" => [],
+        "cloud_id" => "sample:dXMtY2VudHJhbDEuZ2NwLmNsb3VkLmVzLmlvJGFjMzFlYmI5MDI0MTc3MzE1NzA0M2MzNGZkMjZmZDQ2OjkyNDMkYTRjMDYyMzBlNDhjOGZjZTdiZTg4YTA3NGEzYmIzZTA6OTI0NA=="
+      }}
+
+      it "should infer the ssl_enabled value to false" do
         subject.register
         expect(subject.instance_variable_get(:@ssl_enabled)).to eql(true)
         expect(subject.params).to match hash_including("ssl_enabled" => true)

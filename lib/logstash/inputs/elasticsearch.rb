@@ -259,8 +259,6 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   def initialize(params={})
     super(params)
 
-    setup_ssl_params
-
     if docinfo_target.nil?
       @docinfo_target = ecs_select[disabled: '@metadata', v1: '[@metadata][input][elasticsearch]']
     end
@@ -268,6 +266,9 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
   def register
     require "rufus/scheduler"
+
+    fill_hosts_from_cloud_id
+    setup_ssl_params!
 
     @options = {
       :index => @index,
@@ -284,8 +285,6 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
     validate_authentication
     fill_user_password_from_cloud_auth
-    fill_hosts_from_cloud_id
-
 
     transport_options = {:headers => {}}
     transport_options[:headers].merge!(setup_basic_auth(user, password))
@@ -467,12 +466,12 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   end
 
   def effectively_ssl?
-    return @ssl_enabled unless @ssl_enabled.nil?
+    return true if @ssl_enabled
 
     hosts = Array(@hosts)
     return false if hosts.nil? || hosts.empty?
 
-    hosts.all? { |host| host && host.start_with?("https") }
+    hosts.all? { |host| host && host.to_s.start_with?("https") }
   end
 
   def validate_authentication
@@ -552,13 +551,13 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     ssl_options
   end
 
-  def setup_ssl_params
+  def setup_ssl_params!
     @ssl_enabled = normalize_config(:ssl_enabled) do |normalize|
       normalize.with_deprecated_alias(:ssl)
     end
 
     # Infer the value if neither the deprecate `ssl` and `ssl_enabled` were set
-    @ssl_enabled = effectively_ssl? if @ssl_enabled.nil?
+    infer_ssl_enabled_from_hosts
 
     @ssl_certificate_authorities = normalize_config(:ssl_certificate_authorities) do |normalize|
       normalize.with_deprecated_mapping(:ca_file) do |ca_file|
@@ -579,6 +578,12 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     params['ssl_enabled'] = @ssl_enabled unless @ssl_enabled.nil?
     params['ssl_certificate_authorities'] = @ssl_certificate_authorities unless @ssl_certificate_authorities.nil?
     params['ssl_verification_mode'] = @ssl_verification_mode unless @ssl_verification_mode.nil?
+  end
+
+  def infer_ssl_enabled_from_hosts
+    return if original_params.include?('ssl') || original_params.include?('ssl_enabled')
+
+    @ssl_enabled = params['ssl_enabled'] = effectively_ssl?
   end
 
   def setup_hosts
