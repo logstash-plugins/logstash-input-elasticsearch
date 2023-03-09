@@ -153,7 +153,7 @@ input plugins.
   * Value type is <<password,password>>
   * There is no default value for this setting.
 
-Authenticate using Elasticsearch API key. Note that this option also requires enabling the `ssl_enabled` option.
+Authenticate using Elasticsearch API key. Note that this option also requires enabling the <<plugins-{type}s-{plugin}-ssl_enabled>> option.
 
 Format is `id:api_key` where `id` and `api_key` are as returned by the
 Elasticsearch
@@ -162,7 +162,7 @@ API key API].
 
 [id="plugins-{type}s-{plugin}-ca_file"]
 ===== `ca_file` 
-deprecated[8.8.0, Replaced by <<plugins-{type}s-{plugin}-ssl_certificate_authorities>>]
+deprecated[4.17.0, Replaced by <<plugins-{type}s-{plugin}-ssl_certificate_authorities>>]
 
   * Value type is <<path,path>>
   * There is no default value for this setting.
@@ -422,7 +422,7 @@ instructions into the query.
 
 [id="plugins-{type}s-{plugin}-ssl"]
 ===== `ssl` 
-deprecated[8.8.0, Replaced by <<plugins-{type}s-{plugin}-ssl_enabled>>]
+deprecated[4.17.0, Replaced by <<plugins-{type}s-{plugin}-ssl_enabled>>]
 
   * Value type is <<boolean,boolean>>
   * Default value is `false`
@@ -437,7 +437,7 @@ server (i.e. HTTPS will be used instead of plain HTTP).
 
 SSL certificate to use to authenticate the client. This certificate should be an OpenSSL-style X.509 certificate file.
 
-NOTE: This setting can be used only if `ssl_key` is set.
+NOTE: This setting can be used only if <<plugins-{type}s-{plugin}-ssl_key>> is set.
 
 [id="plugins-{type}s-{plugin}-ssl_certificate_authorities"]
 ===== `ssl_certificate_authorities`
@@ -445,13 +445,13 @@ NOTE: This setting can be used only if `ssl_key` is set.
   * Value type is a list of <<path,path>>
   * There is no default value for this setting
 
-The .cer or .pem files to validate the server's certificate.
+The `.cer` or `.pem` files to validate the server's certificate.
 
-NOTE: You cannot use this setting and `ssl_truststore_path` at the same time.
+NOTE: You cannot use this setting and <<plugins-{type}s-{plugin}-ssl_truststore_path>> at the same time.
 
 [id="plugins-{type}s-{plugin}-ssl_certificate_verification"]
 ===== `ssl_certificate_verification`
-deprecated[8.8.0, Replaced by <<plugins-{type}s-{plugin}-ssl_verification_mode>>]
+deprecated[4.17.0, Replaced by <<plugins-{type}s-{plugin}-ssl_verification_mode>>]
 
   * Value type is <<boolean,boolean>>
   * Default value is `true`
@@ -487,9 +487,9 @@ If no explicit protocol is specified plain HTTP will be used.
   * Value type is <<path,path>>
   * There is no default value for this setting.
 
-OpenSSL-style RSA private key that corresponds to the `ssl_certificate`.
+OpenSSL-style RSA private key that corresponds to the <<plugins-{type}s-{plugin}-ssl_certificate>>.
 
-NOTE: This setting can be used only if `ssl_certificate` is set.
+NOTE: This setting can be used only if <<plugins-{type}s-{plugin}-ssl_certificate>> is set.
 
 [id="plugins-{type}s-{plugin}-ssl_keystore_password"]
 ===== `ssl_keystore_password`
@@ -506,9 +506,9 @@ Set the keystore password
   * There is no default value for this setting.
 
 The keystore used to present a certificate to the server.
-It can be either .jks or .p12
+It can be either `.jks` or `.p12`
 
-NOTE: You cannot use this setting and `ssl_certificate` at the same time.
+NOTE: You cannot use this setting and <<plugins-{type}s-{plugin}-ssl_certificate>> at the same time.
 
 [id="plugins-{type}s-{plugin}-ssl_keystore_type"]
 ===== `ssl_keystore_type`
@@ -528,7 +528,7 @@ The format of the keystore file. It must be either `jks` or `pkcs12`.
 
 List of allowed SSL/TLS versions to use when establishing a connection to the Elasticsearch cluster.
 
-For Java 8 `'TLSv1.3'` is supported  only since **8u262** (AdoptOpenJDK), but requires that you set the
+For Java 8 `'TLSv1.3'` is supported only since **8u262** (AdoptOpenJDK), but requires that you set the
 `LS_JAVA_OPTS="-Djdk.tls.client.protocols=TLSv1.3"` system property in Logstash.
 
 NOTE: If you configure the plugin to use `'TLSv1.1'` on any recent JVM, such as the one packaged with Logstash,
@@ -541,7 +541,7 @@ the *$JDK_HOME/conf/security/java.security* configuration file. That is, `TLSv1.
   * Value type is <<password,password>>
   * There is no default value for this setting.
 
-Set the truststore password
+Set the truststore password.
 
 [id="plugins-{type}s-{plugin}-ssl_truststore_path"]
 ===== `ssl_truststore_path`
@@ -552,7 +552,7 @@ Set the truststore password
 The truststore to validate the server's certificate.
 It can be either .jks or .p12.
 
-NOTE: You cannot use this setting and `ssl_certificate_authorities` at the same time.
+NOTE: You cannot use this setting and <<plugins-{type}s-{plugin}-ssl_certificate_authorities>> at the same time.
 
 [id="plugins-{type}s-{plugin}-ssl_truststore_type"]
 ===== `ssl_truststore_type`
