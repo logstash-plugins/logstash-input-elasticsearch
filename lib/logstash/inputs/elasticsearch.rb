@@ -492,9 +492,12 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   def setup_client_ssl
     ssl_options = {}
     ssl_options[:ssl] = true if @ssl_enabled
-    ssl_options[:trust_strategy] = trust_strategy_for_ca_trusted_fingerprint
 
-    return ssl_options unless @ssl_enabled
+    unless @ssl_enabled
+      # Keep it backward compatible with the deprecated `ssl` option
+      ssl_options[:trust_strategy] = trust_strategy_for_ca_trusted_fingerprint if original_params.include?('ssl')
+      return ssl_options
+    end
 
     ssl_certificate_authorities, ssl_truststore_path, ssl_certificate, ssl_keystore_path = params.values_at('ssl_certificate_authorities', 'ssl_truststore_path', 'ssl_certificate', 'ssl_keystore_path')
 
@@ -547,6 +550,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
     protocols = params['ssl_supported_protocols']
     ssl_options[:protocols] = protocols if protocols&.any?
+    ssl_options[:trust_strategy] = trust_strategy_for_ca_trusted_fingerprint
 
     ssl_options
   end
@@ -575,7 +579,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
       end
     end
 
-    params['ssl_enabled'] = @ssl_enabled unless @ssl_enabled.nil?
+    params['ssl_enabled'] = @ssl_enabled
     params['ssl_certificate_authorities'] = @ssl_certificate_authorities unless @ssl_certificate_authorities.nil?
     params['ssl_verification_mode'] = @ssl_verification_mode unless @ssl_verification_mode.nil?
   end
