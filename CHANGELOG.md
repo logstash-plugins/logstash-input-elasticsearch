@@ -3,7 +3,7 @@
     - `ssl_enabled`: Enable/disable the SSL settings. If not provided, the value is inferred from the hosts scheme
     - `ssl_certificate`: OpenSSL-style X.509 certificate file to authenticate the client
     - `ssl_key`: OpenSSL-style RSA private key that corresponds to the `ssl_certificate`
-    - `ssl_truststore_path`: he JKS truststore to validate the server's certificate
+    - `ssl_truststore_path`: The JKS truststore to validate the server's certificate
     - `ssl_truststore_type`: The format of the truststore file
     - `ssl_truststore_password`: The truststore password
     - `ssl_keystore_path`: The keystore used to present a certificate to the server
