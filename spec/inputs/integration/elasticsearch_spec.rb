@@ -95,13 +95,13 @@ describe LogStash::Inputs::Elasticsearch do
     end
 
     context 'with ca_file' do
-      let(:config) { super().merge('ssl' => true, 'ca_file' => ca_file) }
+      let(:config) { super().merge('ssl_enabled' => true, 'ssl_certificate_authorities' => ca_file) }
       it_behaves_like 'secured_elasticsearch'
     end
 
     context 'with `ca_trusted_fingerprint`' do
       let(:ca_trusted_fingerprint) { File.read("spec/fixtures/test_certs/ca.der.sha256").chomp }
-      let(:config) { super().merge('ssl' => true, 'ca_trusted_fingerprint' => ca_trusted_fingerprint) }
+      let(:config) { super().merge('ssl_enabled' => true, 'ca_trusted_fingerprint' => ca_trusted_fingerprint) }
 
       if Gem::Version.create(LOGSTASH_VERSION) >= Gem::Version.create("8.3.0")
         it_behaves_like 'secured_elasticsearch'
@@ -125,11 +125,11 @@ describe LogStash::Inputs::Elasticsearch do
 
   context 'setting host:port (and ssl)', secure_integration: true do
 
-    let(:client_options) { { :ca_file => ca_file, :user => user, :password => password } }
+    let(:client_options) { { :ssl_certificate_authorities => ca_file, :user => user, :password => password } }
 
     let(:config) do
       config = super().merge "hosts" => [ESHelper.get_host_port]
-      config.merge('user' => user, 'password' => password, 'ssl' => true, 'ca_file' => ca_file)
+      config.merge('user' => user, 'password' => password, 'ssl_enabled' => true, 'ssl_certificate_authorities' => ca_file)
     end
 
     it_behaves_like 'an elasticsearch index plugin'

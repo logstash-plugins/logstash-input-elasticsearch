@@ -9,6 +9,7 @@ require 'logstash/plugin_mixins/ecs_compatibility_support'
 require 'logstash/plugin_mixins/ecs_compatibility_support/target_check'
 require 'logstash/plugin_mixins/ca_trusted_fingerprint_support'
 require "logstash/plugin_mixins/scheduler"
+require "logstash/plugin_mixins/normalize_config_support"
 require "base64"
 require 'logstash/helpers/loggable_try'
 
@@ -81,6 +82,8 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   extend LogStash::PluginMixins::ValidatorSupport::FieldReferenceValidationAdapter
 
   include LogStash::PluginMixins::Scheduler
+
+  include LogStash::PluginMixins::NormalizeConfigSupport
 
   config_name "elasticsearch"
 
@@ -185,15 +188,60 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   config :proxy, :validate => :uri_or_empty
 
   # SSL
-  config :ssl, :validate => :boolean, :default => false
+  config :ssl, :validate => :boolean, :default => false, :deprecated => "Set 'ssl_enabled' instead."
 
-  # SSL Certificate Authority file in PEM encoded format, must also include any chain certificates as necessary 
-  config :ca_file, :validate => :path
+  # SSL Certificate Authority file in PEM encoded format, must also include any chain certificates as necessary
+  config :ca_file, :validate => :path, :deprecated => "Set 'ssl_certificate_authorities' instead."
+
+  # OpenSSL-style X.509 certificate certificate to authenticate the client
+  config :ssl_certificate, :validate => :path
+
+  # SSL Certificate Authority files in PEM encoded format, must also include any chain certificates as necessary
+  config :ssl_certificate_authorities, :validate => :path, :list => true
 
   # Option to validate the server's certificate. Disabling this severely compromises security.
   # For more information on the importance of certificate verification please read
   # https://www.cs.utexas.edu/~shmat/shmat_ccs12.pdf
-  config :ssl_certificate_verification, :validate => :boolean, :default => true
+  config :ssl_certificate_verification, :validate => :boolean, :default => true, :deprecated => "Set 'ssl_verification_mode' instead."
+
+  # The list of cipher suites to use, listed by priorities.
+  # Supported cipher suites vary depending on which version of Java is used.
+  config :ssl_cipher_suites, :validate => :string, :list => true
+
+  # SSL
+  config :ssl_enabled, :validate => :boolean
+
+  # OpenSSL-style RSA private key to authenticate the client
+  config :ssl_key, :validate => :path
+
+  # Set the keystore password
+  config :ssl_keystore_password, :validate => :password
+
+  # The keystore used to present a certificate to the server.
+  # It can be either .jks or .p12
+  config :ssl_keystore_path, :validate => :path
+
+  # The format of the keystore file. It must be either jks or pkcs12
+  config :ssl_keystore_type, :validate => %w[pkcs12 jks]
+
+  # Supported protocols with versions.
+  config :ssl_supported_protocols, :validate => %w[TLSv1.1 TLSv1.2 TLSv1.3], :default => [], :list => true
+
+  # Set the truststore password
+  config :ssl_truststore_password, :validate => :password
+
+  # The JKS truststore to validate the server's certificate.
+  # Use either `:ssl_truststore_path` or `:ssl_certificate_authorities`
+  config :ssl_truststore_path, :validate => :path
+
+  # The format of the truststore file. It must be either jks or pkcs12
+  config :ssl_truststore_type, :validate => %w[pkcs12 jks]
+
+  # Options to verify the server's certificate.
+  # "full": validates that the provided certificate has an issue date that’s within the not_before and not_after dates;
+  # chains to a trusted Certificate Authority (CA); has a hostname or IP address that matches the names within the certificate.
+  # "none": performs no certificate validation. Disabling this severely compromises security (https://www.cs.utexas.edu/~shmat/shmat_ccs12.pdf)
+  config :ssl_verification_mode, :validate => %w[full none], :default => 'full'
 
   # Schedule of when to periodically run statement, in Cron format
   # for example: "* * * * *" (execute query every minute, on the minute)
@@ -219,6 +267,9 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   def register
     require "rufus/scheduler"
 
+    fill_hosts_from_cloud_id
+    setup_ssl_params!
+
     @options = {
       :index => @index,
       :scroll => @scroll,
@@ -234,8 +285,6 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
     validate_authentication
     fill_user_password_from_cloud_auth
-    fill_hosts_from_cloud_id
-
 
     transport_options = {:headers => {}}
     transport_options[:headers].merge!(setup_basic_auth(user, password))
@@ -246,7 +295,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     transport_options[:socket_timeout]  = @socket_timeout_seconds  unless @socket_timeout_seconds.nil?
 
     hosts = setup_hosts
-    ssl_options = setup_ssl
+    ssl_options = setup_client_ssl
 
     @logger.warn "Supplied proxy setting (proxy => '') has no effect" if @proxy.eql?('')
 
@@ -416,6 +465,15 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     hosts.nil? || ( hosts.is_a?(Array) && hosts.empty? )
   end
 
+  def effectively_ssl?
+    return true if @ssl_enabled
+
+    hosts = Array(@hosts)
+    return false if hosts.nil? || hosts.empty?
+
+    hosts.all? { |host| host && host.to_s.start_with?("https") }
+  end
+
   def validate_authentication
     authn_options = 0
     authn_options += 1 if @cloud_auth
@@ -426,24 +484,111 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
       raise LogStash::ConfigurationError, 'Multiple authentication options are specified, please only use one of user/password, cloud_auth or api_key'
     end
 
-    if @api_key && @api_key.value && @ssl != true
-      raise(LogStash::ConfigurationError, "Using api_key authentication requires SSL/TLS secured communication using the `ssl => true` option")
+    if @api_key && @api_key.value && @ssl_enabled != true
+      raise(LogStash::ConfigurationError, "Using api_key authentication requires SSL/TLS secured communication using the `ssl_enabled => true` option")
     end
   end
 
-  def setup_ssl
+  def setup_client_ssl
     ssl_options = {}
+    ssl_options[:ssl] = true if @ssl_enabled
 
-    ssl_options[:ssl] = true if @ssl
-    ssl_options[:ca_file] = @ca_file if @ssl && @ca_file
-    ssl_options[:trust_strategy] = trust_strategy_for_ca_trusted_fingerprint
-    if @ssl && !@ssl_certificate_verification
-      logger.warn "You have enabled encryption but DISABLED certificate verification, " +
-                    "to make sure your data is secure remove `ssl_certificate_verification => false`"
-      ssl_options[:verify] = :disable
+    unless @ssl_enabled
+      # Keep it backward compatible with the deprecated `ssl` option
+      ssl_options[:trust_strategy] = trust_strategy_for_ca_trusted_fingerprint if original_params.include?('ssl')
+      return ssl_options
     end
 
+    ssl_certificate_authorities, ssl_truststore_path, ssl_certificate, ssl_keystore_path = params.values_at('ssl_certificate_authorities', 'ssl_truststore_path', 'ssl_certificate', 'ssl_keystore_path')
+
+    if ssl_certificate_authorities && ssl_truststore_path
+      raise LogStash::ConfigurationError, 'Use either "ssl_certificate_authorities/ca_file" or "ssl_truststore_path" when configuring the CA certificate'
+    end
+
+    if ssl_certificate && ssl_keystore_path
+      raise LogStash::ConfigurationError, 'Use either "ssl_certificate" or "ssl_keystore_path/keystore" when configuring client certificates'
+    end
+
+    if ssl_certificate_authorities&.any?
+      raise LogStash::ConfigurationError, 'Multiple values on "ssl_certificate_authorities" are not supported by this plugin' if ssl_certificate_authorities.size > 1
+      ssl_options[:ca_file] = ssl_certificate_authorities.first
+    end
+
+    if ssl_truststore_path
+      ssl_options[:truststore] = ssl_truststore_path
+      ssl_options[:truststore_type] = params["ssl_truststore_type"] if params.include?("ssl_truststore_type")
+      ssl_options[:truststore_password] = params["ssl_truststore_password"].value if params.include?("ssl_truststore_password")
+    end
+
+    if ssl_keystore_path
+      ssl_options[:keystore] = ssl_keystore_path
+      ssl_options[:keystore_type] = params["ssl_keystore_type"] if params.include?("ssl_keystore_type")
+      ssl_options[:keystore_password] = params["ssl_keystore_password"].value if params.include?("ssl_keystore_password")
+    end
+
+    ssl_key = params["ssl_key"]
+    if ssl_certificate
+      raise LogStash::ConfigurationError, 'Using an "ssl_certificate" requires an "ssl_key"' unless ssl_key
+      ssl_options[:client_cert] = ssl_certificate
+      ssl_options[:client_key] = ssl_key
+    elsif !ssl_key.nil?
+      raise LogStash::ConfigurationError, 'An "ssl_certificate" is required when using an "ssl_key"'
+    end
+
+    ssl_verification_mode = params["ssl_verification_mode"]
+    unless ssl_verification_mode.nil?
+      case ssl_verification_mode
+        when 'none'
+          logger.warn "You have enabled encryption but DISABLED certificate verification, " +
+                        "to make sure your data is secure set `ssl_verification_mode => full`"
+          ssl_options[:verify] = :disable
+        else
+          ssl_options[:verify] = :strict
+      end
+    end
+
+    ssl_options[:cipher_suites] = params["ssl_cipher_suites"] if params.include?("ssl_cipher_suites")
+
+    protocols = params['ssl_supported_protocols']
+    ssl_options[:protocols] = protocols if protocols&.any?
+    ssl_options[:trust_strategy] = trust_strategy_for_ca_trusted_fingerprint
+
     ssl_options
+  end
+
+  def setup_ssl_params!
+    @ssl_enabled = normalize_config(:ssl_enabled) do |normalize|
+      normalize.with_deprecated_alias(:ssl)
+    end
+
+    # Infer the value if neither the deprecate `ssl` and `ssl_enabled` were set
+    infer_ssl_enabled_from_hosts
+
+    @ssl_certificate_authorities = normalize_config(:ssl_certificate_authorities) do |normalize|
+      normalize.with_deprecated_mapping(:ca_file) do |ca_file|
+        [ca_file]
+      end
+    end
+
+    @ssl_verification_mode = normalize_config(:ssl_verification_mode) do |normalize|
+      normalize.with_deprecated_mapping(:ssl_certificate_verification) do |ssl_certificate_verification|
+        if ssl_certificate_verification == true
+          "full"
+        else
+          "none"
+        end
+      end
+    end
+
+    params['ssl_enabled'] = @ssl_enabled
+    params['ssl_certificate_authorities'] = @ssl_certificate_authorities unless @ssl_certificate_authorities.nil?
+    params['ssl_verification_mode'] = @ssl_verification_mode unless @ssl_verification_mode.nil?
+  end
+
+  def infer_ssl_enabled_from_hosts
+    return if original_params.include?('ssl') || original_params.include?('ssl_enabled')
+
+    @ssl_enabled = params['ssl_enabled'] = effectively_ssl?
   end
 
   def setup_hosts
@@ -453,7 +598,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
         h
       else
         host, port = h.split(':')
-        { host: host, port: port, scheme: (@ssl ? 'https' : 'http') }
+        { host: host, port: port, scheme: (@ssl_enabled ? 'https' : 'http') }
       end
     end
   end
