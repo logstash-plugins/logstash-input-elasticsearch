@@ -353,6 +353,7 @@ documents and/or the <<plugins-{type}s-{plugin}-size>> has been specified as a l
 The number of times to re-run the query after the first failure. If the query fails after all retries, it logs an error message.
 The default is 0 (no retry). This value should be equal to or greater than zero.
 
+NOTE: The retries of partial success query could cause duplication of data.
 
 [id="plugins-{type}s-{plugin}-schedule"]
 ===== `schedule` 
