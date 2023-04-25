@@ -204,7 +204,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
     context 'with `slices => 1`' do
       let(:slices) { 1 }
       it 'runs just one slice' do
-        expect(plugin).to receive(:do_run_slice).with(duck_type(:<<), nil)
+        expect(plugin).to receive(:do_run_slice).with(duck_type(:<<))
         expect(Thread).to_not receive(:new)
 
         plugin.register
@@ -215,7 +215,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
     context 'without slices directive' do
       let(:config) { super().tap { |h| h.delete('slices') } }
       it 'runs just one slice' do
-        expect(plugin).to receive(:do_run_slice).with(duck_type(:<<), nil)
+        expect(plugin).to receive(:do_run_slice).with(duck_type(:<<))
         expect(Thread).to_not receive(:new)
 
         plugin.register
@@ -406,45 +406,6 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
             expect(event.get('[@metadata][_id]')).to_not be_empty
             expect(event.get('[@metadata][_index]')).to start_with('logstash-')
           end
-        end
-      end
-
-      describe "with scroll request fail" do
-        before(:each) do
-          expect(Elasticsearch::Client).to receive(:new).with(any_args).and_return(client)
-          plugin.register
-
-          expect(client).to receive(:clear_scroll).and_return(nil)
-
-          # SLICE0 is a three-page scroll in which the second page throw exception
-          slice0_query = LogStash::Json.dump(query.merge('slice' => { 'id' => 0, 'max' => 2}))
-          expect(client).to receive(:search).with(hash_including(:body => slice0_query)).and_return(slice0_response0)
-          expect(client).to receive(:scroll).with(hash_including(:body => { :scroll_id => slice0_scroll1 })).and_raise("boom")
-          allow(client).to receive(:ping)
-
-          # SLICE1 is a two-page scroll in which the last page has no next scroll id
-          slice1_query = LogStash::Json.dump(query.merge('slice' => { 'id' => 1, 'max' => 2}))
-          expect(client).to receive(:search).with(hash_including(:body => slice1_query)).and_return(slice1_response0)
-          expect(client).to receive(:scroll).with(hash_including(:body => { :scroll_id => slice1_scroll1 })).and_return(slice1_response1)
-
-          synchronize_method!(plugin, :scroll_request)
-          synchronize_method!(plugin, :search_request)
-        end
-
-        let(:client) { Elasticsearch::Client.new }
-
-        it 'does not insert event to queue' do
-          expect(plugin).to receive(:parallel_slice).and_wrap_original do |m, *args|
-            slice0, slice1 = m.call
-            expect(slice0[0]).to be_falsey
-            expect(slice1[0]).to be_truthy
-            expect(slice1[1].size).to eq(4) # four items from SLICE1
-            [slice0, slice1]
-          end
-
-          queue = Queue.new
-          plugin.run(queue)
-          expect(queue.size).to eq(0)
         end
       end
     end
