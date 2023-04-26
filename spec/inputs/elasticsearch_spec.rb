@@ -408,6 +408,37 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
           end
         end
       end
+
+      describe "with scroll request fail" do
+        before(:each) do
+          expect(Elasticsearch::Client).to receive(:new).with(any_args).and_return(client)
+          plugin.register
+
+          expect(client).to receive(:clear_scroll).and_return(nil)
+
+          # SLICE0 is a three-page scroll in which the second page throw exception
+          slice0_query = LogStash::Json.dump(query.merge('slice' => { 'id' => 0, 'max' => 2}))
+          expect(client).to receive(:search).with(hash_including(:body => slice0_query)).and_return(slice0_response0)
+          expect(client).to receive(:scroll).with(hash_including(:body => { :scroll_id => slice0_scroll1 })).and_raise("boom")
+          allow(client).to receive(:ping)
+
+          # SLICE1 is a two-page scroll in which the last page has no next scroll id
+          slice1_query = LogStash::Json.dump(query.merge('slice' => { 'id' => 1, 'max' => 2}))
+          expect(client).to receive(:search).with(hash_including(:body => slice1_query)).and_return(slice1_response0)
+          expect(client).to receive(:scroll).with(hash_including(:body => { :scroll_id => slice1_scroll1 })).and_return(slice1_response1)
+
+          synchronize_method!(plugin, :scroll_request)
+          synchronize_method!(plugin, :search_request)
+        end
+
+        let(:client) { Elasticsearch::Client.new }
+
+        it 'insert event to queue' do
+          queue = Queue.new
+          plugin.run(queue)
+          expect(queue.size).to be > 0
+        end
+      end
     end
   end
 
