@@ -256,6 +256,8 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # config :ca_trusted_fingerprint, :validate => :sha_256_hex
   include LogStash::PluginMixins::CATrustedFingerprintSupport
 
+  attr_reader :pipeline_id
+
   def initialize(params={})
     super(params)
 
@@ -266,6 +268,8 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
   def register
     require "rufus/scheduler"
+
+    @pipeline_id = execution_context&.pipeline_id || 'main'
 
     fill_hosts_from_cloud_id
     setup_ssl_params!
@@ -333,7 +337,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
     logger.warn("managed slices for query is very large (#{@slices}); consider reducing") if @slices > 8
 
-    pipeline_id = execution_context&.pipeline_id || 'main'
+
     @slices.times.map do |slice_id|
       Thread.new do
         LogStash::Util::set_thread_name("[#{pipeline_id}]|input|elasticsearch|slice_#{slice_id}")
