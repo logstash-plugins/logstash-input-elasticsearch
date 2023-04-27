@@ -1,3 +1,6 @@
+## 4.17.1
+  - Fix: scroll slice high memory consumption [#189](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/189)
+
 ## 4.17.0
   - Added SSL settings for: [#185](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/185)
     - `ssl_enabled`: Enable/disable the SSL settings. If not provided, the value is inferred from the hosts scheme

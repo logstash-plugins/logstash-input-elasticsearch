@@ -204,7 +204,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
     context 'with `slices => 1`' do
       let(:slices) { 1 }
       it 'runs just one slice' do
-        expect(plugin).to receive(:do_run_slice).with(duck_type(:<<), nil)
+        expect(plugin).to receive(:do_run_slice).with(duck_type(:<<))
         expect(Thread).to_not receive(:new)
 
         plugin.register
@@ -215,7 +215,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
     context 'without slices directive' do
       let(:config) { super().tap { |h| h.delete('slices') } }
       it 'runs just one slice' do
-        expect(plugin).to receive(:do_run_slice).with(duck_type(:<<), nil)
+        expect(plugin).to receive(:do_run_slice).with(duck_type(:<<))
         expect(Thread).to_not receive(:new)
 
         plugin.register
@@ -414,18 +414,19 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
           expect(Elasticsearch::Client).to receive(:new).with(any_args).and_return(client)
           plugin.register
 
-          expect(client).to receive(:clear_scroll).and_return(nil)
+          expect(client).to receive(:clear_scroll).twice.and_return(nil)
 
-          # SLICE0 is a three-page scroll in which the second page throw exception
+          # SLICE0 is a three-page scroll
           slice0_query = LogStash::Json.dump(query.merge('slice' => { 'id' => 0, 'max' => 2}))
           expect(client).to receive(:search).with(hash_including(:body => slice0_query)).and_return(slice0_response0)
-          expect(client).to receive(:scroll).with(hash_including(:body => { :scroll_id => slice0_scroll1 })).and_raise("boom")
+          expect(client).to receive(:scroll).with(hash_including(:body => { :scroll_id => slice0_scroll1 })).and_return(slice0_response1)
+          expect(client).to receive(:scroll).with(hash_including(:body => { :scroll_id => slice0_scroll2 })).and_return(slice0_response2)
           allow(client).to receive(:ping)
 
-          # SLICE1 is a two-page scroll in which the last page has no next scroll id
+          # SLICE1 is a two-page scroll in which the last page throws exception
           slice1_query = LogStash::Json.dump(query.merge('slice' => { 'id' => 1, 'max' => 2}))
           expect(client).to receive(:search).with(hash_including(:body => slice1_query)).and_return(slice1_response0)
-          expect(client).to receive(:scroll).with(hash_including(:body => { :scroll_id => slice1_scroll1 })).and_return(slice1_response1)
+          expect(client).to receive(:scroll).with(hash_including(:body => { :scroll_id => slice1_scroll1 })).and_raise("boom")
 
           synchronize_method!(plugin, :scroll_request)
           synchronize_method!(plugin, :search_request)
@@ -433,18 +434,22 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
 
         let(:client) { Elasticsearch::Client.new }
 
-        it 'does not insert event to queue' do
-          expect(plugin).to receive(:parallel_slice).and_wrap_original do |m, *args|
-            slice0, slice1 = m.call
-            expect(slice0[0]).to be_falsey
-            expect(slice1[0]).to be_truthy
-            expect(slice1[1].size).to eq(4) # four items from SLICE1
-            [slice0, slice1]
+        it 'insert event to queue without waiting other slices' do
+          expect(plugin).to receive(:do_run_slice).twice.and_wrap_original do |m, *args|
+            q = args[0]
+            slice_id = args[1]
+            if slice_id == 0
+              m.call(*args)
+              expect(q.size).to eq(3)
+            else
+              sleep(1)
+              m.call(*args)
+            end
           end
 
           queue = Queue.new
           plugin.run(queue)
-          expect(queue.size).to eq(0)
+          expect(queue.size).to eq(5)
         end
       end
     end
