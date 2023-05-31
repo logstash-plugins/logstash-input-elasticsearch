@@ -123,7 +123,7 @@ describe "SSL options" do
 
       it "should pass the flag to the ES client" do
         expect(::Elasticsearch::Client).to receive(:new) do |args|
-          expect(args[:ssl]).to match hash_including(:ssl => true, :verify => :strict)
+          expect(args[:ssl]).to match hash_including(:ssl => true, :verify => :default)
         end.and_return(es_client_double)
 
         subject.register
@@ -200,7 +200,7 @@ describe "SSL options" do
                                       :truststore => ssl_truststore_path,
                                       :truststore_type => "jks",
                                       :truststore_password => "foo",
-                                      :verify => :strict,
+                                      :verify => :default,
                                       :cipher_suites => ["TLS_DHE_RSA_WITH_AES_256_CBC_SHA256"],
                                       :protocols => ["TLSv1.3"],
                                     )
@@ -236,7 +236,7 @@ describe "SSL options" do
                                       :ca_file => ssl_certificate_authorities_path,
                                       :client_cert => ssl_certificate_path,
                                       :client_key => ssl_key_path,
-                                      :verify => :strict,
+                                      :verify => :default,
                                       :cipher_suites => ["TLS_DHE_RSA_WITH_AES_256_CBC_SHA256"],
                                       :protocols => ["TLSv1.3"],
                                     )

@@ -521,7 +521,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
                         "to make sure your data is secure set `ssl_verification_mode => full`"
           ssl_options[:verify] = :disable
         else
-          ssl_options[:verify] = :strict
+          ssl_options[:verify] = :default
       end
     end
 
