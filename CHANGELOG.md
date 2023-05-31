@@ -1,5 +1,5 @@
 ## 4.17.2
-  - Fixes a regression introduced in 4.17.0 which could prevent a connection from being established to Elasticsearch in some SSL configurations [#192](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/192)
+  - Fixes a regression introduced in 4.17.0 which could prevent a connection from being established to Elasticsearch in some SSL configurations [#193](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/193)
 
 ## 4.17.1
   - Fix: scroll slice high memory consumption [#189](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/189)
