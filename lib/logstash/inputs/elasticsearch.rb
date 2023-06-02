@@ -521,6 +521,8 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
                         "to make sure your data is secure set `ssl_verification_mode => full`"
           ssl_options[:verify] = :disable
         else
+          # Manticore's :default maps to Apache HTTP Client's DefaultHostnameVerifier,
+          # which is the modern STRICT verifier that replaces the deprecated StrictHostnameVerifier
           ssl_options[:verify] = :default
       end
     end
