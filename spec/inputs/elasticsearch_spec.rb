@@ -88,6 +88,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       allow(@esclient).to receive(:scroll) { { "hits" => { "hits" => [hit] } } }
       allow(@esclient).to receive(:clear_scroll).and_return(nil)
       allow(@esclient).to receive(:ping)
+      allow(@esclient).to receive(:info).and_return(cluster_info)
     end
   end
 
@@ -919,6 +920,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
             expect(transport_options[manticore_transport_option]).to eq(config_value.to_i)
             mock_client = double("fake_client")
             allow(mock_client).to receive(:ping)
+            allow(mock_client).to receive(:info).and_return(cluster_info)
             mock_client
           end
 
@@ -1053,36 +1055,36 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
     before do
       expect(Elasticsearch::Client).to receive(:new).and_return(es_client)
       expect(es_client).to receive(:ping).and_return({})
+      expect(es_client).to receive(:info).and_return(cluster_info).once
       plugin.register
-      expect(es_client).to receive(:info).and_return(cluster_info)
     end
 
-      [ [:clear_scroll, :clear_scroll, "1"],
-        [:scroll_request, :scroll, "1"],
-        [:search_request , :search, {}],
-      ].each do |plugin_method, es_client_method, param|
-        context "serverless with #{plugin_method}" do
-          let(:build_flavor) { "serverless" }
+    [ [:clear_scroll, :clear_scroll, "1"],
+      [:scroll_request, :scroll, "1"],
+      [:search_request , :search, {} ],
+    ].each do |plugin_method, es_client_method, options|
+      context "serverless with #{plugin_method}" do
+        let(:build_flavor) { "serverless" }
 
-          it 'propagates header to es client' do
-            expect(es_client).to receive(es_client_method).with(anything) do |params|
-              expect(params[:headers]).to match(hash_including(LogStash::Inputs::Elasticsearch::DEFAULT_EAV_HEADER))
-            end
-            plugin.send(plugin_method, param)
+        it 'propagates header to es client' do
+          expect(es_client).to receive(es_client_method).with(anything) do |params|
+            expect(params[:headers]).to match(hash_including(LogStash::Inputs::Elasticsearch::DEFAULT_EAV_HEADER))
           end
-        end
-
-        context "stateful with #{plugin_method}" do
-          let(:build_flavor) { "default" }
-
-          it 'does not propagate header to es client' do
-            expect(es_client).to receive(es_client_method).with(anything) do |params|
-              expect(params[:headers]).to be_nil
-            end
-            plugin.send(plugin_method, param)
-          end
+          plugin.send(plugin_method, options.dup)
         end
       end
+
+      context "stateful with #{plugin_method}" do
+        let(:build_flavor) { "default" }
+
+        it 'does not propagate header to es client' do
+          expect(es_client).to receive(es_client_method).with(anything) do |params|
+            expect(params[:headers]).to be_nil
+          end
+          plugin.send(plugin_method, options.dup)
+        end
+      end
+    end
   end
 
   # @note can be removed once we depends on elasticsearch gem >= 6.x
