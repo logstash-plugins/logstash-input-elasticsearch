@@ -17,9 +17,11 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
 
   let(:plugin) { described_class.new(config) }
   let(:queue) { Queue.new }
+  let(:build_flavor) { "default" }
 
   before(:each) do
     Elasticsearch::Client.send(:define_method, :ping) { } # define no-action ping method
+    allow(plugin).to receive(:cluster_info).and_return({"version" => {"number" => "7.5.0", "build_flavor" => build_flavor}, "tagline" => "You Know, for Search"})
   end
 
   let(:base_config) do

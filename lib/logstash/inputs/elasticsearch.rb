@@ -258,6 +258,9 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
   attr_reader :pipeline_id
 
+  BUILD_FLAVOR_SERVERLESS = 'serverless'.freeze
+  DEFAULT_EAV_HEADER = { "Elastic-Api-Version" => "2023-10-31" }.freeze
+
   def initialize(params={})
     super(params)
 
@@ -425,17 +428,24 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   end
 
   def clear_scroll(scroll_id)
-    @client.clear_scroll(:body => { :scroll_id => scroll_id }) if scroll_id
+    if scroll_id
+      options = { :body => { :scroll_id => scroll_id } }
+      add_headers(options)
+      @client.clear_scroll(options)
+    end
   rescue => e
     # ignore & log any clear_scroll errors
     logger.warn("Ignoring clear_scroll exception", message: e.message, exception: e.class)
   end
 
   def scroll_request(scroll_id)
-    @client.scroll(:body => { :scroll_id => scroll_id }, :scroll => @scroll)
+    options = { :body => { :scroll_id => scroll_id }, :scroll => @scroll }
+    add_headers(options)
+    @client.scroll(options)
   end
 
-  def search_request(options)
+  def search_request(options={})
+    add_headers(options)
     @client.search(options)
   end
 
@@ -666,6 +676,22 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     @client.ping
   rescue Elasticsearch::UnsupportedProductError
     raise LogStash::ConfigurationError, "Could not connect to a compatible version of Elasticsearch"
+  end
+
+  def cluster_info
+    @client.info
+  end
+  def build_flavor
+    @build_flavor ||= cluster_info&.dig('version', 'build_flavor')
+  end
+
+  def serverless?
+    build_flavor == BUILD_FLAVOR_SERVERLESS
+  end
+
+  def add_headers(options={})
+    options[:headers] = DEFAULT_EAV_HEADER.merge(options[:headers] || {}) if serverless?
+    options
   end
 
   module URIOrEmptyValidator
