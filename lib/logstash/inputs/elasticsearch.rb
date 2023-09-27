@@ -687,7 +687,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   end
 
   def serverless?
-    build_flavor == BUILD_FLAVOR_SERVERLESS
+    @is_serverless ||= (build_flavor == BUILD_FLAVOR_SERVERLESS)
   end
 
   def add_headers(options={})
