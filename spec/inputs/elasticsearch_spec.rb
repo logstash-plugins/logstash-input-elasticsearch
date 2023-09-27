@@ -55,6 +55,24 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       end
     end
 
+    context "against serverless Elasticsearch" do
+      let(:es_client) { double("es_client") }
+
+      before do
+        allow(plugin).to receive(:test_connection!)
+        allow(plugin).to receive(:serverless?).and_return(true)
+        allow(Elasticsearch::Client).to receive(:new).and_return(es_client)
+        allow(es_client).to receive(:info).with(a_hash_including(:headers => LogStash::Inputs::Elasticsearch::DEFAULT_EAV_HEADER)).and_raise(
+          Elasticsearch::Transport::Transport::Errors::BadRequest.new
+        )
+      end
+
+      it "raises an exception when Elastic Api Version is not supported" do
+        expect {plugin.register}.to raise_error(LogStash::ConfigurationError)
+      end
+    end
+
+
     context "retry" do
       let(:config) do
         {
@@ -1057,7 +1075,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
     before do
       expect(Elasticsearch::Client).to receive(:new).and_return(es_client)
       expect(es_client).to receive(:ping).and_return({})
-      expect(es_client).to receive(:info).and_return(cluster_info).once
+      expect(es_client).to receive(:info).and_return(cluster_info).at_least(:once)
       plugin.register
     end
 

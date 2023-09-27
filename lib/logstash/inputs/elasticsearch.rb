@@ -315,6 +315,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
       :ssl => ssl_options
     )
     test_connection!
+    test_serverless_connection!
     @client
   end
 
@@ -674,9 +675,17 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
   def test_connection!
     @client.ping
-    serverless?
   rescue Elasticsearch::UnsupportedProductError
     raise LogStash::ConfigurationError, "Could not connect to a compatible version of Elasticsearch"
+  end
+
+  def test_serverless_connection!
+    begin
+      @client.info(:headers => DEFAULT_EAV_HEADER ) if serverless?
+    rescue => e
+      @logger.error("Failed to retrieve Elasticsearch info", message: e.message, exception: e.class, backtrace: e.backtrace)
+      raise LogStash::ConfigurationError, "Could not connect to a compatible version of Elasticsearch"
+    end
   end
 
   def cluster_info
