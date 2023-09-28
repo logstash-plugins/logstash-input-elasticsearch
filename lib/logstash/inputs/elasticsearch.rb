@@ -689,6 +689,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   def cluster_info
     @client.info
   end
+
   def build_flavor
     @build_flavor ||= cluster_info&.dig('version', 'build_flavor')
   end
