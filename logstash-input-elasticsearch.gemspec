@@ -1,7 +1,7 @@
 Gem::Specification.new do |s|
 
   s.name            = 'logstash-input-elasticsearch'
-  s.version         = '4.17.2'
+  s.version         = '4.18.0'
   s.licenses        = ['Apache License (2.0)']
   s.summary         = "Reads query results from an Elasticsearch cluster"
   s.description     = "This gem is a Logstash plugin required to be installed on top of the Logstash core pipeline using $LS_HOME/bin/logstash-plugin install gemname. This gem is not a stand-alone program"
@@ -26,7 +26,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency "logstash-mixin-validator_support", '~> 1.0'
   s.add_runtime_dependency "logstash-mixin-scheduler", '~> 1.0'
 
-  s.add_runtime_dependency 'elasticsearch', '>= 7.17.1'
+  s.add_runtime_dependency 'elasticsearch', '>= 7.17.9'
   s.add_runtime_dependency 'logstash-mixin-ca_trusted_fingerprint_support', '~> 1.0'
   s.add_runtime_dependency 'logstash-mixin-normalize_config_support', '~>1.0'
 

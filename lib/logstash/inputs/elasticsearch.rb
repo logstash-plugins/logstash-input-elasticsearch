@@ -258,6 +258,9 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
   attr_reader :pipeline_id
 
+  BUILD_FLAVOR_SERVERLESS = 'serverless'.freeze
+  DEFAULT_EAV_HEADER = { "Elastic-Api-Version" => "2023-10-31" }.freeze
+
   def initialize(params={})
     super(params)
 
@@ -305,13 +308,19 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
     transport_options[:proxy] = @proxy.to_s if @proxy && !@proxy.eql?('')
 
-    @client = Elasticsearch::Client.new(
+    @client_options = {
       :hosts => hosts,
       :transport_options => transport_options,
       :transport_class => ::Elasticsearch::Transport::Transport::HTTP::Manticore,
       :ssl => ssl_options
-    )
+    }
+
+    @client = Elasticsearch::Client.new(@client_options)
+
     test_connection!
+
+    setup_serverless
+
     @client
   end
 
@@ -435,7 +444,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     @client.scroll(:body => { :scroll_id => scroll_id }, :scroll => @scroll)
   end
 
-  def search_request(options)
+  def search_request(options={})
     @client.search(options)
   end
 
@@ -666,6 +675,27 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     @client.ping
   rescue Elasticsearch::UnsupportedProductError
     raise LogStash::ConfigurationError, "Could not connect to a compatible version of Elasticsearch"
+  end
+
+  # recreate client with default header when it is serverless
+  # verify the header by sending GET /
+  def setup_serverless
+    if serverless?
+      @client_options[:transport_options][:headers].merge!(DEFAULT_EAV_HEADER)
+      @client = Elasticsearch::Client.new(@client_options)
+      @client.info
+    end
+  rescue => e
+    @logger.error("Failed to retrieve Elasticsearch info", message: e.message, exception: e.class, backtrace: e.backtrace)
+    raise LogStash::ConfigurationError, "Could not connect to a compatible version of Elasticsearch"
+  end
+
+  def build_flavor
+    @build_flavor ||= @client.info&.dig('version', 'build_flavor')
+  end
+
+  def serverless?
+    @is_serverless ||= (build_flavor == BUILD_FLAVOR_SERVERLESS)
   end
 
   module URIOrEmptyValidator

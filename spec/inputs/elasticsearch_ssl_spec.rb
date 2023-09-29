@@ -14,6 +14,8 @@ describe "SSL options" do
   before do
     allow(es_client_double).to receive(:close)
     allow(es_client_double).to receive(:ping).with(any_args).and_return(double("pong").as_null_object)
+    allow(es_client_double).to receive(:info).and_return({"version" => {"number" => "7.5.0", "build_flavor" => "default"},
+                                                          "tagline" => "You Know, for Search"})
     allow(Elasticsearch::Client).to receive(:new).and_return(es_client_double)
   end
 
