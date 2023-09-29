@@ -42,7 +42,13 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
     context "against authentic Elasticsearch" do
       it "should not raise an exception" do
        expect { plugin.register }.to_not raise_error
-     end
+      end
+
+      it "does not set header Elastic-Api-Version" do
+        plugin.register
+        client = plugin.send(:client)
+        expect( extract_transport(client).options[:transport_options][:headers] ).not_to match hash_including("Elastic-Api-Version" => "2023-10-31")
+      end
     end
 
     context "against not authentic Elasticsearch" do
@@ -56,22 +62,35 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
     end
 
     context "against serverless Elasticsearch" do
-      let(:es_client) { double("es_client") }
-
       before do
         allow(plugin).to receive(:test_connection!)
         allow(plugin).to receive(:serverless?).and_return(true)
-        allow(Elasticsearch::Client).to receive(:new).and_return(es_client)
-        allow(es_client).to receive(:info).with(a_hash_including(:headers => LogStash::Inputs::Elasticsearch::DEFAULT_EAV_HEADER)).and_raise(
-          Elasticsearch::Transport::Transport::Errors::BadRequest.new
-        )
       end
 
-      it "raises an exception when Elastic Api Version is not supported" do
-        expect {plugin.register}.to raise_error(LogStash::ConfigurationError)
+      context "with unsupported header" do
+        let(:es_client) { double("es_client") }
+
+        before do
+          allow(Elasticsearch::Client).to receive(:new).and_return(es_client)
+          allow(es_client).to receive(:info).and_raise(
+            Elasticsearch::Transport::Transport::Errors::BadRequest.new
+          )
+        end
+
+        it "raises an exception" do
+          expect {plugin.register}.to raise_error(LogStash::ConfigurationError)
+        end
+      end
+
+      context "with supported header" do
+        it "set default header to rest client" do
+          expect_any_instance_of(Elasticsearch::Client).to receive(:info).and_return(true)
+          plugin.register
+          client = plugin.send(:client)
+          expect( extract_transport(client).options[:transport_options][:headers] ).to match hash_including("Elastic-Api-Version" => "2023-10-31")
+        end
       end
     end
-
 
     context "retry" do
       let(:config) do
@@ -1065,45 +1084,6 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
 
       expect{ plugin.run(queue) }.not_to raise_error
       expect(queue.size).to eq(1)
-    end
-  end
-
-  describe "Elastic Api Header" do
-    let(:es_client) { double("es_client") }
-    let(:config) { base_config }
-
-    before do
-      expect(Elasticsearch::Client).to receive(:new).and_return(es_client)
-      expect(es_client).to receive(:ping).and_return({})
-      expect(es_client).to receive(:info).and_return(cluster_info).at_least(:once)
-      plugin.register
-    end
-
-    [ [:clear_scroll, :clear_scroll, "1"],
-      [:scroll_request, :scroll, "1"],
-      [:search_request , :search, {} ],
-    ].each do |plugin_method, es_client_method, options|
-      context "serverless with #{plugin_method}" do
-        let(:build_flavor) { "serverless" }
-
-        it 'propagates header to es client' do
-          expect(es_client).to receive(es_client_method).with(anything) do |params|
-            expect(params[:headers]).to match(hash_including(LogStash::Inputs::Elasticsearch::DEFAULT_EAV_HEADER))
-          end
-          plugin.send(plugin_method, options.dup)
-        end
-      end
-
-      context "stateful with #{plugin_method}" do
-        let(:build_flavor) { "default" }
-
-        it 'does not propagate header to es client' do
-          expect(es_client).to receive(es_client_method).with(anything) do |params|
-            expect(params[:headers]).to be_nil
-          end
-          plugin.send(plugin_method, options.dup)
-        end
-      end
     end
   end
 
