@@ -434,16 +434,14 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   end
 
   def clear_scroll(scroll_id)
-    if scroll_id
-      @client.clear_scroll({ :body => { :scroll_id => scroll_id } })
-    end
+    @client.clear_scroll(:body => { :scroll_id => scroll_id }) if scroll_id
   rescue => e
     # ignore & log any clear_scroll errors
     logger.warn("Ignoring clear_scroll exception", message: e.message, exception: e.class)
   end
 
   def scroll_request(scroll_id)
-    @client.scroll({ :body => { :scroll_id => scroll_id }, :scroll => @scroll })
+    @client.scroll(:body => { :scroll_id => scroll_id }, :scroll => @scroll)
   end
 
   def search_request(options={})
