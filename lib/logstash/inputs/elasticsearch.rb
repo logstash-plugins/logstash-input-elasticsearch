@@ -100,6 +100,11 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html
   config :query, :validate => :string, :default => '{ "sort": [ "_doc" ] }'
 
+  # This allows you to speccify the response type: either hits or aggregations
+  # where hits: normal search request
+  #       aggregations: aggregation request
+  config :response_type, :validate => ['hits', 'aggregations'], :default => 'hits'
+
   # This allows you to set the maximum number of hits returned per scroll.
   config :size, :validate => :number, :default => 1000
 
@@ -277,11 +282,15 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     fill_hosts_from_cloud_id
     setup_ssl_params!
 
-    @options = {
-      :index => @index,
-      :scroll => @scroll,
-      :size => @size
-    }
+    # Set scroll and size for hits
+    if @response_type == 'hits'
+      @options = {
+        :index => @index,
+        :scroll => @scroll,
+        :size => @size
+      }
+    end
+
     @base_query = LogStash::Json.load(@query)
     if @slices
       @base_query.include?('slice') && fail(LogStash::ConfigurationError, "Elasticsearch Input Plugin's `query` option cannot specify specific `slice` when configured to manage parallel slices with `slices` option")
@@ -337,26 +346,33 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   private
   JOB_NAME = "run query"
   def do_run(output_queue)
-    # if configured to run a single slice, don't bother spinning up threads
-    if @slices.nil? || @slices <= 1
-      return retryable(JOB_NAME) do
-        do_run_slice(output_queue)
-      end
-    end
-
-    logger.warn("managed slices for query is very large (#{@slices}); consider reducing") if @slices > 8
-
-
-    @slices.times.map do |slice_id|
-      Thread.new do
-        LogStash::Util::set_thread_name("[#{pipeline_id}]|input|elasticsearch|slice_#{slice_id}")
-        retryable(JOB_NAME) do
-          do_run_slice(output_queue, slice_id)
+    case @response_type
+      when 'hits'
+        # if configured to run a single slice, don't bother spinning up threads
+        if @slices.nil? || @slices <= 1
+          return retryable(JOB_NAME) do
+            do_run_slice(output_queue)
+          end
         end
-      end
-    end.map(&:join)
 
-    logger.trace("#{@slices} slices completed")
+        logger.warn("managed slices for query is very large (#{@slices}); consider reducing") if @slices > 8
+
+        @slices.times.map do |slice_id|
+          Thread.new do
+            LogStash::Util::set_thread_name("[#{pipeline_id}]|input|elasticsearch|slice_#{slice_id}")
+            retryable(JOB_NAME) do
+              do_run_slice(output_queue, slice_id)
+            end
+          end
+        end.map(&:join)
+
+        logger.trace("#{@slices} slices completed")
+
+      when 'aggregations'
+        do_run_aggregation(output_queue)
+
+        logger.trace("Aggregation completed")
+    end
   end
 
   def retryable(job_name, &block)
@@ -368,6 +384,25 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
       error_details[:backtrace] = e.backtrace if logger.debug?
       logger.error("Tried #{job_name} unsuccessfully", error_details)
     end
+  end
+
+  def do_run_aggregation(output_queue)
+    agg_query   = @base_query
+    agg_options = @options.merge(:body => LogStash::Json.dump(agg_query) )
+
+    logger.info("Aggregation starting")
+
+    r = search_request(agg_options)
+    aggs = r['aggregations']
+
+    # This one needs to be checked
+    # Either stick with targeted_event_factory.new_event (new API)
+    # or older Logstash::Event.new
+
+    # event = LogStash::Event.new(aggs)
+    event = targeted_event_factory.new_event aggs
+    decorate(event)
+    output_queue << event
   end
 
   def do_run_slice(output_queue, slice_id=nil)
