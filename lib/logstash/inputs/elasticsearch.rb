@@ -101,6 +101,11 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html
   config :query, :validate => :string, :default => '{ "sort": [ "_doc" ] }'
 
+  # This allows you to speccify the response type: either hits or aggregations
+  # where hits: normal search request
+  #       aggregations: aggregation request
+  config :response_type, :validate => ['hits', 'aggregations'], :default => 'hits'
+
   # This allows you to set the maximum number of hits returned per scroll.
   config :size, :validate => :number, :default => 1000
 
@@ -282,11 +287,15 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     fill_hosts_from_cloud_id
     setup_ssl_params!
 
-    @options = {
-      :index => @index,
-      :scroll => @scroll,
-      :size => @size
-    }
+    # Set scroll and size for hits
+    if @response_type == 'hits'
+      @options = {
+        :index => @index,
+        :scroll => @scroll,
+        :size => @size
+      }
+    end
+
     @base_query = LogStash::Json.load(@query)
     if @slices
       @base_query.include?('slice') && fail(LogStash::ConfigurationError, "Elasticsearch Input Plugin's `query` option cannot specify specific `slice` when configured to manage parallel slices with `slices` option")
@@ -339,6 +348,106 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     else
       @paginated_search.do_run(output_queue)
     end
+  end
+
+  private
+  JOB_NAME = "run query"
+  def do_run(output_queue)
+    case @response_type
+      when 'hits'
+        # if configured to run a single slice, don't bother spinning up threads
+        if @slices.nil? || @slices <= 1
+          return retryable(JOB_NAME) do
+            do_run_slice(output_queue)
+          end
+        end
+
+        logger.warn("managed slices for query is very large (#{@slices}); consider reducing") if @slices > 8
+
+        @slices.times.map do |slice_id|
+          Thread.new do
+            LogStash::Util::set_thread_name("[#{pipeline_id}]|input|elasticsearch|slice_#{slice_id}")
+            retryable(JOB_NAME) do
+              do_run_slice(output_queue, slice_id)
+            end
+          end
+        end.map(&:join)
+
+        logger.trace("#{@slices} slices completed")
+
+      when 'aggregations'
+        do_run_aggregation(output_queue)
+
+        logger.trace("Aggregation completed")
+    end
+  end
+
+  def retryable(job_name, &block)
+    begin
+      stud_try = ::LogStash::Helpers::LoggableTry.new(logger, job_name)
+      stud_try.try((@retries + 1).times) { yield }
+    rescue => e
+      error_details = {:message => e.message, :cause => e.cause}
+      error_details[:backtrace] = e.backtrace if logger.debug?
+      logger.error("Tried #{job_name} unsuccessfully", error_details)
+    end
+  end
+
+  def do_run_aggregation(output_queue)
+    agg_query   = @base_query
+    agg_options = @options.merge(:body => LogStash::Json.dump(agg_query) )
+
+    logger.info("Aggregation starting")
+
+    r = search_request(agg_options)
+    aggs = r['aggregations']
+
+    # This one needs to be checked
+    # Either stick with targeted_event_factory.new_event (new API)
+    # or older Logstash::Event.new
+
+    # event = LogStash::Event.new(aggs)
+    event = targeted_event_factory.new_event aggs
+    decorate(event)
+    output_queue << event
+  end
+
+  def do_run_slice(output_queue, slice_id=nil)
+    slice_query = @base_query
+    slice_query = slice_query.merge('slice' => { 'id' => slice_id, 'max' => @slices}) unless slice_id.nil?
+
+    slice_options = @options.merge(:body => LogStash::Json.dump(slice_query) )
+
+    logger.info("Slice starting", slice_id: slice_id, slices: @slices) unless slice_id.nil?
+
+    begin
+      r = search_request(slice_options)
+
+      r['hits']['hits'].each { |hit| push_hit(hit, output_queue) }
+      logger.debug("Slice progress", slice_id: slice_id, slices: @slices) unless slice_id.nil?
+
+      has_hits = r['hits']['hits'].any?
+      scroll_id = r['_scroll_id']
+
+      while has_hits && scroll_id && !stop?
+        has_hits, scroll_id = process_next_scroll(output_queue, scroll_id)
+        logger.debug("Slice progress", slice_id: slice_id, slices: @slices) if logger.debug? && slice_id
+      end
+      logger.info("Slice complete", slice_id: slice_id, slices: @slices) unless slice_id.nil?
+    ensure
+      clear_scroll(scroll_id)
+    end
+  end
+
+  ##
+  # @param output_queue [#<<]
+  # @param scroll_id [String]: a scroll id to resume
+  # @return [Array(Boolean,String)]: a tuple representing whether the response
+  #
+  def process_next_scroll(output_queue, scroll_id)
+    r = scroll_request(scroll_id)
+    r['hits']['hits'].each { |hit| push_hit(hit, output_queue) }
+    [r['hits']['hits'].any?, r['_scroll_id']]
   end
 
   def push_hit(hit, output_queue)

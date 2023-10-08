@@ -115,6 +115,7 @@ This plugin supports the following configuration options plus the <<plugins-{typ
 | <<plugins-{type}s-{plugin}-password>> |<<password,password>>|No
 | <<plugins-{type}s-{plugin}-proxy>> |<<uri,uri>>|No
 | <<plugins-{type}s-{plugin}-query>> |<<string,string>>|No
+| <<plugins-{type}s-{plugin}-response_type>> |<<string,string>>, one of `["hits","aggregations"]`|No
 | <<plugins-{type}s-{plugin}-request_timeout_seconds>> | <<number,number>>|No
 | <<plugins-{type}s-{plugin}-schedule>> |<<string,string>>|No
 | <<plugins-{type}s-{plugin}-scroll>> |<<string,string>>|No
