@@ -1009,7 +1009,62 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
         runner.join if runner
       end
     end
+  end
 
+  context "aggregations" do
+    let(:config) do
+      {
+        'hosts'         => ["localhost"],
+        'query'         => '{ "query": {}, "size": 0, "aggs":{"total_count": { "value_count": { "field": "type" }}, "empty_count": { "sum": { "field": "_meta.empty_event" }}}}',
+        'response_type' => 'aggregations',
+        'size'          => 0
+      }
+    end
+
+    let(:mock_response) do
+      {
+        "took" => 27,
+        "timed_out" => false,
+        "_shards" => {
+          "total" => 169,
+          "successful" => 169,
+          "skipped" => 0,
+          "failed" => 0
+        },
+        "hits" => {
+          "total" => 10,
+          "max_score" => 1.0,
+          "hits" => []
+        },
+        "aggregations" => {
+          "total_counter" => {
+            "value" => 10
+          },
+          "empty_counter" => {
+            "value" => 5
+          },
+        }
+      }
+    end
+
+    before(:each) do
+      client = Elasticsearch::Client.new
+
+      expect(Elasticsearch::Client).to receive(:new).with(any_args).and_return(client)
+      expect(client).to receive(:search).with(any_args).and_return(mock_response)
+      expect(client).to receive(:ping)
+    end
+
+    before { plugin.register }
+
+    it 'creates the events from the aggregations' do
+      plugin.run queue
+      event = queue.pop
+
+      expect(event).to be_a(LogStash::Event)
+      expect(event.get("[total_counter][value]")).to eql 10
+      expect(event.get("[empty_counter][value]")).to eql 5
+    end
   end
 
   context "retries" do
