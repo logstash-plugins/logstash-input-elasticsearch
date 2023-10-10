@@ -287,12 +287,17 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     fill_hosts_from_cloud_id
     setup_ssl_params!
 
-    # Set scroll and size for hits
     if @response_type == 'hits'
       @options = {
-        :index => @index,
+        :index  => @index,
         :scroll => @scroll,
-        :size => @size
+        :size   => @size
+      }
+    elsif @response_type == 'aggregations'
+      @options = {
+        :body  => @base_query,
+        :index => @index,
+        :size  => @size
       }
     end
 
@@ -393,20 +398,12 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     end
   end
 
-  def do_run_aggregation(output_queue)
-    agg_query   = @base_query
-    agg_options = @options.merge(:body => LogStash::Json.dump(agg_query) )
-
+  def do_run_aggregation(output_queue)agg_query   = @base_query
     logger.info("Aggregation starting")
 
-    r = search_request(agg_options)
+    r = search_request(@options)
     aggs = r['aggregations']
 
-    # This one needs to be checked
-    # Either stick with targeted_event_factory.new_event (new API)
-    # or older Logstash::Event.new
-
-    # event = LogStash::Event.new(aggs)
     event = targeted_event_factory.new_event aggs
     decorate(event)
     output_queue << event
