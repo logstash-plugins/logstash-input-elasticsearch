@@ -295,7 +295,6 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
       }
     elsif @response_type == 'aggregations'
       @options = {
-        :body  => @base_query,
         :index => @index,
         :size  => @size
       }
@@ -401,7 +400,10 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   def do_run_aggregation(output_queue)agg_query   = @base_query
     logger.info("Aggregation starting")
 
-    r = search_request(@options)
+    agg_query   = @base_query
+    agg_options = @options.merge(:body => LogStash::Json.dump(agg_query) )
+
+    r = search_request(agg_options)
     aggs = r['aggregations']
 
     event = targeted_event_factory.new_event aggs
