@@ -1,5 +1,5 @@
 ## 4.19.0
-  - Added `response_type` configuration option to allow aggregations to be executed:w
+  - Added `response_type` configuration option to allow aggregations to be executed
 
 ## 4.18.0
   - Added request header `Elastic-Api-Version` for serverless [#195](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/195)
