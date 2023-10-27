@@ -247,7 +247,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       before { plugin.register }
 
       it 'runs just one slice' do
-        expect(plugin.instance_variable_get(:@paginated_search)).to receive(:search).with(duck_type(:<<))
+        expect(plugin.instance_variable_get(:@paginated_search)).to receive(:search).with(duck_type(:<<), nil)
         expect(Thread).to_not receive(:new)
 
         plugin.run([])
@@ -259,7 +259,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       before { plugin.register }
 
       it 'runs just one slice' do
-        expect(plugin.instance_variable_get(:@paginated_search)).to receive(:search).with(duck_type(:<<))
+        expect(plugin.instance_variable_get(:@paginated_search)).to receive(:search).with(duck_type(:<<), nil)
         expect(Thread).to_not receive(:new)
 
         plugin.run([])
@@ -999,7 +999,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
 
     it "should properly schedule" do
       begin
-        expect(plugin).to receive(:do_run) {
+        expect(plugin.instance_variable_get(:@paginated_search)).to receive(:do_run) {
           queue << LogStash::Event.new({})
         }.at_least(:twice)
         runner = Thread.start { plugin.run(queue) }
@@ -1065,10 +1065,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
     end
 
     it "retry and log error when all search request fail" do
-      expect(plugin.logger).to receive(:error).with(/Tried .* unsuccessfully/,
-                                                    hash_including(:message => 'Manticore::UnknownException'))
-      expect(plugin.logger).to receive(:warn).twice.with(/Attempt to .* but failed/,
-                                                         hash_including(:exception => "Manticore::UnknownException"))
+      expect_any_instance_of(LogStash::Helpers::LoggableTry).to receive(:log_failure).with(instance_of(Manticore::UnknownException), instance_of(Integer), instance_of(String)).twice
       expect(client).to receive(:search).with(instance_of(Hash)).and_raise(Manticore::UnknownException).at_least(:twice)
 
       plugin.register
@@ -1077,8 +1074,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
     end
 
     it "retry successfully when search request fail for one time" do
-      expect(plugin.logger).to receive(:warn).once.with(/Attempt to .* but failed/,
-                                                         hash_including(:exception => "Manticore::UnknownException"))
+      expect_any_instance_of(LogStash::Helpers::LoggableTry).to receive(:log_failure).with(instance_of(Manticore::UnknownException), 1, instance_of(String))
       expect(client).to receive(:search).with(instance_of(Hash)).once.and_raise(Manticore::UnknownException)
       expect(client).to receive(:search).with(instance_of(Hash)).once.and_return(mock_response)
 

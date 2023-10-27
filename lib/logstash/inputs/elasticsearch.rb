@@ -11,7 +11,6 @@ require 'logstash/plugin_mixins/ca_trusted_fingerprint_support'
 require "logstash/plugin_mixins/scheduler"
 require "logstash/plugin_mixins/normalize_config_support"
 require "base64"
-require 'logstash/helpers/loggable_try'
 
 require "elasticsearch"
 require "elasticsearch/transport/transport/http/manticore"
@@ -324,6 +323,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     setup_serverless
 
     @paginated_search = LogStash::Inputs::Elasticsearch::Scroll.new(@client, self)
+    # @paginated_search = LogStash::Inputs::Elasticsearch::SearchAfter.new(@client, self)
 
     @client
   end
@@ -331,10 +331,10 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
   def run(output_queue)
     if @schedule
-      scheduler.cron(@schedule) { do_run(output_queue) }
+      scheduler.cron(@schedule) { @paginated_search.do_run(output_queue) }
       scheduler.join
     else
-      do_run(output_queue)
+      @paginated_search.do_run(output_queue)
     end
   end
 
@@ -364,40 +364,6 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   end
 
   private
-  JOB_NAME = "run query"
-  def do_run(output_queue)
-    # if configured to run a single slice, don't bother spinning up threads
-    if @slices.nil? || @slices <= 1
-      return retryable(JOB_NAME) do
-        @paginated_search.search(output_queue)
-      end
-    end
-
-    logger.warn("managed slices for query is very large (#{@slices}); consider reducing") if @slices > 8
-
-
-    @slices.times.map do |slice_id|
-      Thread.new do
-        LogStash::Util::set_thread_name("[#{pipeline_id}]|input|elasticsearch|slice_#{slice_id}")
-        retryable(JOB_NAME) do
-          @paginated_search.search(output_queue, slice_id)
-        end
-      end
-    end.map(&:join)
-
-    logger.trace("#{@slices} slices completed")
-  end
-
-  def retryable(job_name, &block)
-    begin
-      stud_try = ::LogStash::Helpers::LoggableTry.new(logger, job_name)
-      stud_try.try((@retries + 1).times) { yield }
-    rescue => e
-      error_details = {:message => e.message, :cause => e.cause}
-      error_details[:backtrace] = e.backtrace if logger.debug?
-      logger.error("Tried #{job_name} unsuccessfully", error_details)
-    end
-  end
 
   def hosts_default?(hosts)
     hosts.nil? || ( hosts.is_a?(Array) && hosts.empty? )
