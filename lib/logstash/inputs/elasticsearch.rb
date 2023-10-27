@@ -399,59 +399,6 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     end
   end
 
-  def do_run_slice(output_queue, slice_id=nil)
-    slice_query = @base_query
-    slice_query = slice_query.merge('slice' => { 'id' => slice_id, 'max' => @slices}) unless slice_id.nil?
-
-    slice_options = @options.merge(:body => LogStash::Json.dump(slice_query) )
-
-    logger.info("Slice starting", slice_id: slice_id, slices: @slices) unless slice_id.nil?
-
-    begin
-      r = search_request(slice_options)
-
-      r['hits']['hits'].each { |hit| push_hit(hit, output_queue) }
-      logger.debug("Slice progress", slice_id: slice_id, slices: @slices) unless slice_id.nil?
-
-      has_hits = r['hits']['hits'].any?
-      scroll_id = r['_scroll_id']
-
-      while has_hits && scroll_id && !stop?
-        has_hits, scroll_id = process_next_scroll(output_queue, scroll_id)
-        logger.debug("Slice progress", slice_id: slice_id, slices: @slices) if logger.debug? && slice_id
-      end
-      logger.info("Slice complete", slice_id: slice_id, slices: @slices) unless slice_id.nil?
-    ensure
-      clear_scroll(scroll_id)
-    end
-  end
-
-  ##
-  # @param output_queue [#<<]
-  # @param scroll_id [String]: a scroll id to resume
-  # @return [Array(Boolean,String)]: a tuple representing whether the response
-  #
-  def process_next_scroll(output_queue, scroll_id)
-    r = scroll_request(scroll_id)
-    r['hits']['hits'].each { |hit| push_hit(hit, output_queue) }
-    [r['hits']['hits'].any?, r['_scroll_id']]
-  end
-
-  def clear_scroll(scroll_id)
-    @client.clear_scroll(:body => { :scroll_id => scroll_id }) if scroll_id
-  rescue => e
-    # ignore & log any clear_scroll errors
-    logger.warn("Ignoring clear_scroll exception", message: e.message, exception: e.class)
-  end
-
-  def scroll_request(scroll_id)
-    @client.scroll(:body => { :scroll_id => scroll_id }, :scroll => @scroll)
-  end
-
-  def search_request(options={})
-    @client.search(options)
-  end
-
   def hosts_default?(hosts)
     hosts.nil? || ( hosts.is_a?(Array) && hosts.empty? )
   end

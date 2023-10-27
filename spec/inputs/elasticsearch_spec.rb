@@ -402,8 +402,8 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
           expect(client).to receive(:search).with(hash_including(:body => slice1_query)).and_return(slice1_response0)
           expect(client).to receive(:scroll).with(hash_including(:body => { :scroll_id => slice1_scroll1 })).and_return(slice1_response1)
 
-          synchronize_method!(plugin, :scroll_request)
-          synchronize_method!(plugin, :search_request)
+          synchronize_method!(plugin.instance_variable_get(:@paginated_search), :next_page)
+          synchronize_method!(plugin.instance_variable_get(:@paginated_search), :initial_search)
         end
 
         let(:client) { Elasticsearch::Client.new }
@@ -472,8 +472,8 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
           expect(client).to receive(:search).with(hash_including(:body => slice1_query)).and_return(slice1_response0)
           expect(client).to receive(:scroll).with(hash_including(:body => { :scroll_id => slice1_scroll1 })).and_raise("boom")
 
-          synchronize_method!(plugin, :scroll_request)
-          synchronize_method!(plugin, :search_request)
+          synchronize_method!(plugin.instance_variable_get(:@paginated_search), :next_page)
+          synchronize_method!(plugin.instance_variable_get(:@paginated_search), :initial_search)
         end
 
         let(:client) { Elasticsearch::Client.new }

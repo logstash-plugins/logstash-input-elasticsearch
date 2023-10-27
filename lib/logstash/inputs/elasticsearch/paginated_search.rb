@@ -16,12 +16,6 @@ module LogStash
           @size = @plugin_params["size"]
           @slices = @plugin_params["slices"]
 
-          @search_options = {
-            :index => @index,
-            :scroll => @scroll,
-            :size => @size
-          }
-
           @plugin = plugin
         end
 
@@ -31,12 +25,14 @@ module LogStash
       end
 
       class Scroll < PaginatedSearch
-        attr_reader :scroll_id
-
         def prepare_search_options(slice_id)
           query = @query
           query = @query.merge('slice' => { 'id' => slice_id, 'max' => @slices}) unless slice_id.nil?
-          @search_options.merge(:body => LogStash::Json.dump(query) )
+          {
+            :index => @index,
+            :scroll => @scroll,
+            :size => @size
+          }.merge(:body => LogStash::Json.dump(query) )
         end
 
         def initial_search(slice_id)
