@@ -1,3 +1,6 @@
+## 4.19.0
+  - TODO
+
 ## 4.18.0
   - Added request header `Elastic-Api-Version` for serverless [#195](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/195)
 

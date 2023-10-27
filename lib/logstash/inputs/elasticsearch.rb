@@ -74,6 +74,8 @@ require_relative "elasticsearch/patches/_elasticsearch_transport_connections_sel
 #
 class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
+  require 'logstash/inputs/elasticsearch/paginated_search'
+
   include LogStash::PluginMixins::ECSCompatibilitySupport(:disabled, :v1, :v8 => :v1)
   include LogStash::PluginMixins::ECSCompatibilitySupport::TargetCheck
 
@@ -321,6 +323,8 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
     setup_serverless
 
+    @paginated_search = LogStash::Inputs::Elasticsearch::Scroll.new(@client, self)
+
     @client
   end
 
@@ -334,13 +338,38 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     end
   end
 
+  def push_hit(hit, output_queue)
+    event = targeted_event_factory.new_event hit['_source']
+    set_docinfo_fields(hit, event) if @docinfo
+    decorate(event)
+    output_queue << event
+  end
+
+  def set_docinfo_fields(hit, event)
+    # do not assume event[@docinfo_target] to be in-place updatable. first get it, update it, then at the end set it in the event.
+    docinfo_target = event.get(@docinfo_target) || {}
+
+    unless docinfo_target.is_a?(Hash)
+      @logger.error("Incompatible Event, incompatible type for the docinfo_target=#{@docinfo_target} field in the `_source` document, expected a hash got:", :docinfo_target_type => docinfo_target.class, :event => event.to_hash_with_metadata)
+
+      # TODO: (colin) I am not sure raising is a good strategy here?
+      raise Exception.new("Elasticsearch input: incompatible event")
+    end
+
+    @docinfo_fields.each do |field|
+      docinfo_target[field] = hit[field]
+    end
+
+    event.set(@docinfo_target, docinfo_target)
+  end
+
   private
   JOB_NAME = "run query"
   def do_run(output_queue)
     # if configured to run a single slice, don't bother spinning up threads
     if @slices.nil? || @slices <= 1
       return retryable(JOB_NAME) do
-        do_run_slice(output_queue)
+        @paginated_search.search(output_queue)
       end
     end
 
@@ -351,7 +380,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
       Thread.new do
         LogStash::Util::set_thread_name("[#{pipeline_id}]|input|elasticsearch|slice_#{slice_id}")
         retryable(JOB_NAME) do
-          do_run_slice(output_queue, slice_id)
+          @paginated_search.search(output_queue, slice_id)
         end
       end
     end.map(&:join)
@@ -406,31 +435,6 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     r = scroll_request(scroll_id)
     r['hits']['hits'].each { |hit| push_hit(hit, output_queue) }
     [r['hits']['hits'].any?, r['_scroll_id']]
-  end
-
-  def push_hit(hit, output_queue)
-    event = targeted_event_factory.new_event hit['_source']
-    set_docinfo_fields(hit, event) if @docinfo
-    decorate(event)
-    output_queue << event
-  end
-
-  def set_docinfo_fields(hit, event)
-    # do not assume event[@docinfo_target] to be in-place updatable. first get it, update it, then at the end set it in the event.
-    docinfo_target = event.get(@docinfo_target) || {}
-
-    unless docinfo_target.is_a?(Hash)
-      @logger.error("Incompatible Event, incompatible type for the docinfo_target=#{@docinfo_target} field in the `_source` document, expected a hash got:", :docinfo_target_type => docinfo_target.class, :event => event.to_hash_with_metadata)
-
-      # TODO: (colin) I am not sure raising is a good strategy here?
-      raise Exception.new("Elasticsearch input: incompatible event")
-    end
-
-    @docinfo_fields.each do |field|
-      docinfo_target[field] = hit[field]
-    end
-
-    event.set(@docinfo_target, docinfo_target)
   end
 
   def clear_scroll(scroll_id)

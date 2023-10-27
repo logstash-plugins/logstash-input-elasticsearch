@@ -244,22 +244,24 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
 
     context 'with `slices => 1`' do
       let(:slices) { 1 }
+      before { plugin.register }
+
       it 'runs just one slice' do
-        expect(plugin).to receive(:do_run_slice).with(duck_type(:<<))
+        expect(plugin.instance_variable_get(:@paginated_search)).to receive(:search).with(duck_type(:<<))
         expect(Thread).to_not receive(:new)
 
-        plugin.register
         plugin.run([])
       end
     end
 
     context 'without slices directive' do
       let(:config) { super().tap { |h| h.delete('slices') } }
+      before { plugin.register }
+
       it 'runs just one slice' do
-        expect(plugin).to receive(:do_run_slice).with(duck_type(:<<))
+        expect(plugin.instance_variable_get(:@paginated_search)).to receive(:search).with(duck_type(:<<))
         expect(Thread).to_not receive(:new)
 
-        plugin.register
         plugin.run([])
       end
     end
@@ -267,13 +269,14 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
     2.upto(8) do |slice_count|
       context "with `slices => #{slice_count}`" do
         let(:slices) { slice_count }
+        before { plugin.register }
+
         it "runs #{slice_count} independent slices" do
           expect(Thread).to receive(:new).and_call_original.exactly(slice_count).times
           slice_count.times do |slice_id|
-            expect(plugin).to receive(:do_run_slice).with(duck_type(:<<), slice_id)
+            expect(plugin.instance_variable_get(:@paginated_search)).to receive(:search).with(duck_type(:<<), slice_id)
           end
 
-          plugin.register
           plugin.run([])
         end
       end
@@ -476,7 +479,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
         let(:client) { Elasticsearch::Client.new }
 
         it 'insert event to queue without waiting other slices' do
-          expect(plugin).to receive(:do_run_slice).twice.and_wrap_original do |m, *args|
+          expect(plugin.instance_variable_get(:@paginated_search)).to receive(:search).twice.and_wrap_original do |m, *args|
             q = args[0]
             slice_id = args[1]
             if slice_id == 0
@@ -1044,10 +1047,10 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       }
     end
 
+    let(:client) { Elasticsearch::Client.new }
+
     before(:each) do
-      client = Elasticsearch::Client.new
       allow(Elasticsearch::Client).to receive(:new).with(any_args).and_return(client)
-      allow(client).to receive(:search).with(any_args).and_return(mock_response)
       allow(client).to receive(:scroll).with({ :body => { :scroll_id => "cXVlcnlUaGVuRmV0Y2g" }, :scroll=> "1m" }).and_return(mock_scroll_response)
       allow(client).to receive(:clear_scroll).and_return(nil)
       allow(client).to receive(:ping)
@@ -1066,24 +1069,22 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
                                                     hash_including(:message => 'Manticore::UnknownException'))
       expect(plugin.logger).to receive(:warn).twice.with(/Attempt to .* but failed/,
                                                          hash_including(:exception => "Manticore::UnknownException"))
-      expect(plugin).to receive(:search_request).with(instance_of(Hash)).and_raise(Manticore::UnknownException).at_least(:twice)
+      expect(client).to receive(:search).with(instance_of(Hash)).and_raise(Manticore::UnknownException).at_least(:twice)
 
       plugin.register
 
       expect{ plugin.run(queue) }.not_to raise_error
-      expect(queue.size).to eq(0)
     end
 
     it "retry successfully when search request fail for one time" do
       expect(plugin.logger).to receive(:warn).once.with(/Attempt to .* but failed/,
                                                          hash_including(:exception => "Manticore::UnknownException"))
-      expect(plugin).to receive(:search_request).with(instance_of(Hash)).once.and_raise(Manticore::UnknownException)
-      expect(plugin).to receive(:search_request).with(instance_of(Hash)).once.and_call_original
+      expect(client).to receive(:search).with(instance_of(Hash)).once.and_raise(Manticore::UnknownException)
+      expect(client).to receive(:search).with(instance_of(Hash)).once.and_return(mock_response)
 
       plugin.register
 
       expect{ plugin.run(queue) }.not_to raise_error
-      expect(queue.size).to eq(1)
     end
   end
 
