@@ -20,10 +20,7 @@ describe LogStash::Inputs::Elasticsearch, :integration => true do
   let(:password) { ENV['ELASTIC_PASSWORD'] || 'abc123' }
   let(:ca_file) { "spec/fixtures/test_certs/ca.crt" }
 
-  let(:es_url) do
-    es_url = ESHelper.get_host_port
-    SECURE_INTEGRATION ? "https://#{es_url}" : "http://#{es_url}"
-  end
+  let(:es_url) { "http#{SECURE_INTEGRATION ? 's' : nil}://#{ESHelper.get_host_port}" }
 
   let(:curl_args) do
     config['user'] ? "-u #{config['user']}:#{config['password']}" : ''

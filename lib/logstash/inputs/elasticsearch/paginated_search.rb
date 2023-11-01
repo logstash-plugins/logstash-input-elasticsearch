@@ -80,18 +80,18 @@ module LogStash
 
         def search(output_queue, slice_id=nil)
           begin
-            log_hash = {}
-            log_hash = log_hash.merge({ slice_id: slice_id, slices: @slices }) unless slice_id.nil?
+            log_details = {}
+            log_details = log_details.merge({ slice_id: slice_id, slices: @slices }) unless slice_id.nil?
 
-            logger.info("Query start", log_hash)
+            logger.info("Query start", log_details)
             has_hits, scroll_id = process_page(output_queue) { initial_search(slice_id) }
 
             while has_hits && scroll_id && !@plugin.stop?
-              logger.debug("Query progress", log_hash)
+              logger.debug("Query progress", log_details)
               has_hits, scroll_id = process_page(output_queue) { next_page(scroll_id) }
             end
 
-            logger.info("Query completed", log_hash)
+            logger.info("Query completed", log_details)
           ensure
             clear(scroll_id)
           end
@@ -133,7 +133,7 @@ module LogStash
         end
 
         def create_pit
-          logger.debug("create point in time")
+          logger.info("create point in time")
           r = @client.open_point_in_time(index: @index, keep_alive: @scroll)
           r['id']
         end
@@ -145,6 +145,13 @@ module LogStash
                                   :keep_alive => @scroll
                                 }
                               })
+
+          # search_after requires at least a sort field explicitly
+          # we add default sort "_shard_doc": "asc" if the query doesn't have any sort field
+          # by default, ES adds the same implicitly on top of the provided "sort"
+          # https://www.elastic.co/guide/en/elasticsearch/reference/8.10/paginate-search-results.html#CO201-2
+          body = body.merge(:sort => {"_shard_doc": "asc"}) if @query&.dig("sort").nil?
+
           body = body.merge(:search_after => search_after) unless search_after.nil?
           body = body.merge(:slice => {:id => slice_id, :max => @slices}) unless slice_id.nil?
           {
@@ -155,6 +162,7 @@ module LogStash
 
         def next_page(pit_id: , search_after: nil, slice_id: nil)
           options = search_options(pit_id: pit_id, search_after: search_after, slice_id: slice_id)
+          logger.trace("search options", options)
           @client.search(options)
         end
 
@@ -175,21 +183,21 @@ module LogStash
         end
 
         def search(output_queue:, slice_id: nil, pit_id:)
-          log_hash = {}
-          log_hash = log_hash.merge({ slice_id: slice_id, slices: @slices }) unless slice_id.nil?
-          logger.info("Query start", log_hash)
+          log_details = {}
+          log_details = log_details.merge({ slice_id: slice_id, slices: @slices }) unless slice_id.nil?
+          logger.info("Query start", log_details)
 
           has_hits = true
           search_after = nil
 
           while has_hits && !@plugin.stop?
-            logger.debug("Query progress", log_hash)
+            logger.debug("Query progress", log_details)
             has_hits, search_after = process_page(output_queue) do
               next_page(pit_id: pit_id, search_after: search_after, slice_id: slice_id)
             end
           end
 
-          logger.info("Query completed", log_hash)
+          logger.info("Query completed", log_details)
         end
 
         def retryable_search(output_queue)
@@ -216,7 +224,7 @@ module LogStash
         end
 
         def clear(pit_id)
-          logger.debug("close point in time")
+          logger.info("close point in time")
           @client.close_point_in_time(:body => {:id => pit_id} ) if pit?(pit_id)
         rescue => e
           logger.warn("Ignoring close_point_in_time exception", message: e.message, exception: e.class)
