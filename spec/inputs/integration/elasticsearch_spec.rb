@@ -63,10 +63,6 @@ describe LogStash::Inputs::Elasticsearch, :integration => true do
   end
 
   describe 'against an unsecured elasticsearch', integration: true do
-    before(:each) do
-      plugin.register
-    end
-
     it_behaves_like 'an elasticsearch index plugin'
   end
 
@@ -136,4 +132,10 @@ describe LogStash::Inputs::Elasticsearch, :integration => true do
 
   end
 
+  describe 'slice', integration: true do
+    let(:config) { super().merge('slices' => 2, 'size' => 2) }
+    let(:plugin) { described_class.new(config) }
+
+    it_behaves_like 'an elasticsearch index plugin'
+  end
 end
