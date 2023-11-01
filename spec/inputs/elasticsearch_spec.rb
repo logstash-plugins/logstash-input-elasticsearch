@@ -18,7 +18,8 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
   let(:plugin) { described_class.new(config) }
   let(:queue) { Queue.new }
   let(:build_flavor) { "default" }
-  let(:cluster_info) { {"version" => {"number" => "7.5.0", "build_flavor" => build_flavor}, "tagline" => "You Know, for Search"} }
+  let(:es_version) { "7.5.0" }
+  let(:cluster_info) { {"version" => {"number" => es_version, "build_flavor" => build_flavor}, "tagline" => "You Know, for Search"} }
 
   before(:each) do
     Elasticsearch::Client.send(:define_method, :ping) { } # define no-action ping method
@@ -100,6 +101,26 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       end
       it "should raise an exception with negative number" do
         expect { plugin.register }.to raise_error(LogStash::ConfigurationError)
+      end
+    end
+
+    context "search_api" do
+      before(:each) do
+        plugin.register
+      end
+
+      context "ES 8" do
+        let(:es_version) { "8.10.0" }
+        it "resolves `auto` to `search_after`" do
+          expect(plugin.instance_variable_get(:@paginated_search)).to be_a LogStash::Inputs::Elasticsearch::SearchAfter
+        end
+      end
+
+      context "ES 7" do
+        let(:es_version) { "7.17.0" }
+        it "resolves `auto` to `scroll`" do
+          expect(plugin.instance_variable_get(:@paginated_search)).to be_a LogStash::Inputs::Elasticsearch::Scroll
+        end
       end
     end
   end
@@ -1016,46 +1037,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
   end
 
   context "retries" do
-    let(:mock_response) do
-      {
-        "_scroll_id" => "cXVlcnlUaGVuRmV0Y2g",
-        "took" => 27,
-        "timed_out" => false,
-        "_shards" => {
-          "total" => 169,
-          "successful" => 169,
-          "failed" => 0
-        },
-        "hits" => {
-          "total" => 1,
-          "max_score" => 1.0,
-          "hits" => [ {
-                        "_index" => "logstash-2014.10.12",
-                        "_type" => "logs",
-                        "_id" => "C5b2xLQwTZa76jBmHIbwHQ",
-                        "_score" => 1.0,
-                        "_source" => { "message" => ["ohayo"] }
-                      } ]
-        }
-      }
-    end
-
-    let(:mock_scroll_response) do
-      {
-        "_scroll_id" => "r453Wc1jh0caLJhSDg",
-        "hits" => { "hits" => [] }
-      }
-    end
-
     let(:client) { Elasticsearch::Client.new }
-
-    before(:each) do
-      allow(Elasticsearch::Client).to receive(:new).with(any_args).and_return(client)
-      allow(client).to receive(:scroll).with({ :body => { :scroll_id => "cXVlcnlUaGVuRmV0Y2g" }, :scroll=> "1m" }).and_return(mock_scroll_response)
-      allow(client).to receive(:clear_scroll).and_return(nil)
-      allow(client).to receive(:ping)
-    end
-
     let(:config) do
       {
         "hosts" => ["localhost"],
@@ -1064,23 +1046,98 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       }
     end
 
-    it "retry and log error when all search request fail" do
-      expect_any_instance_of(LogStash::Helpers::LoggableTry).to receive(:log_failure).with(instance_of(Manticore::UnknownException), instance_of(Integer), instance_of(String)).twice
-      expect(client).to receive(:search).with(instance_of(Hash)).and_raise(Manticore::UnknownException).at_least(:twice)
+    shared_examples "a retryable plugin" do
+      it "retry and log error when all search request fail" do
+        expect_any_instance_of(LogStash::Helpers::LoggableTry).to receive(:log_failure).with(instance_of(Manticore::UnknownException), instance_of(Integer), instance_of(String)).twice
+        expect(client).to receive(:search).with(instance_of(Hash)).and_raise(Manticore::UnknownException).at_least(:twice)
 
-      plugin.register
+        plugin.register
 
-      expect{ plugin.run(queue) }.not_to raise_error
+        expect{ plugin.run(queue) }.not_to raise_error
+      end
+
+      it "retry successfully when search request fail for one time" do
+        expect_any_instance_of(LogStash::Helpers::LoggableTry).to receive(:log_failure).with(instance_of(Manticore::UnknownException), 1, instance_of(String))
+        expect(client).to receive(:search).with(instance_of(Hash)).once.and_raise(Manticore::UnknownException)
+        expect(client).to receive(:search).with(instance_of(Hash)).once.and_return(search_response)
+
+        plugin.register
+
+        expect{ plugin.run(queue) }.not_to raise_error
+      end
     end
 
-    it "retry successfully when search request fail for one time" do
-      expect_any_instance_of(LogStash::Helpers::LoggableTry).to receive(:log_failure).with(instance_of(Manticore::UnknownException), 1, instance_of(String))
-      expect(client).to receive(:search).with(instance_of(Hash)).once.and_raise(Manticore::UnknownException)
-      expect(client).to receive(:search).with(instance_of(Hash)).once.and_return(mock_response)
+    describe "scroll" do
+      let(:search_response) do
+        {
+          "_scroll_id" => "cXVlcnlUaGVuRmV0Y2g",
+          "took" => 27,
+          "timed_out" => false,
+          "_shards" => {
+            "total" => 169,
+            "successful" => 169,
+            "failed" => 0
+          },
+          "hits" => {
+            "total" => 1,
+            "max_score" => 1.0,
+            "hits" => [ {
+                          "_index" => "logstash-2014.10.12",
+                          "_type" => "logs",
+                          "_id" => "C5b2xLQwTZa76jBmHIbwHQ",
+                          "_score" => 1.0,
+                          "_source" => { "message" => ["ohayo"] }
+                        } ]
+          }
+        }
+      end
 
-      plugin.register
+      let(:empty_scroll_response) do
+        {
+          "_scroll_id" => "r453Wc1jh0caLJhSDg",
+          "hits" => { "hits" => [] }
+        }
+      end
 
-      expect{ plugin.run(queue) }.not_to raise_error
+      before(:each) do
+        allow(Elasticsearch::Client).to receive(:new).with(any_args).and_return(client)
+        allow(client).to receive(:scroll).with({ :body => { :scroll_id => "cXVlcnlUaGVuRmV0Y2g" }, :scroll=> "1m" }).and_return(empty_scroll_response)
+        allow(client).to receive(:clear_scroll).and_return(nil)
+        allow(client).to receive(:ping)
+      end
+
+      it_behaves_like "a retryable plugin"
+    end
+
+    describe "search_after" do
+      let(:es_version) { "8.10.0" }
+      let(:config) { super().merge({ "search_api" => "search_after" }) }
+
+      let(:search_response) do
+        {
+          "took" => 27,
+          "timed_out" => false,
+          "_shards" => {
+            "total" => 169,
+            "successful" => 169,
+            "failed" => 0
+          },
+          "hits" => {
+            "total" => 1,
+            "max_score" => 1.0,
+            "hits" => [ ] # empty hits to break the loop
+          }
+        }
+      end
+
+      before(:each) do
+        expect(Elasticsearch::Client).to receive(:new).with(any_args).and_return(client)
+        expect(client).to receive(:open_point_in_time).once.and_return({ "id" => "cXVlcnlUaGVuRmV0Y2g"})
+        expect(client).to receive(:close_point_in_time).once.and_return(nil)
+        expect(client).to receive(:ping)
+      end
+
+      it_behaves_like "a retryable plugin"
     end
   end
 

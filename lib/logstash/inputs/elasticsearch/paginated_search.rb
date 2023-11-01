@@ -1,4 +1,3 @@
-# frozen_string_literal: true
 require 'logstash/helpers/loggable_try'
 
 module LogStash
@@ -23,7 +22,6 @@ module LogStash
         end
 
         def do_run(output_queue)
-          # if configured to run a single slice, don't bother spinning up threads
           return retryable_search(output_queue) if @slices.nil? || @slices <= 1
 
           retryable_slice_search(output_queue)
@@ -169,8 +167,11 @@ module LogStash
         def process_page(output_queue)
           r = yield
           r['hits']['hits'].each { |hit| @plugin.push_hit(hit, output_queue) }
+
+          has_hits = r['hits']['hits'].any?
           search_after = r['hits']['hits'][-1]['sort'] rescue nil
-          [ r['hits']['hits'].any?, search_after ]
+          logger.warn("Query got data but the sort value is empty") if has_hits && search_after.nil?
+          [ has_hits, search_after ]
         end
 
         def with_pit
