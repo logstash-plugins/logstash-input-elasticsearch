@@ -107,6 +107,10 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # The number of retries to run the query. If the query fails after all retries, it logs an error message.
   config :retries, :validate => :number, :default => 0
 
+  # Default auto will use search_after api for Elasticsearch 8 and use scroll api for 7
+  # Set to scroll to fallback to previous version
+  config :search_api, :validate => %w[auto search_after scroll], :default => "auto"
+
   # This parameter controls the keepalive time in seconds of the scrolling
   # request and initiates the scrolling process. The timeout applies per
   # round trip (i.e. between the previous scroll request, to the next).
@@ -322,8 +326,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
     setup_serverless
 
-    @paginated_search = LogStash::Inputs::Elasticsearch::Scroll.new(@client, self)
-    # @paginated_search = LogStash::Inputs::Elasticsearch::SearchAfter.new(@client, self)
+    setup_search_api
 
     @client
   end
@@ -594,6 +597,18 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     raise LogStash::ConfigurationError, "Could not connect to a compatible version of Elasticsearch"
   end
 
+  def es_info
+    @es_info ||= @client.info
+  end
+
+  def es_version
+    @es_version ||= es_info&.dig('version', 'number')
+  end
+
+  def es_major_version
+    @es_major_version ||= es_version.split('.').first.to_i
+  end
+
   # recreate client with default header when it is serverless
   # verify the header by sending GET /
   def setup_serverless
@@ -608,11 +623,29 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   end
 
   def build_flavor
-    @build_flavor ||= @client.info&.dig('version', 'build_flavor')
+    @build_flavor ||= es_info&.dig('version', 'build_flavor')
   end
 
   def serverless?
     @is_serverless ||= (build_flavor == BUILD_FLAVOR_SERVERLESS)
+  end
+
+  def setup_search_api
+    @resolved_search_api = if @search_api == "auto"
+                             if es_major_version >= 8
+                               "search_after"
+                             else
+                               "scroll"
+                             end
+                           else
+                             @search_api
+                           end
+
+    if @resolved_search_api == "search_after"
+      @paginated_search = LogStash::Inputs::Elasticsearch::SearchAfter.new(@client, self)
+    else
+      @paginated_search = LogStash::Inputs::Elasticsearch::Scroll.new(@client, self)
+    end
   end
 
   module URIOrEmptyValidator
