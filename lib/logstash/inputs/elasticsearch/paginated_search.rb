@@ -128,6 +128,10 @@ module LogStash
         PIT_JOB = "create point in time"
         SEARCH_AFTER_JOB = "run search after"
 
+        def pit?(id)
+          !!id&.is_a?(String)
+        end
+
         def create_pit
           logger.debug("create point in time")
           r = @client.open_point_in_time(index: @index, keep_alive: @scroll)
@@ -164,7 +168,7 @@ module LogStash
         def with_pit
           begin
             pit_id = retryable(PIT_JOB) { create_pit }
-            yield pit_id if pit_id.is_a?(String)
+            yield pit_id if pit?(pit_id)
           ensure
             clear(pit_id)
           end
@@ -213,7 +217,7 @@ module LogStash
 
         def clear(pit_id)
           logger.debug("close point in time")
-          @client.close_point_in_time(:body => {:id => pit_id} ) if pit_id
+          @client.close_point_in_time(:body => {:id => pit_id} ) if pit?(pit_id)
         rescue => e
           logger.warn("Ignoring close_point_in_time exception", message: e.message, exception: e.class)
         end

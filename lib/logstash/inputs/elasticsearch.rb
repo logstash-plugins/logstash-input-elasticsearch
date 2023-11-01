@@ -632,20 +632,23 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
   def setup_search_api
     @resolved_search_api = if @search_api == "auto"
-                             if es_major_version >= 8
-                               "search_after"
-                             else
-                               "scroll"
-                             end
+                             api = if es_major_version >= 8
+                                    "search_after"
+                                   else
+                                     "scroll"
+                                   end
+                             logger.info("`search_api => auto` resolved to `#{api}` since we are connected to Elasticsearch #{es_version}")
+                             api
                            else
                              @search_api
                            end
 
-    if @resolved_search_api == "search_after"
-      @paginated_search = LogStash::Inputs::Elasticsearch::SearchAfter.new(@client, self)
-    else
-      @paginated_search = LogStash::Inputs::Elasticsearch::Scroll.new(@client, self)
-    end
+
+    @paginated_search = if @resolved_search_api == "search_after"
+                          LogStash::Inputs::Elasticsearch::SearchAfter.new(@client, self)
+                        else
+                          LogStash::Inputs::Elasticsearch::Scroll.new(@client, self)
+                        end
   end
 
   module URIOrEmptyValidator
