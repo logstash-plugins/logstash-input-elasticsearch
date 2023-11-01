@@ -43,6 +43,8 @@ describe LogStash::Inputs::Elasticsearch, :integration => true do
     ESHelper.curl_and_get_json_response "#{es_url}/_index_template/*", method: 'DELETE', args: curl_args
     # This can fail if there are no indexes, ignore failure.
     ESHelper.curl_and_get_json_response( "#{es_url}/_index/*", method: 'DELETE', args: curl_args) rescue nil
+    ESHelper.curl_and_get_json_response( "#{es_url}/logs", method: 'DELETE', args: curl_args) rescue nil
+    ESHelper.curl_and_get_json_response "#{es_url}/_refresh", method: 'POST', args: curl_args
   end
 
   shared_examples 'an elasticsearch index plugin' do
@@ -53,6 +55,7 @@ describe LogStash::Inputs::Elasticsearch, :integration => true do
     it 'should retrieve json event from elasticsearch' do
       queue = []
       plugin.run(queue)
+      expect(queue.size).to eq(10)
       event = queue.pop
       expect(event).to be_a(LogStash::Event)
       expect(event.get("response")).to eql(404)
