@@ -107,7 +107,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # The number of retries to run the query. If the query fails after all retries, it logs an error message.
   config :retries, :validate => :number, :default => 0
 
-  # Default auto will use search_after api for Elasticsearch 8 and use scroll api for 7
+  # Default `auto` will use `search_after` api for Elasticsearch 8 and use `scroll` api for 7
   # Set to scroll to fallback to previous version
   config :search_api, :validate => %w[auto search_after scroll], :default => "auto"
 

@@ -1,5 +1,6 @@
 ## 4.19.0
-  - TODO
+  - Added `search_api` option to support `search_after` and `scroll` [#198](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/198)
+    - The default value `auto` uses `search_after` for Elasticsearch >= 8, otherwise, fall back to `scroll` 
 
 ## 4.18.0
   - Added request header `Elastic-Api-Version` for serverless [#195](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/195)
