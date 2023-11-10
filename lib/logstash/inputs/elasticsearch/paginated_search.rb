@@ -171,12 +171,10 @@ module LogStash
         end
 
         def with_pit
-          begin
-            pit_id = retryable(PIT_JOB) { create_pit }
-            yield pit_id if pit?(pit_id)
-          ensure
-            clear(pit_id)
-          end
+          pit_id = retryable(PIT_JOB) { create_pit }
+          yield pit_id if pit?(pit_id)
+        ensure
+          clear(pit_id)
         end
 
         def search(output_queue:, slice_id: nil, pit_id:)
