@@ -28,14 +28,12 @@ module LogStash
         end
 
         def retryable(job_name, &block)
-          begin
-            stud_try = ::LogStash::Helpers::LoggableTry.new(logger, job_name)
-            stud_try.try((@retries + 1).times) { yield }
-          rescue => e
-            error_details = {:message => e.message, :cause => e.cause}
-            error_details[:backtrace] = e.backtrace if logger.debug?
-            logger.error("Tried #{job_name} unsuccessfully", error_details)
-          end
+          stud_try = ::LogStash::Helpers::LoggableTry.new(logger, job_name)
+          stud_try.try((@retries + 1).times) { yield }
+        rescue => e
+          error_details = {:message => e.message, :cause => e.cause}
+          error_details[:backtrace] = e.backtrace if logger.debug?
+          logger.error("Tried #{job_name} unsuccessfully", error_details)
         end
 
         def retryable_search(output_queue)
