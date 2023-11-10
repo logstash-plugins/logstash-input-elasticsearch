@@ -647,6 +647,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     @paginated_search = if @resolved_search_api == "search_after"
                           LogStash::Inputs::Elasticsearch::SearchAfter.new(@client, self)
                         else
+                          logger.warn("scroll API is no longer recommended for pagination. Consider using search_after instead.") if es_major_version >= 8
                           LogStash::Inputs::Elasticsearch::Scroll.new(@client, self)
                         end
   end
