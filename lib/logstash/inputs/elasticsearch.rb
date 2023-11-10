@@ -637,7 +637,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
                                    else
                                      "scroll"
                                    end
-                             logger.info("`search_api => auto` resolved to `#{api}`, :elasticsearch => es_version)
+                             logger.info("`search_api => auto` resolved to `#{api}`", :elasticsearch => es_version)
                              api
                            else
                              @search_api

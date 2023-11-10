@@ -114,7 +114,7 @@ module LogStash
           @client.clear_scroll(:body => { :scroll_id => scroll_id }) if scroll_id
         rescue => e
           # ignore & log any clear_scroll errors
-          logger.warn("Ignoring clear_scroll exception", message: e.message, exception: e.class)
+          logger.debug("Ignoring clear_scroll exception", message: e.message, exception: e.class)
         end
       end
 
