@@ -46,7 +46,7 @@ module LogStash
       end
 
       class Scroll < PaginatedSearch
-        SCROLL_JOB = "run scroll"
+        SCROLL_JOB = "scroll paginated search"
 
         def search_options(slice_id)
           query = @query
