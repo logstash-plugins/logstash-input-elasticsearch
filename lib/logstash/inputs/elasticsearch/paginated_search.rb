@@ -127,7 +127,7 @@ module LogStash
         end
 
         def create_pit
-          logger.info("create point in time")
+          logger.info("Create point in time (PIT)")
           r = @client.open_point_in_time(index: @index, keep_alive: @scroll)
           r['id']
         end
