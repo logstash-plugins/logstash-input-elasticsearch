@@ -120,7 +120,7 @@ module LogStash
 
       class SearchAfter < PaginatedSearch
         PIT_JOB = "create point in time"
-        SEARCH_AFTER_JOB = "run search after"
+        SEARCH_AFTER_JOB = "search_after paginated search"
 
         def pit?(id)
           !!id&.is_a?(String)
