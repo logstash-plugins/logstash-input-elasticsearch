@@ -221,7 +221,7 @@ module LogStash
         end
 
         def clear(pit_id)
-          logger.info("close point in time")
+          logger.info("Closing point in time (PIT)")
           @client.close_point_in_time(:body => {:id => pit_id} ) if pit?(pit_id)
         rescue => e
           logger.debug("Ignoring close_point_in_time exception", message: e.message, exception: e.class)
