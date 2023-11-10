@@ -390,7 +390,7 @@ round trip (i.e. between the previous scroll request, to the next).
 `auto` uses `search_after` for Elasticsearch version `8.0.0` or higher, otherwise, fall back to `scroll` API.
 
 `search_after` uses {ref}/point-in-time-api.html#point-in-time-api[point in time] and sort value to search.
-The query requires to have at least one `sort` field. Check out <<plugins-{type}s-{plugin}-query>>.
+The query requires at least one `sort` field, as described in the <<plugins-{type}s-{plugin}-query>> parameter.
 
 `scroll` uses {ref}/paginate-search-results.html#scroll-search-results[scroll] API to search, which is no longer recommended.
 
