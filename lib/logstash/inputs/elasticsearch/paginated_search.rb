@@ -75,22 +75,20 @@ module LogStash
         end
 
         def search(output_queue, slice_id=nil)
-          begin
-            log_details = {}
-            log_details = log_details.merge({ slice_id: slice_id, slices: @slices }) unless slice_id.nil?
+          log_details = {}
+          log_details = log_details.merge({ slice_id: slice_id, slices: @slices }) unless slice_id.nil?
 
-            logger.info("Query start", log_details)
-            has_hits, scroll_id = process_page(output_queue) { initial_search(slice_id) }
+          logger.info("Query start", log_details)
+          has_hits, scroll_id = process_page(output_queue) { initial_search(slice_id) }
 
-            while has_hits && scroll_id && !@plugin.stop?
-              logger.debug("Query progress", log_details)
-              has_hits, scroll_id = process_page(output_queue) { next_page(scroll_id) }
-            end
-
-            logger.info("Query completed", log_details)
-          ensure
-            clear(scroll_id)
+          while has_hits && scroll_id && !@plugin.stop?
+            logger.debug("Query progress", log_details)
+            has_hits, scroll_id = process_page(output_queue) { next_page(scroll_id) }
           end
+
+          logger.info("Query completed", log_details)
+        ensure
+          clear(scroll_id)
         end
 
         def retryable_search(output_queue, slice_id=nil)
