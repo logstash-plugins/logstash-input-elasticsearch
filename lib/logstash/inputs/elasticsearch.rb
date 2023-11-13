@@ -11,7 +11,6 @@ require 'logstash/plugin_mixins/ca_trusted_fingerprint_support'
 require "logstash/plugin_mixins/scheduler"
 require "logstash/plugin_mixins/normalize_config_support"
 require "base64"
-require 'logstash/helpers/loggable_try'
 
 require "elasticsearch"
 require "elasticsearch/transport/transport/http/manticore"
@@ -74,6 +73,8 @@ require_relative "elasticsearch/patches/_elasticsearch_transport_connections_sel
 #
 class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
+  require 'logstash/inputs/elasticsearch/paginated_search'
+
   include LogStash::PluginMixins::ECSCompatibilitySupport(:disabled, :v1, :v8 => :v1)
   include LogStash::PluginMixins::ECSCompatibilitySupport::TargetCheck
 
@@ -105,6 +106,10 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
   # The number of retries to run the query. If the query fails after all retries, it logs an error message.
   config :retries, :validate => :number, :default => 0
+
+  # Default `auto` will use `search_after` api for Elasticsearch 8 and use `scroll` api for 7
+  # Set to scroll to fallback to previous version
+  config :search_api, :validate => %w[auto search_after scroll], :default => "auto"
 
   # This parameter controls the keepalive time in seconds of the scrolling
   # request and initiates the scrolling process. The timeout applies per
@@ -321,91 +326,19 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
     setup_serverless
 
+    setup_search_api
+
     @client
   end
 
 
   def run(output_queue)
     if @schedule
-      scheduler.cron(@schedule) { do_run(output_queue) }
+      scheduler.cron(@schedule) { @paginated_search.do_run(output_queue) }
       scheduler.join
     else
-      do_run(output_queue)
+      @paginated_search.do_run(output_queue)
     end
-  end
-
-  private
-  JOB_NAME = "run query"
-  def do_run(output_queue)
-    # if configured to run a single slice, don't bother spinning up threads
-    if @slices.nil? || @slices <= 1
-      return retryable(JOB_NAME) do
-        do_run_slice(output_queue)
-      end
-    end
-
-    logger.warn("managed slices for query is very large (#{@slices}); consider reducing") if @slices > 8
-
-
-    @slices.times.map do |slice_id|
-      Thread.new do
-        LogStash::Util::set_thread_name("[#{pipeline_id}]|input|elasticsearch|slice_#{slice_id}")
-        retryable(JOB_NAME) do
-          do_run_slice(output_queue, slice_id)
-        end
-      end
-    end.map(&:join)
-
-    logger.trace("#{@slices} slices completed")
-  end
-
-  def retryable(job_name, &block)
-    begin
-      stud_try = ::LogStash::Helpers::LoggableTry.new(logger, job_name)
-      stud_try.try((@retries + 1).times) { yield }
-    rescue => e
-      error_details = {:message => e.message, :cause => e.cause}
-      error_details[:backtrace] = e.backtrace if logger.debug?
-      logger.error("Tried #{job_name} unsuccessfully", error_details)
-    end
-  end
-
-  def do_run_slice(output_queue, slice_id=nil)
-    slice_query = @base_query
-    slice_query = slice_query.merge('slice' => { 'id' => slice_id, 'max' => @slices}) unless slice_id.nil?
-
-    slice_options = @options.merge(:body => LogStash::Json.dump(slice_query) )
-
-    logger.info("Slice starting", slice_id: slice_id, slices: @slices) unless slice_id.nil?
-
-    begin
-      r = search_request(slice_options)
-
-      r['hits']['hits'].each { |hit| push_hit(hit, output_queue) }
-      logger.debug("Slice progress", slice_id: slice_id, slices: @slices) unless slice_id.nil?
-
-      has_hits = r['hits']['hits'].any?
-      scroll_id = r['_scroll_id']
-
-      while has_hits && scroll_id && !stop?
-        has_hits, scroll_id = process_next_scroll(output_queue, scroll_id)
-        logger.debug("Slice progress", slice_id: slice_id, slices: @slices) if logger.debug? && slice_id
-      end
-      logger.info("Slice complete", slice_id: slice_id, slices: @slices) unless slice_id.nil?
-    ensure
-      clear_scroll(scroll_id)
-    end
-  end
-
-  ##
-  # @param output_queue [#<<]
-  # @param scroll_id [String]: a scroll id to resume
-  # @return [Array(Boolean,String)]: a tuple representing whether the response
-  #
-  def process_next_scroll(output_queue, scroll_id)
-    r = scroll_request(scroll_id)
-    r['hits']['hits'].each { |hit| push_hit(hit, output_queue) }
-    [r['hits']['hits'].any?, r['_scroll_id']]
   end
 
   def push_hit(hit, output_queue)
@@ -433,20 +366,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     event.set(@docinfo_target, docinfo_target)
   end
 
-  def clear_scroll(scroll_id)
-    @client.clear_scroll(:body => { :scroll_id => scroll_id }) if scroll_id
-  rescue => e
-    # ignore & log any clear_scroll errors
-    logger.warn("Ignoring clear_scroll exception", message: e.message, exception: e.class)
-  end
-
-  def scroll_request(scroll_id)
-    @client.scroll(:body => { :scroll_id => scroll_id }, :scroll => @scroll)
-  end
-
-  def search_request(options={})
-    @client.search(options)
-  end
+  private
 
   def hosts_default?(hosts)
     hosts.nil? || ( hosts.is_a?(Array) && hosts.empty? )
@@ -677,6 +597,18 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     raise LogStash::ConfigurationError, "Could not connect to a compatible version of Elasticsearch"
   end
 
+  def es_info
+    @es_info ||= @client.info
+  end
+
+  def es_version
+    @es_version ||= es_info&.dig('version', 'number')
+  end
+
+  def es_major_version
+    @es_major_version ||= es_version.split('.').first.to_i
+  end
+
   # recreate client with default header when it is serverless
   # verify the header by sending GET /
   def setup_serverless
@@ -691,11 +623,33 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   end
 
   def build_flavor
-    @build_flavor ||= @client.info&.dig('version', 'build_flavor')
+    @build_flavor ||= es_info&.dig('version', 'build_flavor')
   end
 
   def serverless?
     @is_serverless ||= (build_flavor == BUILD_FLAVOR_SERVERLESS)
+  end
+
+  def setup_search_api
+    @resolved_search_api = if @search_api == "auto"
+                             api = if es_major_version >= 8
+                                    "search_after"
+                                   else
+                                     "scroll"
+                                   end
+                             logger.info("`search_api => auto` resolved to `#{api}`", :elasticsearch => es_version)
+                             api
+                           else
+                             @search_api
+                           end
+
+
+    @paginated_search = if @resolved_search_api == "search_after"
+                          LogStash::Inputs::Elasticsearch::SearchAfter.new(@client, self)
+                        else
+                          logger.warn("scroll API is no longer recommended for pagination. Consider using search_after instead.") if es_major_version >= 8
+                          LogStash::Inputs::Elasticsearch::Scroll.new(@client, self)
+                        end
   end
 
   module URIOrEmptyValidator
