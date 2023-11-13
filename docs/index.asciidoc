@@ -335,7 +335,7 @@ The query to be executed. Read the {ref}/query-dsl.html[Elasticsearch query DSL
 documentation] for more information.
 
 When <<plugins-{type}s-{plugin}-search_api>> resolves to `search_after` and the query does not specify `sort`,
-the default sort `'{ "sort": { "_shard_doc": "asc" } }'` will be added to the query. Check out {ref}/paginate-search-results.html#search-after[Elasticsearch search after]
+the default sort `'{ "sort": { "_shard_doc": "asc" } }'` will be added to the query. Please refer to the {ref}/paginate-search-results.html#search-after[Elasticsearch search_after] parameter to know more.
 
 [id="plugins-{type}s-{plugin}-request_timeout_seconds"]
 ===== `request_timeout_seconds`
