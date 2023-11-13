@@ -387,7 +387,7 @@ round trip (i.e. between the previous scroll request, to the next).
 * Value can be any of: `auto`, `search_after`, `scroll`
 * Default value is `auto`
 
-With `auto` the plugin uses the `search_after` parameter for Elasticsearch version `8.0.0` or higher, otherwise, the `scroll` API is used instead.
+With `auto` the plugin uses the `search_after` parameter for Elasticsearch version `8.0.0` or higher, otherwise the `scroll` API is used instead.
 
 `search_after` uses {ref}/point-in-time-api.html#point-in-time-api[point in time] and sort value to search.
 The query requires at least one `sort` field, as described in the <<plugins-{type}s-{plugin}-query>> parameter.
