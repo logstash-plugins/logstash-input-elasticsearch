@@ -1,5 +1,5 @@
 ## 4.19.1
-  - Plugin version bump to pick up docs fix in  [#199](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/199 required to clear build error in docgen. [#200](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/200)
+  - Plugin version bump to pick up docs fix in  [#199](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/199) required to clear build error in docgen. [#200](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/200)
 
 ## 4.19.0
   - Added `search_api` option to support `search_after` and `scroll` [#198](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/198)
