@@ -1,0 +1,9 @@
+- pipeline.id: sample-generator
+  path.config: "/workspaces/logstash-input-elasticsearch/devenv/generator.conf"
+  pipeline.workers: 3
+- pipeline.id: work-pipeline
+  path.config: "/workspaces/logstash-input-elasticsearch/devenv/pipeline.conf"
+  pipeline.workers: 3
+
+# TODO - configure more
+# https://www.elastic.co/guide/en/logstash/current/logstash-settings-file.html
