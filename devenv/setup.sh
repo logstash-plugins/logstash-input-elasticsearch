@@ -28,3 +28,12 @@ cd /usr/share/logstash/
 
 # Update dependencies
 bundle install
+
+{
+    echo export PATH=/usr/share/jruby-9.4.5.0/bin:$PATH
+    echo export ELASTIC_SEARCH_ENDPOINT="https://es-unified-telemetry.austinrdc.dev"
+    echo export ELASTIC_SEARCH_TARGET_INDEX="filtered_xlens_machinesummary_filtered_raw_hourly-*"
+} > ~/.local-env
+
+echo 'source ~/.local-env' >> ~/.zshrc
+echo 'source ~/.local-env' >> ~/.bashrc

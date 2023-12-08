@@ -17,11 +17,9 @@ Check out ~/devenv/setup.sh file for development enviroment set up.
 
 #### Test
 
-- Run tests
+- Run tests in a new terminal
 
 ```sh
-export PATH=/usr/share/jruby-9.4.5.0/bin:$PATH
-
 cd /usr/share/logstash
 bundle exec rspec
 ```
@@ -40,7 +38,10 @@ bin/logstash-plugin install --no-verify
 ```
 - Run Logstash with your plugin
 ```sh
-bin/logstash -e 'input {logstash-input-elasticsearch {}}'
+export ELASTIC_SEARCH_USERNAME="<ES USRENAME HERE>"
+export ELASTIC_SEARCH_PASSWORD="<ES PASSWORD HERE>"
+
+bin/logstash -f /workspaces/logstash-input-elasticsearch/devenv/pipeline.conf
 ```
 At this point any modifications to the plugin code will be applied to this local Logstash setup. After modifying the plugin, simply rerun Logstash.
 
