@@ -31,8 +31,8 @@ bundle install
 
 {
     echo export PATH=/usr/share/jruby-9.4.5.0/bin:$PATH
-    echo export ELASTIC_SEARCH_ENDPOINT="https://es-unified-telemetry.austinrdc.dev"
-    echo export ELASTIC_SEARCH_TARGET_INDEX="filtered_xlens_machinesummary_filtered_raw_hourly-*"
+    echo export ELASTIC_SEARCH_ENDPOINT="http://localhost:30100"
+    echo export ELASTIC_SEARCH_TARGET_INDEX="d_xlens_sample_machinesummary"
 } > ~/.local-env
 
 echo 'source ~/.local-env' >> ~/.zshrc
