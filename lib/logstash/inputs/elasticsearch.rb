@@ -74,6 +74,7 @@ require_relative "elasticsearch/patches/_elasticsearch_transport_connections_sel
 class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
   require 'logstash/inputs/elasticsearch/paginated_search'
+  require 'logstash/inputs/elasticsearch/aggregation'
 
   include LogStash::PluginMixins::ECSCompatibilitySupport(:disabled, :v1, :v8 => :v1)
   include LogStash::PluginMixins::ECSCompatibilitySupport::TargetCheck
@@ -287,19 +288,6 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     fill_hosts_from_cloud_id
     setup_ssl_params!
 
-    if @response_type == 'hits'
-      @options = {
-        :index  => @index,
-        :scroll => @scroll,
-        :size   => @size
-      }
-    elsif @response_type == 'aggregations'
-      @options = {
-        :index => @index,
-        :size  => @size
-      }
-    end
-
     @base_query = LogStash::Json.load(@query)
     if @slices
       @base_query.include?('slice') && fail(LogStash::ConfigurationError, "Elasticsearch Input Plugin's `query` option cannot specify specific `slice` when configured to manage parallel slices with `slices` option")
@@ -341,116 +329,25 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
     setup_search_api
 
+    setup_query_executor
+
     @client
   end
 
-
   def run(output_queue)
     if @schedule
-      scheduler.cron(@schedule) { @paginated_search.do_run(output_queue) }
+      scheduler.cron(@schedule) { @query_executor.do_run(output_queue) }
       scheduler.join
     else
-      @paginated_search.do_run(output_queue)
-    end
-  end
-
-  private
-  JOB_NAME = "run query"
-  def do_run(output_queue)
-    case @response_type
-      when 'hits'
-        # if configured to run a single slice, don't bother spinning up threads
-        if @slices.nil? || @slices <= 1
-          return retryable(JOB_NAME) do
-            do_run_slice(output_queue)
-          end
-        end
-
-        logger.warn("managed slices for query is very large (#{@slices}); consider reducing") if @slices > 8
-
-        @slices.times.map do |slice_id|
-          Thread.new do
-            LogStash::Util::set_thread_name("[#{pipeline_id}]|input|elasticsearch|slice_#{slice_id}")
-            retryable(JOB_NAME) do
-              do_run_slice(output_queue, slice_id)
-            end
-          end
-        end.map(&:join)
-
-        logger.trace("#{@slices} slices completed")
-
-      when 'aggregations'
-        do_run_aggregation(output_queue)
-
-        logger.trace("Aggregation completed")
-    end
-  end
-
-  def retryable(job_name, &block)
-    begin
-      stud_try = ::LogStash::Helpers::LoggableTry.new(logger, job_name)
-      stud_try.try((@retries + 1).times) { yield }
-    rescue => e
-      error_details = {:message => e.message, :cause => e.cause}
-      error_details[:backtrace] = e.backtrace if logger.debug?
-      logger.error("Tried #{job_name} unsuccessfully", error_details)
-    end
-  end
-
-  def do_run_aggregation(output_queue)agg_query   = @base_query
-    logger.info("Aggregation starting")
-
-    agg_query   = @base_query
-    agg_options = @options.merge(:body => LogStash::Json.dump(agg_query) )
-
-    r = search_request(agg_options)
-    aggs = r['aggregations']
-
-    event = targeted_event_factory.new_event aggs
-    decorate(event)
-    output_queue << event
-  end
-
-  def do_run_slice(output_queue, slice_id=nil)
-    slice_query = @base_query
-    slice_query = slice_query.merge('slice' => { 'id' => slice_id, 'max' => @slices}) unless slice_id.nil?
-
-    slice_options = @options.merge(:body => LogStash::Json.dump(slice_query) )
-
-    logger.info("Slice starting", slice_id: slice_id, slices: @slices) unless slice_id.nil?
-
-    begin
-      r = search_request(slice_options)
-
-      r['hits']['hits'].each { |hit| push_hit(hit, output_queue) }
-      logger.debug("Slice progress", slice_id: slice_id, slices: @slices) unless slice_id.nil?
-
-      has_hits = r['hits']['hits'].any?
-      scroll_id = r['_scroll_id']
-
-      while has_hits && scroll_id && !stop?
-        has_hits, scroll_id = process_next_scroll(output_queue, scroll_id)
-        logger.debug("Slice progress", slice_id: slice_id, slices: @slices) if logger.debug? && slice_id
-      end
-      logger.info("Slice complete", slice_id: slice_id, slices: @slices) unless slice_id.nil?
-    ensure
-      clear_scroll(scroll_id)
+      @query_executor.do_run(output_queue)
     end
   end
 
   ##
-  # @param output_queue [#<<]
-  # @param scroll_id [String]: a scroll id to resume
-  # @return [Array(Boolean,String)]: a tuple representing whether the response
-  #
-  def process_next_scroll(output_queue, scroll_id)
-    r = scroll_request(scroll_id)
-    r['hits']['hits'].each { |hit| push_hit(hit, output_queue) }
-    [r['hits']['hits'].any?, r['_scroll_id']]
-  end
-
-  def push_hit(hit, output_queue)
-    event = targeted_event_factory.new_event hit['_source']
+  # This can be called externally from the query_executor
+  public
+  def push_hit(hit, output_queue, root_field = '_source')
+    event = targeted_event_factory.new_event hit[root_field]
     set_docinfo_fields(hit, event) if @docinfo
     decorate(event)
     output_queue << event
@@ -751,13 +648,20 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
                              @search_api
                            end
 
+  end
 
-    @paginated_search = if @resolved_search_api == "search_after"
+  def setup_query_executor
+    @query_executor = case @response_type
+                      when 'hits'
+                        if @resolved_search_api == "search_after"
                           LogStash::Inputs::Elasticsearch::SearchAfter.new(@client, self)
                         else
                           logger.warn("scroll API is no longer recommended for pagination. Consider using search_after instead.") if es_major_version >= 8
                           LogStash::Inputs::Elasticsearch::Scroll.new(@client, self)
                         end
+                      when 'aggregations'
+                        LogStash::Inputs::Elasticsearch::Aggregation.new(@client, self)
+                      end
   end
 
   module URIOrEmptyValidator
