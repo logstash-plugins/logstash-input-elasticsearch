@@ -34,10 +34,10 @@ module LogStash
 
         def do_run(output_queue)
           logger.info("Aggregation starting")
-          retryable(AGGREGATION_JOB) do
-            r = @client.search(@agg_options)
-            @plugin.push_hit(r, output_queue, 'aggregations')
+          r = retryable(AGGREGATION_JOB) do
+            @client.search(@agg_options)
           end
+          @plugin.push_hit(r, output_queue, 'aggregations')
         end
       end
     end
