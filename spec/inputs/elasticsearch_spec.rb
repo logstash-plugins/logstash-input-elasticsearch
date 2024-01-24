@@ -112,14 +112,14 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       context "ES 8" do
         let(:es_version) { "8.10.0" }
         it "resolves `auto` to `search_after`" do
-          expect(plugin.instance_variable_get(:@paginated_search)).to be_a LogStash::Inputs::Elasticsearch::SearchAfter
+          expect(plugin.instance_variable_get(:@query_executor)).to be_a LogStash::Inputs::Elasticsearch::SearchAfter
         end
       end
 
       context "ES 7" do
         let(:es_version) { "7.17.0" }
         it "resolves `auto` to `scroll`" do
-          expect(plugin.instance_variable_get(:@paginated_search)).to be_a LogStash::Inputs::Elasticsearch::Scroll
+          expect(plugin.instance_variable_get(:@query_executor)).to be_a LogStash::Inputs::Elasticsearch::Scroll
         end
       end
     end
@@ -268,7 +268,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       before { plugin.register }
 
       it 'runs just one slice' do
-        expect(plugin.instance_variable_get(:@paginated_search)).to receive(:search).with(duck_type(:<<), nil)
+        expect(plugin.instance_variable_get(:@query_executor)).to receive(:search).with(duck_type(:<<), nil)
         expect(Thread).to_not receive(:new)
 
         plugin.run([])
@@ -280,7 +280,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       before { plugin.register }
 
       it 'runs just one slice' do
-        expect(plugin.instance_variable_get(:@paginated_search)).to receive(:search).with(duck_type(:<<), nil)
+        expect(plugin.instance_variable_get(:@query_executor)).to receive(:search).with(duck_type(:<<), nil)
         expect(Thread).to_not receive(:new)
 
         plugin.run([])
@@ -295,7 +295,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
         it "runs #{slice_count} independent slices" do
           expect(Thread).to receive(:new).and_call_original.exactly(slice_count).times
           slice_count.times do |slice_id|
-            expect(plugin.instance_variable_get(:@paginated_search)).to receive(:search).with(duck_type(:<<), slice_id)
+            expect(plugin.instance_variable_get(:@query_executor)).to receive(:search).with(duck_type(:<<), slice_id)
           end
 
           plugin.run([])
@@ -423,8 +423,8 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
           expect(client).to receive(:search).with(hash_including(:body => slice1_query)).and_return(slice1_response0)
           expect(client).to receive(:scroll).with(hash_including(:body => { :scroll_id => slice1_scroll1 })).and_return(slice1_response1)
 
-          synchronize_method!(plugin.instance_variable_get(:@paginated_search), :next_page)
-          synchronize_method!(plugin.instance_variable_get(:@paginated_search), :initial_search)
+          synchronize_method!(plugin.instance_variable_get(:@query_executor), :next_page)
+          synchronize_method!(plugin.instance_variable_get(:@query_executor), :initial_search)
         end
 
         let(:client) { Elasticsearch::Client.new }
@@ -493,14 +493,14 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
           expect(client).to receive(:search).with(hash_including(:body => slice1_query)).and_return(slice1_response0)
           expect(client).to receive(:scroll).with(hash_including(:body => { :scroll_id => slice1_scroll1 })).and_raise("boom")
 
-          synchronize_method!(plugin.instance_variable_get(:@paginated_search), :next_page)
-          synchronize_method!(plugin.instance_variable_get(:@paginated_search), :initial_search)
+          synchronize_method!(plugin.instance_variable_get(:@query_executor), :next_page)
+          synchronize_method!(plugin.instance_variable_get(:@query_executor), :initial_search)
         end
 
         let(:client) { Elasticsearch::Client.new }
 
         it 'insert event to queue without waiting other slices' do
-          expect(plugin.instance_variable_get(:@paginated_search)).to receive(:search).twice.and_wrap_original do |m, *args|
+          expect(plugin.instance_variable_get(:@query_executor)).to receive(:search).twice.and_wrap_original do |m, *args|
             q = args[0]
             slice_id = args[1]
             if slice_id == 0
@@ -1020,7 +1020,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
 
     it "should properly schedule" do
       begin
-        expect(plugin.instance_variable_get(:@paginated_search)).to receive(:do_run) {
+        expect(plugin.instance_variable_get(:@query_executor)).to receive(:do_run) {
           queue << LogStash::Event.new({})
         }.at_least(:twice)
         runner = Thread.start { plugin.run(queue) }
