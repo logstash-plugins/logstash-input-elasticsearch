@@ -1,3 +1,6 @@
+## 4.20.1
+  - Fix license header [#203](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/203)
+
 ## 4.20.0
   - Added `response_type` configuration option to allow processing result of aggregations [#202](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/202)
 
