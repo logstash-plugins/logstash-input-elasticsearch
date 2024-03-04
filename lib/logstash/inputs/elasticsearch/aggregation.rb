@@ -30,6 +30,7 @@ module LogStash
           error_details = {:message => e.message, :cause => e.cause}
           error_details[:backtrace] = e.backtrace if logger.debug?
           logger.error("Tried #{job_name} unsuccessfully", error_details)
+          false
         end
 
         def do_run(output_queue)
@@ -37,7 +38,7 @@ module LogStash
           r = retryable(AGGREGATION_JOB) do
             @client.search(@agg_options)
           end
-          @plugin.push_hit(r, output_queue, 'aggregations')
+          @plugin.push_hit(r, output_queue, 'aggregations') if r
         end
       end
     end
