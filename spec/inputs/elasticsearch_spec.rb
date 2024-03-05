@@ -1071,23 +1071,32 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       }
     end
 
+    let(:client) { Elasticsearch::Client.new }
     before(:each) do
-      client = Elasticsearch::Client.new
-
       expect(Elasticsearch::Client).to receive(:new).with(any_args).and_return(client)
-      expect(client).to receive(:search).with(any_args).and_return(mock_response)
       expect(client).to receive(:ping)
     end
 
     before { plugin.register }
 
     it 'creates the events from the aggregations' do
+      expect(client).to receive(:search).with(any_args).and_return(mock_response)
       plugin.run queue
       event = queue.pop
 
       expect(event).to be_a(LogStash::Event)
       expect(event.get("[total_counter][value]")).to eql 10
       expect(event.get("[empty_counter][value]")).to eql 5
+    end
+
+    context "when there's an exception" do
+      before(:each) do
+        allow(client).to receive(:search).and_raise RuntimeError
+      end
+      it 'produces no events' do
+        plugin.run queue
+        expect(queue).to be_empty
+      end
     end
   end
 

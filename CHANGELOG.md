@@ -1,3 +1,6 @@
+## 4.20.2
+  - fix case when aggregation returns an error [#204](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/204)
+
 ## 4.20.1
   - Fix license header [#203](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/203)
 
