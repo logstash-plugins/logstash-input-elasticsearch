@@ -35,6 +35,7 @@ module LogStash; module Inputs; class Elasticsearch
 
     def converge_last_value
       return if @last_value_hashmap.empty?
+      # TODO this implicitly assumes that the way to converge the value among slices is to pick the highest and we can't assume that
       new_last_value = @last_value_hashmap.reduceValues(1, lambda { |v1, v2| Time.parse(v1) < Time.parse(v2) ? v2 : v1 })
       return if new_last_value == @last_value
       @last_value = new_last_value
