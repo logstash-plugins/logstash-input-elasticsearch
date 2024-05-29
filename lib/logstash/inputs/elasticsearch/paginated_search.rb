@@ -21,10 +21,14 @@ module LogStash
           @pipeline_id = plugin.pipeline_id
         end
 
-        def do_run(output_queue)
-          return retryable_search(output_queue) if @slices.nil? || @slices <= 1
+        def do_run(output_queue, query)
+          @query = query
 
-          retryable_slice_search(output_queue)
+          if @slices.nil? || @slices <= 1
+            retryable_search(output_queue)
+          else
+            retryable_slice_search(output_queue)
+          end
         end
 
         def retryable(job_name, &block)
