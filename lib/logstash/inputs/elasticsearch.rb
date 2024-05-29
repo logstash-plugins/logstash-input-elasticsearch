@@ -73,6 +73,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
   require 'logstash/inputs/elasticsearch/paginated_search'
   require 'logstash/inputs/elasticsearch/aggregation'
+  require 'logstash/inputs/elasticsearch/cursor_tracker'
 
   include LogStash::PluginMixins::ECSCompatibilitySupport(:disabled, :v1, :v8 => :v1)
   include LogStash::PluginMixins::ECSCompatibilitySupport::TargetCheck
@@ -123,6 +124,22 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # This parameter controls the number of parallel slices to be consumed simultaneously
   # by this pipeline input.
   config :slices, :validate => :number
+
+  # Enable tracking the value of a given field to be used as a cursor
+  # TODO: main concerns
+  #       * schedule overlap needs to be disabled (hardcoded as enabled)
+  #       * using anything other than _event.timestamp easily leads to data loss
+  #       * the first "synchronization run can take a long time"
+  #       * checkpointing is only safe to do after each run (not per document)
+  config :tracking_field, :validate => :string
+
+  # Define the initial seed value of the tracking_field
+  config :tracking_field_seed, :validate => :string
+
+  # The location of where the tracking field value will be stored
+  # The value is persisted after each scheduled run (and not per result)
+  # If it's not set it defaults to '${path.data}/plugins/inputs/elasticsearch/last_run_value'
+  config :last_run_metadata_path, :validate => :string
 
   # If set, include Elasticsearch document information such as index, type, and
   # the id in the event.
@@ -250,6 +267,10 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # exactly once.
   config :schedule, :validate => :string
 
+  # Allow scheduled runs to overlap (enabled by default). Setting to false will
+  # only start a new scheduled run after the previous one completes.
+  config :schedule_overlap, :validate => :string
+
   # If set, the _source of each hit will be added nested under the target instead of at the top-level
   config :target, :validate => :field_reference
 
@@ -328,16 +349,28 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
     setup_query_executor
 
+    setup_cursor_tracker
+
     @client
   end
 
   def run(output_queue)
     if @schedule
-      scheduler.cron(@schedule) { @query_executor.do_run(output_queue) }
+      scheduler.cron(@schedule, :overlap => @schedule_overlap) do
+        @query_executor.do_run(output_queue, get_query_object())
+        @cursor_tracker.checkpoint_cursor
+      end
       scheduler.join
     else
-      @query_executor.do_run(output_queue)
+      @query_executor.do_run(output_queue, get_query_object())
+      @cursor_tracker.checkpoint_cursor
     end
+  end
+
+  def get_query_object
+    injected_query = @cursor_tracker.inject_cursor(@query)
+    @logger.debug("new query is #{injected_query}")
+    query_object = LogStash::Json.load(injected_query)
   end
 
   ##
@@ -347,6 +380,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     event = event_from_hit(hit, root_field)
     decorate(event)
     output_queue << event
+    @cursor_tracker.record_last_value(event)
   end
 
   def event_from_hit(hit, root_field)
@@ -652,6 +686,17 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   rescue ::LoadError
     require "elastic/transport/transport/http/manticore"
     ::Elastic::Transport::Transport::HTTP::Manticore
+  end
+
+  def setup_cursor_tracker
+    if @tracking_field
+      @tracking_field_seed ||= Time.now.utc.iso8601
+      @cursor_tracker = CursorTracker.new(last_run_metadata_path: @last_run_metadata_path,
+                                          tracking_field: @tracking_field,
+                                          tracking_field_seed: @tracking_field_seed)
+    else
+      @cursor_tracker = NoopCursorTracker.new
+    end
   end
 
   module URIOrEmptyValidator
