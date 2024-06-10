@@ -1,5 +1,48 @@
-## 4.16.1
+## 4.20.3
   - Fix: failure to create an Event from an Elasticsearch hit result will no longer crash this plugin. Instead, it will emit an Event tagged with `_elasticsearch_input_failure` whose `[event][original]` is a JSON-encoded string representation of the entire hit
+
+## 4.20.2
+  - fix case when aggregation returns an error [#204](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/204)
+
+## 4.20.1
+  - Fix license header [#203](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/203)
+
+## 4.20.0
+  - Added `response_type` configuration option to allow processing result of aggregations [#202](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/202)
+
+## 4.19.1
+  - Plugin version bump to pick up docs fix in  [#199](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/199) required to clear build error in docgen. [#200](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/200)
+
+## 4.19.0
+  - Added `search_api` option to support `search_after` and `scroll` [#198](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/198)
+    - The default value `auto` uses `search_after` for Elasticsearch >= 8, otherwise, fall back to `scroll` 
+
+## 4.18.0
+  - Added request header `Elastic-Api-Version` for serverless [#195](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/195)
+
+## 4.17.2
+  - Fixes a regression introduced in 4.17.0 which could prevent a connection from being established to Elasticsearch in some SSL configurations [#193](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/193)
+
+## 4.17.1
+  - Fix: scroll slice high memory consumption [#189](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/189)
+
+## 4.17.0
+  - Added SSL settings for: [#185](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/185)
+    - `ssl_enabled`: Enable/disable the SSL settings. If not provided, the value is inferred from the hosts scheme
+    - `ssl_certificate`: OpenSSL-style X.509 certificate file to authenticate the client
+    - `ssl_key`: OpenSSL-style RSA private key that corresponds to the `ssl_certificate`
+    - `ssl_truststore_path`: The JKS truststore to validate the server's certificate
+    - `ssl_truststore_type`: The format of the truststore file
+    - `ssl_truststore_password`: The truststore password
+    - `ssl_keystore_path`: The keystore used to present a certificate to the server
+    - `ssl_keystore_type`: The format of the keystore file
+    - `ssl_keystore_password`: The keystore password
+    - `ssl_cipher_suites`: The list of cipher suites to use
+    - `ssl_supported_protocols`: Supported protocols with versions
+  - Reviewed and deprecated SSL settings to comply with Logstash's naming convention
+    - Deprecated `ssl` in favor of `ssl_enabled`
+    - Deprecated `ca_file` in favor of `ssl_certificate_authorities`
+    - Deprecated `ssl_certificate_verification` in favor of `ssl_verification_mode`
 
 ## 4.16.0
   - Added `ssl_certificate_verification` option to control SSL certificate verification [#180](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/180)

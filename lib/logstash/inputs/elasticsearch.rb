@@ -9,8 +9,8 @@ require 'logstash/plugin_mixins/ecs_compatibility_support'
 require 'logstash/plugin_mixins/ecs_compatibility_support/target_check'
 require 'logstash/plugin_mixins/ca_trusted_fingerprint_support'
 require "logstash/plugin_mixins/scheduler"
+require "logstash/plugin_mixins/normalize_config_support"
 require "base64"
-require 'logstash/helpers/loggable_try'
 
 require "elasticsearch"
 require "elasticsearch/transport/transport/http/manticore"
@@ -73,6 +73,9 @@ require_relative "elasticsearch/patches/_elasticsearch_transport_connections_sel
 #
 class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
+  require 'logstash/inputs/elasticsearch/paginated_search'
+  require 'logstash/inputs/elasticsearch/aggregation'
+
   include LogStash::PluginMixins::ECSCompatibilitySupport(:disabled, :v1, :v8 => :v1)
   include LogStash::PluginMixins::ECSCompatibilitySupport::TargetCheck
 
@@ -81,6 +84,8 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   extend LogStash::PluginMixins::ValidatorSupport::FieldReferenceValidationAdapter
 
   include LogStash::PluginMixins::Scheduler
+
+  include LogStash::PluginMixins::NormalizeConfigSupport
 
   config_name "elasticsearch"
 
@@ -97,11 +102,20 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html
   config :query, :validate => :string, :default => '{ "sort": [ "_doc" ] }'
 
+  # This allows you to speccify the response type: either hits or aggregations
+  # where hits: normal search request
+  #       aggregations: aggregation request
+  config :response_type, :validate => ['hits', 'aggregations'], :default => 'hits'
+
   # This allows you to set the maximum number of hits returned per scroll.
   config :size, :validate => :number, :default => 1000
 
   # The number of retries to run the query. If the query fails after all retries, it logs an error message.
   config :retries, :validate => :number, :default => 0
+
+  # Default `auto` will use `search_after` api for Elasticsearch 8 and use `scroll` api for 7
+  # Set to scroll to fallback to previous version
+  config :search_api, :validate => %w[auto search_after scroll], :default => "auto"
 
   # This parameter controls the keepalive time in seconds of the scrolling
   # request and initiates the scrolling process. The timeout applies per
@@ -185,15 +199,60 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   config :proxy, :validate => :uri_or_empty
 
   # SSL
-  config :ssl, :validate => :boolean, :default => false
+  config :ssl, :validate => :boolean, :default => false, :deprecated => "Set 'ssl_enabled' instead."
 
-  # SSL Certificate Authority file in PEM encoded format, must also include any chain certificates as necessary 
-  config :ca_file, :validate => :path
+  # SSL Certificate Authority file in PEM encoded format, must also include any chain certificates as necessary
+  config :ca_file, :validate => :path, :deprecated => "Set 'ssl_certificate_authorities' instead."
+
+  # OpenSSL-style X.509 certificate certificate to authenticate the client
+  config :ssl_certificate, :validate => :path
+
+  # SSL Certificate Authority files in PEM encoded format, must also include any chain certificates as necessary
+  config :ssl_certificate_authorities, :validate => :path, :list => true
 
   # Option to validate the server's certificate. Disabling this severely compromises security.
   # For more information on the importance of certificate verification please read
   # https://www.cs.utexas.edu/~shmat/shmat_ccs12.pdf
-  config :ssl_certificate_verification, :validate => :boolean, :default => true
+  config :ssl_certificate_verification, :validate => :boolean, :default => true, :deprecated => "Set 'ssl_verification_mode' instead."
+
+  # The list of cipher suites to use, listed by priorities.
+  # Supported cipher suites vary depending on which version of Java is used.
+  config :ssl_cipher_suites, :validate => :string, :list => true
+
+  # SSL
+  config :ssl_enabled, :validate => :boolean
+
+  # OpenSSL-style RSA private key to authenticate the client
+  config :ssl_key, :validate => :path
+
+  # Set the keystore password
+  config :ssl_keystore_password, :validate => :password
+
+  # The keystore used to present a certificate to the server.
+  # It can be either .jks or .p12
+  config :ssl_keystore_path, :validate => :path
+
+  # The format of the keystore file. It must be either jks or pkcs12
+  config :ssl_keystore_type, :validate => %w[pkcs12 jks]
+
+  # Supported protocols with versions.
+  config :ssl_supported_protocols, :validate => %w[TLSv1.1 TLSv1.2 TLSv1.3], :default => [], :list => true
+
+  # Set the truststore password
+  config :ssl_truststore_password, :validate => :password
+
+  # The JKS truststore to validate the server's certificate.
+  # Use either `:ssl_truststore_path` or `:ssl_certificate_authorities`
+  config :ssl_truststore_path, :validate => :path
+
+  # The format of the truststore file. It must be either jks or pkcs12
+  config :ssl_truststore_type, :validate => %w[pkcs12 jks]
+
+  # Options to verify the server's certificate.
+  # "full": validates that the provided certificate has an issue date that’s within the not_before and not_after dates;
+  # chains to a trusted Certificate Authority (CA); has a hostname or IP address that matches the names within the certificate.
+  # "none": performs no certificate validation. Disabling this severely compromises security (https://www.cs.utexas.edu/~shmat/shmat_ccs12.pdf)
+  config :ssl_verification_mode, :validate => %w[full none], :default => 'full'
 
   # Schedule of when to periodically run statement, in Cron format
   # for example: "* * * * *" (execute query every minute, on the minute)
@@ -208,6 +267,11 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # config :ca_trusted_fingerprint, :validate => :sha_256_hex
   include LogStash::PluginMixins::CATrustedFingerprintSupport
 
+  attr_reader :pipeline_id
+
+  BUILD_FLAVOR_SERVERLESS = 'serverless'.freeze
+  DEFAULT_EAV_HEADER = { "Elastic-Api-Version" => "2023-10-31" }.freeze
+
   def initialize(params={})
     super(params)
 
@@ -219,11 +283,11 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   def register
     require "rufus/scheduler"
 
-    @options = {
-      :index => @index,
-      :scroll => @scroll,
-      :size => @size
-    }
+    @pipeline_id = execution_context&.pipeline_id || 'main'
+
+    fill_hosts_from_cloud_id
+    setup_ssl_params!
+
     @base_query = LogStash::Json.load(@query)
     if @slices
       @base_query.include?('slice') && fail(LogStash::ConfigurationError, "Elasticsearch Input Plugin's `query` option cannot specify specific `slice` when configured to manage parallel slices with `slices` option")
@@ -234,8 +298,6 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
     validate_authentication
     fill_user_password_from_cloud_auth
-    fill_hosts_from_cloud_id
-
 
     transport_options = {:headers => {}}
     transport_options[:headers].merge!(setup_basic_auth(user, password))
@@ -246,133 +308,45 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     transport_options[:socket_timeout]  = @socket_timeout_seconds  unless @socket_timeout_seconds.nil?
 
     hosts = setup_hosts
-    ssl_options = setup_ssl
+    ssl_options = setup_client_ssl
 
     @logger.warn "Supplied proxy setting (proxy => '') has no effect" if @proxy.eql?('')
 
     transport_options[:proxy] = @proxy.to_s if @proxy && !@proxy.eql?('')
 
-    @client = Elasticsearch::Client.new(
+    @client_options = {
       :hosts => hosts,
       :transport_options => transport_options,
       :transport_class => ::Elasticsearch::Transport::Transport::HTTP::Manticore,
       :ssl => ssl_options
-    )
+    }
+
+    @client = Elasticsearch::Client.new(@client_options)
+
     test_connection!
+
+    setup_serverless
+
+    setup_search_api
+
+    setup_query_executor
+
     @client
   end
 
-
   def run(output_queue)
     if @schedule
-      scheduler.cron(@schedule) { do_run(output_queue) }
+      scheduler.cron(@schedule) { @query_executor.do_run(output_queue) }
       scheduler.join
     else
-      do_run(output_queue)
-    end
-  end
-
-  private
-  JOB_NAME = "run query"
-  def do_run(output_queue)
-    # if configured to run a single slice, don't bother spinning up threads
-    if @slices.nil? || @slices <= 1
-      success, events = retryable_slice
-      success && events.each { |event| output_queue << event }
-      return
-    end
-
-    logger.warn("managed slices for query is very large (#{@slices}); consider reducing") if @slices > 8
-
-    slice_results = parallel_slice # array of tuple(ok, events)
-
-    # insert events to queue if all slices success
-    if slice_results.all?(&:first)
-      slice_results.flat_map { |success, events| events }
-                  .each { |event| output_queue << event }
-    end
-
-    logger.trace("#{@slices} slices completed")
-  end
-
-  def retryable(job_name, &block)
-    begin
-      stud_try = ::LogStash::Helpers::LoggableTry.new(logger, job_name)
-      output = stud_try.try((@retries + 1).times) { yield }
-      [true, output]
-    rescue => e
-      error_details = {:message => e.message, :cause => e.cause}
-      error_details[:backtrace] = e.backtrace if logger.debug?
-      logger.error("Tried #{job_name} unsuccessfully", error_details)
-      [false, nil]
-    end
-  end
-
-
-  # @return [(ok, events)] : Array of tuple(Boolean, [Logstash::Event])
-  def parallel_slice
-    pipeline_id = execution_context&.pipeline_id || 'main'
-    @slices.times.map do |slice_id|
-      Thread.new do
-        LogStash::Util::set_thread_name("[#{pipeline_id}]|input|elasticsearch|slice_#{slice_id}")
-        retryable_slice(slice_id)
-      end
-    end.map do |t|
-      t.join
-      t.value
-    end
-  end
-
-  # @param scroll_id [Integer]
-  # @return (ok, events) [Boolean, Array(Logstash::Event)]
-  def retryable_slice(slice_id=nil)
-    retryable(JOB_NAME) do
-      output = []
-      do_run_slice(output, slice_id)
-      output
-    end
-  end
-
-
-  def do_run_slice(output_queue, slice_id=nil)
-    slice_query = @base_query
-    slice_query = slice_query.merge('slice' => { 'id' => slice_id, 'max' => @slices}) unless slice_id.nil?
-
-    slice_options = @options.merge(:body => LogStash::Json.dump(slice_query) )
-
-    logger.info("Slice starting", slice_id: slice_id, slices: @slices) unless slice_id.nil?
-
-    begin
-      r = search_request(slice_options)
-
-      r['hits']['hits'].each { |hit| push_hit(hit, output_queue) }
-      logger.debug("Slice progress", slice_id: slice_id, slices: @slices) unless slice_id.nil?
-
-      has_hits = r['hits']['hits'].any?
-      scroll_id = r['_scroll_id']
-
-      while has_hits && scroll_id && !stop?
-        has_hits, scroll_id = process_next_scroll(output_queue, scroll_id)
-        logger.debug("Slice progress", slice_id: slice_id, slices: @slices) if logger.debug? && slice_id
-      end
-      logger.info("Slice complete", slice_id: slice_id, slices: @slices) unless slice_id.nil?
-    ensure
-      clear_scroll(scroll_id)
+      @query_executor.do_run(output_queue)
     end
   end
 
   ##
-  # @param output_queue [#<<]
-  # @param scroll_id [String]: a scroll id to resume
-  # @return [Array(Boolean,String)]: a tuple representing whether the response
-  #
-  def process_next_scroll(output_queue, scroll_id)
-    r = scroll_request(scroll_id)
-    r['hits']['hits'].each { |hit| push_hit(hit, output_queue) }
-    [r['hits']['hits'].any?, r['_scroll_id']]
-  end
-
-  def push_hit(hit, output_queue)
+  # This can be called externally from the query_executor
+  public
+  def push_hit(hit, output_queue, root_field = '_source')
     event = event_from_hit(hit)
     decorate(event)
     output_queue << event
@@ -405,23 +379,19 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     event.set(@docinfo_target, docinfo_target)
   end
 
-  def clear_scroll(scroll_id)
-    @client.clear_scroll(:body => { :scroll_id => scroll_id }) if scroll_id
-  rescue => e
-    # ignore & log any clear_scroll errors
-    logger.warn("Ignoring clear_scroll exception", message: e.message, exception: e.class)
-  end
-
-  def scroll_request(scroll_id)
-    @client.scroll(:body => { :scroll_id => scroll_id }, :scroll => @scroll)
-  end
-
-  def search_request(options)
-    @client.search(options)
-  end
+  private
 
   def hosts_default?(hosts)
     hosts.nil? || ( hosts.is_a?(Array) && hosts.empty? )
+  end
+
+  def effectively_ssl?
+    return true if @ssl_enabled
+
+    hosts = Array(@hosts)
+    return false if hosts.nil? || hosts.empty?
+
+    hosts.all? { |host| host && host.to_s.start_with?("https") }
   end
 
   def validate_authentication
@@ -434,24 +404,113 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
       raise LogStash::ConfigurationError, 'Multiple authentication options are specified, please only use one of user/password, cloud_auth or api_key'
     end
 
-    if @api_key && @api_key.value && @ssl != true
-      raise(LogStash::ConfigurationError, "Using api_key authentication requires SSL/TLS secured communication using the `ssl => true` option")
+    if @api_key && @api_key.value && @ssl_enabled != true
+      raise(LogStash::ConfigurationError, "Using api_key authentication requires SSL/TLS secured communication using the `ssl_enabled => true` option")
     end
   end
 
-  def setup_ssl
+  def setup_client_ssl
     ssl_options = {}
+    ssl_options[:ssl] = true if @ssl_enabled
 
-    ssl_options[:ssl] = true if @ssl
-    ssl_options[:ca_file] = @ca_file if @ssl && @ca_file
-    ssl_options[:trust_strategy] = trust_strategy_for_ca_trusted_fingerprint
-    if @ssl && !@ssl_certificate_verification
-      logger.warn "You have enabled encryption but DISABLED certificate verification, " +
-                    "to make sure your data is secure remove `ssl_certificate_verification => false`"
-      ssl_options[:verify] = :disable
+    unless @ssl_enabled
+      # Keep it backward compatible with the deprecated `ssl` option
+      ssl_options[:trust_strategy] = trust_strategy_for_ca_trusted_fingerprint if original_params.include?('ssl')
+      return ssl_options
     end
 
+    ssl_certificate_authorities, ssl_truststore_path, ssl_certificate, ssl_keystore_path = params.values_at('ssl_certificate_authorities', 'ssl_truststore_path', 'ssl_certificate', 'ssl_keystore_path')
+
+    if ssl_certificate_authorities && ssl_truststore_path
+      raise LogStash::ConfigurationError, 'Use either "ssl_certificate_authorities/ca_file" or "ssl_truststore_path" when configuring the CA certificate'
+    end
+
+    if ssl_certificate && ssl_keystore_path
+      raise LogStash::ConfigurationError, 'Use either "ssl_certificate" or "ssl_keystore_path/keystore" when configuring client certificates'
+    end
+
+    if ssl_certificate_authorities&.any?
+      raise LogStash::ConfigurationError, 'Multiple values on "ssl_certificate_authorities" are not supported by this plugin' if ssl_certificate_authorities.size > 1
+      ssl_options[:ca_file] = ssl_certificate_authorities.first
+    end
+
+    if ssl_truststore_path
+      ssl_options[:truststore] = ssl_truststore_path
+      ssl_options[:truststore_type] = params["ssl_truststore_type"] if params.include?("ssl_truststore_type")
+      ssl_options[:truststore_password] = params["ssl_truststore_password"].value if params.include?("ssl_truststore_password")
+    end
+
+    if ssl_keystore_path
+      ssl_options[:keystore] = ssl_keystore_path
+      ssl_options[:keystore_type] = params["ssl_keystore_type"] if params.include?("ssl_keystore_type")
+      ssl_options[:keystore_password] = params["ssl_keystore_password"].value if params.include?("ssl_keystore_password")
+    end
+
+    ssl_key = params["ssl_key"]
+    if ssl_certificate
+      raise LogStash::ConfigurationError, 'Using an "ssl_certificate" requires an "ssl_key"' unless ssl_key
+      ssl_options[:client_cert] = ssl_certificate
+      ssl_options[:client_key] = ssl_key
+    elsif !ssl_key.nil?
+      raise LogStash::ConfigurationError, 'An "ssl_certificate" is required when using an "ssl_key"'
+    end
+
+    ssl_verification_mode = params["ssl_verification_mode"]
+    unless ssl_verification_mode.nil?
+      case ssl_verification_mode
+        when 'none'
+          logger.warn "You have enabled encryption but DISABLED certificate verification, " +
+                        "to make sure your data is secure set `ssl_verification_mode => full`"
+          ssl_options[:verify] = :disable
+        else
+          # Manticore's :default maps to Apache HTTP Client's DefaultHostnameVerifier,
+          # which is the modern STRICT verifier that replaces the deprecated StrictHostnameVerifier
+          ssl_options[:verify] = :default
+      end
+    end
+
+    ssl_options[:cipher_suites] = params["ssl_cipher_suites"] if params.include?("ssl_cipher_suites")
+
+    protocols = params['ssl_supported_protocols']
+    ssl_options[:protocols] = protocols if protocols&.any?
+    ssl_options[:trust_strategy] = trust_strategy_for_ca_trusted_fingerprint
+
     ssl_options
+  end
+
+  def setup_ssl_params!
+    @ssl_enabled = normalize_config(:ssl_enabled) do |normalize|
+      normalize.with_deprecated_alias(:ssl)
+    end
+
+    # Infer the value if neither the deprecate `ssl` and `ssl_enabled` were set
+    infer_ssl_enabled_from_hosts
+
+    @ssl_certificate_authorities = normalize_config(:ssl_certificate_authorities) do |normalize|
+      normalize.with_deprecated_mapping(:ca_file) do |ca_file|
+        [ca_file]
+      end
+    end
+
+    @ssl_verification_mode = normalize_config(:ssl_verification_mode) do |normalize|
+      normalize.with_deprecated_mapping(:ssl_certificate_verification) do |ssl_certificate_verification|
+        if ssl_certificate_verification == true
+          "full"
+        else
+          "none"
+        end
+      end
+    end
+
+    params['ssl_enabled'] = @ssl_enabled
+    params['ssl_certificate_authorities'] = @ssl_certificate_authorities unless @ssl_certificate_authorities.nil?
+    params['ssl_verification_mode'] = @ssl_verification_mode unless @ssl_verification_mode.nil?
+  end
+
+  def infer_ssl_enabled_from_hosts
+    return if original_params.include?('ssl') || original_params.include?('ssl_enabled')
+
+    @ssl_enabled = params['ssl_enabled'] = effectively_ssl?
   end
 
   def setup_hosts
@@ -461,7 +520,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
         h
       else
         host, port = h.split(':')
-        { host: host, port: port, scheme: (@ssl ? 'https' : 'http') }
+        { host: host, port: port, scheme: (@ssl_enabled ? 'https' : 'http') }
       end
     end
   end
@@ -549,6 +608,68 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     @client.ping
   rescue Elasticsearch::UnsupportedProductError
     raise LogStash::ConfigurationError, "Could not connect to a compatible version of Elasticsearch"
+  end
+
+  def es_info
+    @es_info ||= @client.info
+  end
+
+  def es_version
+    @es_version ||= es_info&.dig('version', 'number')
+  end
+
+  def es_major_version
+    @es_major_version ||= es_version.split('.').first.to_i
+  end
+
+  # recreate client with default header when it is serverless
+  # verify the header by sending GET /
+  def setup_serverless
+    if serverless?
+      @client_options[:transport_options][:headers].merge!(DEFAULT_EAV_HEADER)
+      @client = Elasticsearch::Client.new(@client_options)
+      @client.info
+    end
+  rescue => e
+    @logger.error("Failed to retrieve Elasticsearch info", message: e.message, exception: e.class, backtrace: e.backtrace)
+    raise LogStash::ConfigurationError, "Could not connect to a compatible version of Elasticsearch"
+  end
+
+  def build_flavor
+    @build_flavor ||= es_info&.dig('version', 'build_flavor')
+  end
+
+  def serverless?
+    @is_serverless ||= (build_flavor == BUILD_FLAVOR_SERVERLESS)
+  end
+
+  def setup_search_api
+    @resolved_search_api = if @search_api == "auto"
+                             api = if es_major_version >= 8
+                                    "search_after"
+                                   else
+                                     "scroll"
+                                   end
+                             logger.info("`search_api => auto` resolved to `#{api}`", :elasticsearch => es_version)
+                             api
+                           else
+                             @search_api
+                           end
+
+  end
+
+  def setup_query_executor
+    @query_executor = case @response_type
+                      when 'hits'
+                        if @resolved_search_api == "search_after"
+                          LogStash::Inputs::Elasticsearch::SearchAfter.new(@client, self)
+                        else
+                          logger.warn("scroll API is no longer recommended for pagination. Consider using search_after instead.") if es_major_version >= 8
+                          LogStash::Inputs::Elasticsearch::Scroll.new(@client, self)
+                        end
+                      when 'aggregations'
+                        LogStash::Inputs::Elasticsearch::Aggregation.new(@client, self)
+                      end
   end
 
   module URIOrEmptyValidator

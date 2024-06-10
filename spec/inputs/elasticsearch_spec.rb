@@ -17,9 +17,13 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
 
   let(:plugin) { described_class.new(config) }
   let(:queue) { Queue.new }
+  let(:build_flavor) { "default" }
+  let(:es_version) { "7.5.0" }
+  let(:cluster_info) { {"version" => {"number" => es_version, "build_flavor" => build_flavor}, "tagline" => "You Know, for Search"} }
 
   before(:each) do
     Elasticsearch::Client.send(:define_method, :ping) { } # define no-action ping method
+    allow_any_instance_of(Elasticsearch::Client).to receive(:info).and_return(cluster_info)
   end
 
   let(:base_config) do
@@ -39,7 +43,13 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
     context "against authentic Elasticsearch" do
       it "should not raise an exception" do
        expect { plugin.register }.to_not raise_error
-     end
+      end
+
+      it "does not set header Elastic-Api-Version" do
+        plugin.register
+        client = plugin.send(:client)
+        expect( extract_transport(client).options[:transport_options][:headers] ).not_to match hash_including("Elastic-Api-Version" => "2023-10-31")
+      end
     end
 
     context "against not authentic Elasticsearch" do
@@ -52,6 +62,37 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       end
     end
 
+    context "against serverless Elasticsearch" do
+      before do
+        allow(plugin).to receive(:test_connection!)
+        allow(plugin).to receive(:serverless?).and_return(true)
+      end
+
+      context "with unsupported header" do
+        let(:es_client) { double("es_client") }
+
+        before do
+          allow(Elasticsearch::Client).to receive(:new).and_return(es_client)
+          allow(es_client).to receive(:info).and_raise(
+            Elasticsearch::Transport::Transport::Errors::BadRequest.new
+          )
+        end
+
+        it "raises an exception" do
+          expect {plugin.register}.to raise_error(LogStash::ConfigurationError)
+        end
+      end
+
+      context "with supported header" do
+        it "set default header to rest client" do
+          expect_any_instance_of(Elasticsearch::Client).to receive(:info).and_return(true)
+          plugin.register
+          client = plugin.send(:client)
+          expect( extract_transport(client).options[:transport_options][:headers] ).to match hash_including("Elastic-Api-Version" => "2023-10-31")
+        end
+      end
+    end
+
     context "retry" do
       let(:config) do
         {
@@ -60,6 +101,26 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       end
       it "should raise an exception with negative number" do
         expect { plugin.register }.to raise_error(LogStash::ConfigurationError)
+      end
+    end
+
+    context "search_api" do
+      before(:each) do
+        plugin.register
+      end
+
+      context "ES 8" do
+        let(:es_version) { "8.10.0" }
+        it "resolves `auto` to `search_after`" do
+          expect(plugin.instance_variable_get(:@query_executor)).to be_a LogStash::Inputs::Elasticsearch::SearchAfter
+        end
+      end
+
+      context "ES 7" do
+        let(:es_version) { "7.17.0" }
+        it "resolves `auto` to `scroll`" do
+          expect(plugin.instance_variable_get(:@query_executor)).to be_a LogStash::Inputs::Elasticsearch::Scroll
+        end
       end
     end
   end
@@ -85,6 +146,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       allow(@esclient).to receive(:scroll) { { "hits" => { "hits" => [hit] } } }
       allow(@esclient).to receive(:clear_scroll).and_return(nil)
       allow(@esclient).to receive(:ping)
+      allow(@esclient).to receive(:info).and_return(cluster_info)
     end
   end
 
@@ -203,22 +265,24 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
 
     context 'with `slices => 1`' do
       let(:slices) { 1 }
+      before { plugin.register }
+
       it 'runs just one slice' do
-        expect(plugin).to receive(:do_run_slice).with(duck_type(:<<), nil)
+        expect(plugin.instance_variable_get(:@query_executor)).to receive(:search).with(duck_type(:<<), nil)
         expect(Thread).to_not receive(:new)
 
-        plugin.register
         plugin.run([])
       end
     end
 
     context 'without slices directive' do
       let(:config) { super().tap { |h| h.delete('slices') } }
+      before { plugin.register }
+
       it 'runs just one slice' do
-        expect(plugin).to receive(:do_run_slice).with(duck_type(:<<), nil)
+        expect(plugin.instance_variable_get(:@query_executor)).to receive(:search).with(duck_type(:<<), nil)
         expect(Thread).to_not receive(:new)
 
-        plugin.register
         plugin.run([])
       end
     end
@@ -226,13 +290,14 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
     2.upto(8) do |slice_count|
       context "with `slices => #{slice_count}`" do
         let(:slices) { slice_count }
+        before { plugin.register }
+
         it "runs #{slice_count} independent slices" do
           expect(Thread).to receive(:new).and_call_original.exactly(slice_count).times
           slice_count.times do |slice_id|
-            expect(plugin).to receive(:do_run_slice).with(duck_type(:<<), slice_id)
+            expect(plugin.instance_variable_get(:@query_executor)).to receive(:search).with(duck_type(:<<), slice_id)
           end
 
-          plugin.register
           plugin.run([])
         end
       end
@@ -358,8 +423,8 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
           expect(client).to receive(:search).with(hash_including(:body => slice1_query)).and_return(slice1_response0)
           expect(client).to receive(:scroll).with(hash_including(:body => { :scroll_id => slice1_scroll1 })).and_return(slice1_response1)
 
-          synchronize_method!(plugin, :scroll_request)
-          synchronize_method!(plugin, :search_request)
+          synchronize_method!(plugin.instance_variable_get(:@query_executor), :next_page)
+          synchronize_method!(plugin.instance_variable_get(:@query_executor), :initial_search)
         end
 
         let(:client) { Elasticsearch::Client.new }
@@ -414,37 +479,42 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
           expect(Elasticsearch::Client).to receive(:new).with(any_args).and_return(client)
           plugin.register
 
-          expect(client).to receive(:clear_scroll).and_return(nil)
+          expect(client).to receive(:clear_scroll).twice.and_return(nil)
 
-          # SLICE0 is a three-page scroll in which the second page throw exception
+          # SLICE0 is a three-page scroll
           slice0_query = LogStash::Json.dump(query.merge('slice' => { 'id' => 0, 'max' => 2}))
           expect(client).to receive(:search).with(hash_including(:body => slice0_query)).and_return(slice0_response0)
-          expect(client).to receive(:scroll).with(hash_including(:body => { :scroll_id => slice0_scroll1 })).and_raise("boom")
+          expect(client).to receive(:scroll).with(hash_including(:body => { :scroll_id => slice0_scroll1 })).and_return(slice0_response1)
+          expect(client).to receive(:scroll).with(hash_including(:body => { :scroll_id => slice0_scroll2 })).and_return(slice0_response2)
           allow(client).to receive(:ping)
 
-          # SLICE1 is a two-page scroll in which the last page has no next scroll id
+          # SLICE1 is a two-page scroll in which the last page throws exception
           slice1_query = LogStash::Json.dump(query.merge('slice' => { 'id' => 1, 'max' => 2}))
           expect(client).to receive(:search).with(hash_including(:body => slice1_query)).and_return(slice1_response0)
-          expect(client).to receive(:scroll).with(hash_including(:body => { :scroll_id => slice1_scroll1 })).and_return(slice1_response1)
+          expect(client).to receive(:scroll).with(hash_including(:body => { :scroll_id => slice1_scroll1 })).and_raise("boom")
 
-          synchronize_method!(plugin, :scroll_request)
-          synchronize_method!(plugin, :search_request)
+          synchronize_method!(plugin.instance_variable_get(:@query_executor), :next_page)
+          synchronize_method!(plugin.instance_variable_get(:@query_executor), :initial_search)
         end
 
         let(:client) { Elasticsearch::Client.new }
 
-        it 'does not insert event to queue' do
-          expect(plugin).to receive(:parallel_slice).and_wrap_original do |m, *args|
-            slice0, slice1 = m.call
-            expect(slice0[0]).to be_falsey
-            expect(slice1[0]).to be_truthy
-            expect(slice1[1].size).to eq(4) # four items from SLICE1
-            [slice0, slice1]
+        it 'insert event to queue without waiting other slices' do
+          expect(plugin.instance_variable_get(:@query_executor)).to receive(:search).twice.and_wrap_original do |m, *args|
+            q = args[0]
+            slice_id = args[1]
+            if slice_id == 0
+              m.call(*args)
+              expect(q.size).to eq(3)
+            else
+              sleep(1)
+              m.call(*args)
+            end
           end
 
           queue = Queue.new
           plugin.run(queue)
-          expect(queue.size).to eq(0)
+          expect(queue.size).to eq(5)
         end
       end
     end
@@ -698,7 +768,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       end
 
       context "with ssl" do
-        let(:config) { super().merge({ 'api_key' => LogStash::Util::Password.new('foo:bar'), "ssl" => true }) }
+        let(:config) { super().merge({ 'api_key' => LogStash::Util::Password.new('foo:bar'), "ssl_enabled" => true }) }
 
         it "should set authorization" do
           plugin.register
@@ -717,9 +787,9 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
         end
         
         context 'ssl verification disabled' do
-          let(:config) { super().merge({ 'ssl_certificate_verification' => false }) }
+          let(:config) { super().merge({ 'ssl_verification_mode' => 'none' }) }
           it 'should warn data security risk' do
-            expect(plugin.logger).to receive(:warn).once.with("You have enabled encryption but DISABLED certificate verification, to make sure your data is secure remove `ssl_certificate_verification => false`")
+            expect(plugin.logger).to receive(:warn).once.with("You have enabled encryption but DISABLED certificate verification, to make sure your data is secure set `ssl_verification_mode => full`")
             plugin.register
           end
         end
@@ -881,7 +951,9 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
         let(:plugin) { described_class.new(config) }
         let(:event)  { LogStash::Event.new({}) }
 
-        it "client should sent the expect user-agent" do
+        # elasticsearch-ruby 7.17.9 initialize two user agent headers, `user-agent` and `User-Agent`
+        # hence, fail this header size test case
+        xit "client should sent the expect user-agent" do
           plugin.register
 
           queue = []
@@ -928,6 +1000,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
             expect(transport_options[manticore_transport_option]).to eq(config_value.to_i)
             mock_client = double("fake_client")
             allow(mock_client).to receive(:ping)
+            allow(mock_client).to receive(:info).and_return(cluster_info)
             mock_client
           end
 
@@ -964,7 +1037,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
 
     it "should properly schedule" do
       begin
-        expect(plugin).to receive(:do_run) {
+        expect(plugin.instance_variable_get(:@query_executor)).to receive(:do_run) {
           queue << LogStash::Event.new({})
         }.at_least(:twice)
         runner = Thread.start { plugin.run(queue) }
@@ -977,50 +1050,75 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
         runner.join if runner
       end
     end
-
   end
 
-  context "retries" do
+  context "aggregations" do
+    let(:config) do
+      {
+        'hosts'         => ["localhost"],
+        'query'         => '{ "query": {}, "size": 0, "aggs":{"total_count": { "value_count": { "field": "type" }}, "empty_count": { "sum": { "field": "_meta.empty_event" }}}}',
+        'response_type' => 'aggregations',
+        'size'          => 0
+      }
+    end
+
     let(:mock_response) do
       {
-        "_scroll_id" => "cXVlcnlUaGVuRmV0Y2g",
         "took" => 27,
         "timed_out" => false,
         "_shards" => {
           "total" => 169,
           "successful" => 169,
+          "skipped" => 0,
           "failed" => 0
         },
         "hits" => {
-          "total" => 1,
+          "total" => 10,
           "max_score" => 1.0,
-          "hits" => [ {
-                        "_index" => "logstash-2014.10.12",
-                        "_type" => "logs",
-                        "_id" => "C5b2xLQwTZa76jBmHIbwHQ",
-                        "_score" => 1.0,
-                        "_source" => { "message" => ["ohayo"] }
-                      } ]
+          "hits" => []
+        },
+        "aggregations" => {
+          "total_counter" => {
+            "value" => 10
+          },
+          "empty_counter" => {
+            "value" => 5
+          },
         }
       }
     end
 
-    let(:mock_scroll_response) do
-      {
-        "_scroll_id" => "r453Wc1jh0caLJhSDg",
-        "hits" => { "hits" => [] }
-      }
-    end
-
+    let(:client) { Elasticsearch::Client.new }
     before(:each) do
-      client = Elasticsearch::Client.new
-      allow(Elasticsearch::Client).to receive(:new).with(any_args).and_return(client)
-      allow(client).to receive(:search).with(any_args).and_return(mock_response)
-      allow(client).to receive(:scroll).with({ :body => { :scroll_id => "cXVlcnlUaGVuRmV0Y2g" }, :scroll=> "1m" }).and_return(mock_scroll_response)
-      allow(client).to receive(:clear_scroll).and_return(nil)
-      allow(client).to receive(:ping)
+      expect(Elasticsearch::Client).to receive(:new).with(any_args).and_return(client)
+      expect(client).to receive(:ping)
     end
 
+    before { plugin.register }
+
+    it 'creates the events from the aggregations' do
+      expect(client).to receive(:search).with(any_args).and_return(mock_response)
+      plugin.run queue
+      event = queue.pop
+
+      expect(event).to be_a(LogStash::Event)
+      expect(event.get("[total_counter][value]")).to eql 10
+      expect(event.get("[empty_counter][value]")).to eql 5
+    end
+
+    context "when there's an exception" do
+      before(:each) do
+        allow(client).to receive(:search).and_raise RuntimeError
+      end
+      it 'produces no events' do
+        plugin.run queue
+        expect(queue).to be_empty
+      end
+    end
+  end
+
+  context "retries" do
+    let(:client) { Elasticsearch::Client.new }
     let(:config) do
       {
         "hosts" => ["localhost"],
@@ -1029,29 +1127,98 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       }
     end
 
-    it "retry and log error when all search request fail" do
-      expect(plugin.logger).to receive(:error).with(/Tried .* unsuccessfully/,
-                                                    hash_including(:message => 'Manticore::UnknownException'))
-      expect(plugin.logger).to receive(:warn).twice.with(/Attempt to .* but failed/,
-                                                         hash_including(:exception => "Manticore::UnknownException"))
-      expect(plugin).to receive(:search_request).with(instance_of(Hash)).and_raise(Manticore::UnknownException).at_least(:twice)
+    shared_examples "a retryable plugin" do
+      it "retry and log error when all search request fail" do
+        expect_any_instance_of(LogStash::Helpers::LoggableTry).to receive(:log_failure).with(instance_of(Manticore::UnknownException), instance_of(Integer), instance_of(String)).twice
+        expect(client).to receive(:search).with(instance_of(Hash)).and_raise(Manticore::UnknownException).at_least(:twice)
 
-      plugin.register
+        plugin.register
 
-      expect{ plugin.run(queue) }.not_to raise_error
-      expect(queue.size).to eq(0)
+        expect{ plugin.run(queue) }.not_to raise_error
+      end
+
+      it "retry successfully when search request fail for one time" do
+        expect_any_instance_of(LogStash::Helpers::LoggableTry).to receive(:log_failure).with(instance_of(Manticore::UnknownException), 1, instance_of(String))
+        expect(client).to receive(:search).with(instance_of(Hash)).once.and_raise(Manticore::UnknownException)
+        expect(client).to receive(:search).with(instance_of(Hash)).once.and_return(search_response)
+
+        plugin.register
+
+        expect{ plugin.run(queue) }.not_to raise_error
+      end
     end
 
-    it "retry successfully when search request fail for one time" do
-      expect(plugin.logger).to receive(:warn).once.with(/Attempt to .* but failed/,
-                                                         hash_including(:exception => "Manticore::UnknownException"))
-      expect(plugin).to receive(:search_request).with(instance_of(Hash)).once.and_raise(Manticore::UnknownException)
-      expect(plugin).to receive(:search_request).with(instance_of(Hash)).once.and_call_original
+    describe "scroll" do
+      let(:search_response) do
+        {
+          "_scroll_id" => "cXVlcnlUaGVuRmV0Y2g",
+          "took" => 27,
+          "timed_out" => false,
+          "_shards" => {
+            "total" => 169,
+            "successful" => 169,
+            "failed" => 0
+          },
+          "hits" => {
+            "total" => 1,
+            "max_score" => 1.0,
+            "hits" => [ {
+                          "_index" => "logstash-2014.10.12",
+                          "_type" => "logs",
+                          "_id" => "C5b2xLQwTZa76jBmHIbwHQ",
+                          "_score" => 1.0,
+                          "_source" => { "message" => ["ohayo"] }
+                        } ]
+          }
+        }
+      end
 
-      plugin.register
+      let(:empty_scroll_response) do
+        {
+          "_scroll_id" => "r453Wc1jh0caLJhSDg",
+          "hits" => { "hits" => [] }
+        }
+      end
 
-      expect{ plugin.run(queue) }.not_to raise_error
-      expect(queue.size).to eq(1)
+      before(:each) do
+        allow(Elasticsearch::Client).to receive(:new).with(any_args).and_return(client)
+        allow(client).to receive(:scroll).with({ :body => { :scroll_id => "cXVlcnlUaGVuRmV0Y2g" }, :scroll=> "1m" }).and_return(empty_scroll_response)
+        allow(client).to receive(:clear_scroll).and_return(nil)
+        allow(client).to receive(:ping)
+      end
+
+      it_behaves_like "a retryable plugin"
+    end
+
+    describe "search_after" do
+      let(:es_version) { "8.10.0" }
+      let(:config) { super().merge({ "search_api" => "search_after" }) }
+
+      let(:search_response) do
+        {
+          "took" => 27,
+          "timed_out" => false,
+          "_shards" => {
+            "total" => 169,
+            "successful" => 169,
+            "failed" => 0
+          },
+          "hits" => {
+            "total" => 1,
+            "max_score" => 1.0,
+            "hits" => [ ] # empty hits to break the loop
+          }
+        }
+      end
+
+      before(:each) do
+        expect(Elasticsearch::Client).to receive(:new).with(any_args).and_return(client)
+        expect(client).to receive(:open_point_in_time).once.and_return({ "id" => "cXVlcnlUaGVuRmV0Y2g"})
+        expect(client).to receive(:close_point_in_time).once.and_return(nil)
+        expect(client).to receive(:ping)
+      end
+
+      it_behaves_like "a retryable plugin"
     end
   end
 
