@@ -1,3 +1,6 @@
+## 4.20.3
+  - [DOC] Update link to bypass redirect, resolving directly to correct content  [#206](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/206)
+
 ## 4.20.2
   - fix case when aggregation returns an error [#204](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/204)
 
