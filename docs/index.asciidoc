@@ -23,7 +23,7 @@ include::{include_path}/plugin_header.asciidoc[]
 
 Read from an Elasticsearch cluster, based on search query results.
 This is useful for replaying test logs, reindexing, etc.
-You can periodically schedule ingestion using a cron syntax 
+You can periodically schedule ingestion using a cron syntax
 (see `schedule` setting) or run the query one time to load
 data into Logstash.
 
@@ -106,6 +106,7 @@ This plugin supports the following configuration options plus the <<plugins-{typ
 | <<plugins-{type}s-{plugin}-cloud_auth>> |<<password,password>>|No
 | <<plugins-{type}s-{plugin}-cloud_id>> |<<string,string>>|No
 | <<plugins-{type}s-{plugin}-connect_timeout_seconds>> | <<number,number>>|No
+| <<plugins-{type}s-{plugin}-custom_headers>> |<<hash,hash>>|No
 | <<plugins-{type}s-{plugin}-docinfo>> |<<boolean,boolean>>|No
 | <<plugins-{type}s-{plugin}-docinfo_fields>> |<<array,array>>|No
 | <<plugins-{type}s-{plugin}-docinfo_target>> |<<string,string>>|No
@@ -199,8 +200,18 @@ For more info, check out the
 The maximum amount of time, in seconds, to wait while establishing a connection to Elasticsearch.
 Connect timeouts tend to occur when Elasticsearch or an intermediate proxy is overloaded with requests and has exhausted its connection pool.
 
+[id="plugins-{type}s-{plugin}-custom_headers"]
+===== `custom_headers`
+
+  * Value type is <<hash,hash>>
+  * Default value is empty
+
+Pass a set of key value pairs as the headers sent in each request to an elasticsearch node.
+The headers will be used for any kind of request.
+These custom headers will override any headers previously set by the plugin such as the User Agent or Authorization headers.
+
 [id="plugins-{type}s-{plugin}-docinfo"]
-===== `docinfo` 
+===== `docinfo`
 
   * Value type is <<boolean,boolean>>
   * Default value is `false`
@@ -251,7 +262,7 @@ Example
 
 
 [id="plugins-{type}s-{plugin}-docinfo_fields"]
-===== `docinfo_fields` 
+===== `docinfo_fields`
 
   * Value type is <<array,array>>
   * Default value is `["_index", "_type", "_id"]`
@@ -262,7 +273,7 @@ option lists the metadata fields to save in the current event. See
 more information.
 
 [id="plugins-{type}s-{plugin}-docinfo_target"]
-===== `docinfo_target` 
+===== `docinfo_target`
 
   * Value type is <<string,string>>
   * Default value depends on whether <<plugins-{type}s-{plugin}-ecs_compatibility>> is enabled:
@@ -286,7 +297,7 @@ this option names the field under which to store the metadata fields as subfield
 Controls this plugin's compatibility with the {ecs-ref}[Elastic Common Schema (ECS)].
 
 [id="plugins-{type}s-{plugin}-hosts"]
-===== `hosts` 
+===== `hosts`
 
   * Value type is <<array,array>>
   * There is no default value for this setting.
@@ -296,18 +307,18 @@ can be either IP, HOST, IP:port, or HOST:port. The port defaults to
 9200.
 
 [id="plugins-{type}s-{plugin}-index"]
-===== `index` 
+===== `index`
 
   * Value type is <<string,string>>
   * Default value is `"logstash-*"`
 
-The index or alias to search. 
+The index or alias to search.
 Check out {ref}/api-conventions.html#api-multi-index[Multi Indices
 documentation] in the Elasticsearch documentation for info on
 referencing multiple indices.
 
 [id="plugins-{type}s-{plugin}-password"]
-===== `password` 
+===== `password`
 
   * Value type is <<password,password>>
   * There is no default value for this setting.
@@ -327,7 +338,7 @@ An empty string is treated as if proxy was not set, this is useful when using
 environment variables e.g. `proxy => '${LS_PROXY:}'`.
 
 [id="plugins-{type}s-{plugin}-query"]
-===== `query` 
+===== `query`
 
   * Value type is <<string,string>>
   * Default value is `'{ "sort": [ "_doc" ] }'`
@@ -375,7 +386,7 @@ The default is 0 (no retry). This value should be equal to or greater than zero.
 NOTE: Partial failures - such as errors in a subset of all slices - can result in the entire query being retried, which can lead to duplication of data. Avoiding this would require Logstash to store the entire result set of a query in memory which is often not possible.
 
 [id="plugins-{type}s-{plugin}-schedule"]
-===== `schedule` 
+===== `schedule`
 
   * Value type is <<string,string>>
   * There is no default value for this setting.
@@ -387,7 +398,7 @@ There is no schedule by default. If no schedule is given, then the statement is 
 exactly once.
 
 [id="plugins-{type}s-{plugin}-scroll"]
-===== `scroll` 
+===== `scroll`
 
   * Value type is <<string,string>>
   * Default value is `"1m"`
@@ -410,7 +421,7 @@ The query requires at least one `sort` field, as described in the <<plugins-{typ
 `scroll` uses {ref}/paginate-search-results.html#scroll-search-results[scroll] API to search, which is no longer recommended.
 
 [id="plugins-{type}s-{plugin}-size"]
-===== `size` 
+===== `size`
 
   * Value type is <<number,number>>
   * Default value is `1000`
@@ -598,7 +609,7 @@ It is also possible to target an entry in the event's metadata, which will be av
 
 
 [id="plugins-{type}s-{plugin}-user"]
-===== `user` 
+===== `user`
 
   * Value type is <<string,string>>
   * There is no default value for this setting.
