@@ -106,6 +106,7 @@ This plugin supports the following configuration options plus the <<plugins-{typ
 | <<plugins-{type}s-{plugin}-cloud_auth>> |<<password,password>>|No
 | <<plugins-{type}s-{plugin}-cloud_id>> |<<string,string>>|No
 | <<plugins-{type}s-{plugin}-connect_timeout_seconds>> | <<number,number>>|No
+| <<plugins-{type}s-{plugin}-custom_headers>> |<<hash,hash>>|No
 | <<plugins-{type}s-{plugin}-docinfo>> |<<boolean,boolean>>|No
 | <<plugins-{type}s-{plugin}-docinfo_fields>> |<<array,array>>|No
 | <<plugins-{type}s-{plugin}-docinfo_target>> |<<string,string>>|No
@@ -198,6 +199,16 @@ For more info, check out the
 
 The maximum amount of time, in seconds, to wait while establishing a connection to Elasticsearch.
 Connect timeouts tend to occur when Elasticsearch or an intermediate proxy is overloaded with requests and has exhausted its connection pool.
+
+[id="plugins-{type}s-{plugin}-custom_headers"]
+===== `custom_headers`
+
+  * Value type is <<hash,hash>>
+  * Default value is empty
+
+Pass a set of key value pairs as the headers sent in each request to
+an elasticsearch node. The headers will be used for any kind of request
+These custom headers will be overidden by settings like `compression_level`.
 
 [id="plugins-{type}s-{plugin}-docinfo"]
 ===== `docinfo` 
