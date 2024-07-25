@@ -206,9 +206,9 @@ Connect timeouts tend to occur when Elasticsearch or an intermediate proxy is ov
   * Value type is <<hash,hash>>
   * Default value is empty
 
-Pass a set of key value pairs as the headers sent in each request to
-an elasticsearch node. The headers will be used for any kind of request
-These custom headers will be overidden by settings like `compression_level`.
+Pass a set of key value pairs as the headers sent in each request to an elasticsearch node. 
+The headers will be used for any kind of request.
+These custom headers will be overridden by settings such as `compression_level`.
 
 [id="plugins-{type}s-{plugin}-docinfo"]
 ===== `docinfo` 
