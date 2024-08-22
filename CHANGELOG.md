@@ -1,3 +1,6 @@
+## 4.20.4
+  - Fix issue where the `index` parameter was being ignored during aggregation
+
 ## 4.20.3
   - [DOC] Update link to bypass redirect, resolving directly to correct content  [#206](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/206)
 

@@ -16,7 +16,7 @@ module LogStash
           @query = @plugin_params["query"]
           @retries = @plugin_params["retries"]
           @agg_options = {
-            :index => @index,
+            :index => @plugin_params["index"],
             :size  => 0
           }.merge(:body => @query)
 
