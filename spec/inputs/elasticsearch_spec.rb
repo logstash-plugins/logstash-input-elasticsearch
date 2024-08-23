@@ -1036,12 +1036,14 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
   end
 
   context "aggregations" do
+    let(:index_name) { "rainbow" }
     let(:config) do
       {
         'hosts'         => ["localhost"],
         'query'         => '{ "query": {}, "size": 0, "aggs":{"total_count": { "value_count": { "field": "type" }}, "empty_count": { "sum": { "field": "_meta.empty_event" }}}}',
         'response_type' => 'aggregations',
-        'size'          => 0
+        'size'          => 0,
+        'index'         => index_name
       }
     end
 
@@ -1080,7 +1082,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
     before { plugin.register }
 
     it 'creates the events from the aggregations' do
-      expect(client).to receive(:search).with(any_args).and_return(mock_response)
+      expect(client).to receive(:search).with(hash_including(:body => anything, :size => 0, :index => index_name)).and_return(mock_response)
       plugin.run queue
       event = queue.pop
 
