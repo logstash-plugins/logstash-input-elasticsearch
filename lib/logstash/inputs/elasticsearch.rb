@@ -271,6 +271,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
   BUILD_FLAVOR_SERVERLESS = 'serverless'.freeze
   DEFAULT_EAV_HEADER = { "Elastic-Api-Version" => "2023-10-31" }.freeze
+  INTERNAL_ORIGIN_HEADER = { 'x-elastic-product-origin' => 'logstash-input-elasticsearch'}.freeze
 
   def initialize(params={})
     super(params)
@@ -300,6 +301,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     fill_user_password_from_cloud_auth
 
     transport_options = {:headers => {}}
+    transport_options[:headers].merge!(INTERNAL_ORIGIN_HEADER)
     transport_options[:headers].merge!(setup_basic_auth(user, password))
     transport_options[:headers].merge!(setup_api_key(api_key))
     transport_options[:headers].merge!({'user-agent' => prepare_user_agent()})
