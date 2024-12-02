@@ -231,7 +231,6 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   config :ssl_truststore_password, :validate => :password
 
   # The JKS truststore to validate the server's certificate.
-  # Use either `:ssl_truststore_path`
   config :ssl_truststore_path, :validate => :path
 
   # The format of the truststore file. It must be either jks or pkcs12
