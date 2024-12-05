@@ -58,6 +58,19 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       end
     end
 
+    describe 'handling obsolete settings' do
+      [{:name => 'ssl', :replacement => 'ssl_enabled', :sample_value => true},
+       {:name => 'ca_file', :replacement => 'ssl_certificate_authorities', :sample_value => 'spec/fixtures/test_certs/ca.crt'},
+       {:name => 'ssl_certificate_verification', :replacement => 'ssl_verification_mode', :sample_value => false }].each do | obsolete_setting|
+        context "with obsolete #{obsolete_setting[:name]}" do
+          let (:config) { {obsolete_setting[:name] => obsolete_setting[:sample_value]} }
+          it "should raise a config error with the appropriate message" do
+            expect { plugin.register }.to raise_error LogStash::ConfigurationError, /The setting `#{obsolete_setting[:name]}` in plugin `elasticsearch` is obsolete and is no longer available. Set '#{obsolete_setting[:replacement]}' instead/i
+          end
+        end
+      end
+    end
+
     context "against not authentic Elasticsearch" do
       before(:each) do
          Elasticsearch::Client.send(:define_method, :ping) { raise Elasticsearch::UnsupportedProductError.new("Fake error") } # define error ping method
