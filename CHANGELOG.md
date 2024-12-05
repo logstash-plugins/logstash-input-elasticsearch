@@ -1,3 +1,6 @@
+## 4.20.5
+  - Add `x-elastic-product-origin` header to Elasticsearch requests [#211](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/211)
+
 ## 4.20.4
   - Fix issue where the `index` parameter was being ignored when using `response_type => aggregations` [#209](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/209)
 

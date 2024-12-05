@@ -50,6 +50,12 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
         client = plugin.send(:client)
         expect( extract_transport(client).options[:transport_options][:headers] ).not_to match hash_including("Elastic-Api-Version" => "2023-10-31")
       end
+
+      it "sets an x-elastic-product-origin header identifying this as an internal plugin request" do
+        plugin.register
+        client = plugin.send(:client)
+        expect( extract_transport(client).options[:transport_options][:headers] ).to match hash_including("x-elastic-product-origin"=>"logstash-input-elasticsearch")
+      end
     end
 
     context "against not authentic Elasticsearch" do
@@ -89,6 +95,12 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
           plugin.register
           client = plugin.send(:client)
           expect( extract_transport(client).options[:transport_options][:headers] ).to match hash_including("Elastic-Api-Version" => "2023-10-31")
+        end
+
+        it "sets an x-elastic-product-origin header identifying this as an internal plugin request" do
+          plugin.register
+          client = plugin.send(:client)
+          expect( extract_transport(client).options[:transport_options][:headers] ).to match hash_including("x-elastic-product-origin"=>"logstash-input-elasticsearch")
         end
       end
     end
