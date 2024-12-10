@@ -198,22 +198,11 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # Set the address of a forward HTTP proxy.
   config :proxy, :validate => :uri_or_empty
 
-  # SSL
-  config :ssl, :validate => :boolean, :default => false, :deprecated => "Set 'ssl_enabled' instead."
-
-  # SSL Certificate Authority file in PEM encoded format, must also include any chain certificates as necessary
-  config :ca_file, :validate => :path, :deprecated => "Set 'ssl_certificate_authorities' instead."
-
   # OpenSSL-style X.509 certificate certificate to authenticate the client
   config :ssl_certificate, :validate => :path
 
   # SSL Certificate Authority files in PEM encoded format, must also include any chain certificates as necessary
   config :ssl_certificate_authorities, :validate => :path, :list => true
-
-  # Option to validate the server's certificate. Disabling this severely compromises security.
-  # For more information on the importance of certificate verification please read
-  # https://www.cs.utexas.edu/~shmat/shmat_ccs12.pdf
-  config :ssl_certificate_verification, :validate => :boolean, :default => true, :deprecated => "Set 'ssl_verification_mode' instead."
 
   # The list of cipher suites to use, listed by priorities.
   # Supported cipher suites vary depending on which version of Java is used.
@@ -242,7 +231,6 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   config :ssl_truststore_password, :validate => :password
 
   # The JKS truststore to validate the server's certificate.
-  # Use either `:ssl_truststore_path` or `:ssl_certificate_authorities`
   config :ssl_truststore_path, :validate => :path
 
   # The format of the truststore file. It must be either jks or pkcs12
@@ -263,6 +251,11 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
   # If set, the _source of each hit will be added nested under the target instead of at the top-level
   config :target, :validate => :field_reference
+
+  # Obsolete Settings
+  config :ssl, :obsolete => "Set 'ssl_enabled' instead."
+  config :ca_file, :obsolete => "Set 'ssl_certificate_authorities' instead."
+  config :ssl_certificate_verification, :obsolete => "Set 'ssl_verification_mode' instead."
 
   # config :ca_trusted_fingerprint, :validate => :sha_256_hex
   include LogStash::PluginMixins::CATrustedFingerprintSupport
@@ -408,8 +401,6 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     ssl_options[:ssl] = true if @ssl_enabled
 
     unless @ssl_enabled
-      # Keep it backward compatible with the deprecated `ssl` option
-      ssl_options[:trust_strategy] = trust_strategy_for_ca_trusted_fingerprint if original_params.include?('ssl')
       return ssl_options
     end
 
@@ -473,38 +464,11 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   end
 
   def setup_ssl_params!
-    @ssl_enabled = normalize_config(:ssl_enabled) do |normalize|
-      normalize.with_deprecated_alias(:ssl)
+    # Only infer ssl_enabled if it wasn't explicitly set
+    unless original_params.include?('ssl_enabled')
+      @ssl_enabled = effectively_ssl?
+      params['ssl_enabled'] = @ssl_enabled
     end
-
-    # Infer the value if neither the deprecate `ssl` and `ssl_enabled` were set
-    infer_ssl_enabled_from_hosts
-
-    @ssl_certificate_authorities = normalize_config(:ssl_certificate_authorities) do |normalize|
-      normalize.with_deprecated_mapping(:ca_file) do |ca_file|
-        [ca_file]
-      end
-    end
-
-    @ssl_verification_mode = normalize_config(:ssl_verification_mode) do |normalize|
-      normalize.with_deprecated_mapping(:ssl_certificate_verification) do |ssl_certificate_verification|
-        if ssl_certificate_verification == true
-          "full"
-        else
-          "none"
-        end
-      end
-    end
-
-    params['ssl_enabled'] = @ssl_enabled
-    params['ssl_certificate_authorities'] = @ssl_certificate_authorities unless @ssl_certificate_authorities.nil?
-    params['ssl_verification_mode'] = @ssl_verification_mode unless @ssl_verification_mode.nil?
-  end
-
-  def infer_ssl_enabled_from_hosts
-    return if original_params.include?('ssl') || original_params.include?('ssl_enabled')
-
-    @ssl_enabled = params['ssl_enabled'] = effectively_ssl?
   end
 
   def setup_hosts
