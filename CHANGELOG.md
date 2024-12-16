@@ -1,3 +1,11 @@
+## 5.0.0
+  - SSL settings that were marked deprecated in version `4.17.0` are now marked obsolete, and will prevent the plugin from starting.
+  - These settings are:
+    - `ssl`, which should bre replaced by `ssl_enabled`
+    - `ca_file`, which should bre replaced by `ssl_certificate_authorities`
+    - `ssl_certificate_verification`, which should bre replaced by `ssl_verification_mode`
+    - [#213](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/213)
+
 ## 4.20.5
   - Add `x-elastic-product-origin` header to Elasticsearch requests [#211](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/211)
 
