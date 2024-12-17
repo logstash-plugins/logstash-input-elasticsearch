@@ -301,7 +301,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     transport_options[:headers].merge!(setup_basic_auth(user, password))
     transport_options[:headers].merge!(setup_api_key(api_key))
     transport_options[:headers].merge!({'user-agent' => prepare_user_agent()})
-    transport_options[:headers].merge!(@custom_headers) if @custom_headers
+    transport_options[:headers].merge!(@custom_headers) unless @custom_headers.empty?
     transport_options[:request_timeout] = @request_timeout_seconds unless @request_timeout_seconds.nil?
     transport_options[:connect_timeout] = @connect_timeout_seconds unless @connect_timeout_seconds.nil?
     transport_options[:socket_timeout]  = @socket_timeout_seconds  unless @socket_timeout_seconds.nil?
