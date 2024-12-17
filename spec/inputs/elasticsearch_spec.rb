@@ -116,6 +116,22 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
           expect( extract_transport(client).options[:transport_options][:headers] ).to match hash_including("x-elastic-product-origin"=>"logstash-input-elasticsearch")
         end
       end
+
+      context "with custom headers" do
+        let(:config) do
+          {
+            "schedule" => "* * * * * UTC",
+            "custom_headers" => { "Custom-Header-1" => "Custom Value 1", "Custom-Header-2" => "Custom Value 2" }
+          }
+        end
+
+
+        it "sets custom headers" do
+          plugin.register
+          client = plugin.send(:client)
+          expect( extract_transport(client).options[:transport_options][:headers] ).to match hash_including(config["custom_headers"])
+        end
+      end
     end
 
     context "retry" do

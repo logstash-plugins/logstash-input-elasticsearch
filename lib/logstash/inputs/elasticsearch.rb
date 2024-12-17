@@ -24,9 +24,9 @@ require_relative "elasticsearch/patches/_elasticsearch_transport_connections_sel
 # called `http.content_type.required`. If this option is set to `true`, and you
 # are using Logstash 2.4 through 5.2, you need to update the Elasticsearch input
 # plugin to version 4.0.2 or higher.
-# 
+#
 # ================================================================================
-# 
+#
 # Read from an Elasticsearch cluster, based on search query results.
 # This is useful for replaying test logs, reindexing, etc.
 # It also supports periodically scheduling lookup enrichments
@@ -166,6 +166,9 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # http://www.elasticsearch.org/guide/en/elasticsearch/guide/current/_document_metadata.html
   config :docinfo_fields, :validate => :array, :default => ['_index', '_type', '_id']
 
+  # Custom headers for Elasticsearch requests
+  config :custom_headers, :validate => :hash, :default => {}
+
   # Basic Auth - username
   config :user, :validate => :string
 
@@ -298,6 +301,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     transport_options[:headers].merge!(setup_basic_auth(user, password))
     transport_options[:headers].merge!(setup_api_key(api_key))
     transport_options[:headers].merge!({'user-agent' => prepare_user_agent()})
+    transport_options[:headers].merge!(@custom_headers) unless @custom_headers.empty?
     transport_options[:request_timeout] = @request_timeout_seconds unless @request_timeout_seconds.nil?
     transport_options[:connect_timeout] = @connect_timeout_seconds unless @connect_timeout_seconds.nil?
     transport_options[:socket_timeout]  = @socket_timeout_seconds  unless @socket_timeout_seconds.nil?
