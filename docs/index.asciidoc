@@ -214,7 +214,7 @@ Connect timeouts tend to occur when Elasticsearch or an intermediate proxy is ov
 
 Pass a set of key value pairs as the headers sent in each request to an elasticsearch node.
 The headers will be used for any kind of request.
-These custom headers will be overridden by settings such as `compression_level`.
+These custom headers will override any headers previously set by the plugin such as the User Agent or Authorization headers.
 
 [id="plugins-{type}s-{plugin}-docinfo"]
 ===== `docinfo`
