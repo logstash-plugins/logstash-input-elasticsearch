@@ -1,5 +1,5 @@
 ## 4.21.0
-  - Add support for custom headers TODO
+  - Add support for custom headers [#217](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/217)
 
 ## 4.20.5
   - Add `x-elastic-product-origin` header to Elasticsearch requests [#211](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/211)
