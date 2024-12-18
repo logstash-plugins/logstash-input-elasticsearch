@@ -5,6 +5,7 @@
     - `ca_file`, which should bre replaced by `ssl_certificate_authorities`
     - `ssl_certificate_verification`, which should bre replaced by `ssl_verification_mode`
     - [#213](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/213)
+  - Add support for custom headers [#207](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/207)
 
 ## 4.20.5
   - Add `x-elastic-product-origin` header to Elasticsearch requests [#211](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/211)
