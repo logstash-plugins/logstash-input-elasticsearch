@@ -350,16 +350,6 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   end
 
   ##
-  # @param output_queue [#<<]
-  # @param scroll_id [String]: a scroll id to resume
-  # @return [Array(Boolean,String)]: a tuple representing whether the response
-  #
-  def process_next_scroll(output_queue, scroll_id)
-    r = scroll_request(scroll_id)
-    r['hits']['hits'].each { |hit| push_hit(hit, output_queue) }
-    [r['hits']['hits'].any?, r['_scroll_id']]
-  end
-
   # This can be called externally from the query_executor
   public
   def push_hit(hit, output_queue, root_field = '_source')
