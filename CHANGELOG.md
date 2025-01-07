@@ -1,3 +1,7 @@
+## 4.21.1
+  - Fix: prevent plugin crash when hits contain illegal structure [#183](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/183)
+    - When a hit cannot be converted to an event, the input now emits an event tagged with `_elasticsearch_input_failure` with an `[event][original]` containing a JSON-encoded string representation of the entire hit.
+
 ## 4.21.0
   - Add support for custom headers [#217](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/217)
 
