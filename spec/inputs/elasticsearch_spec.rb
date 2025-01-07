@@ -666,11 +666,28 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
         context 'if the `docinfo_target` exist but is not of type hash' do
           let(:config) { base_config.merge 'docinfo' => true, "docinfo_target" => 'metadata_with_string' }
           let(:do_register) { false }
+          let(:mock_queue) { double('Queue', :<< => nil) }
+          let(:hit) { response.dig('hits', 'hits').first }
 
-          it 'raises an exception if the `docinfo_target` exist but is not of type hash' do
-            expect(client).not_to receive(:clear_scroll)
+          it 'emits a tagged event with JSON-serialized event in [event][original]' do
+            allow(plugin).to receive(:logger).and_return(double('Logger').as_null_object)
+
             plugin.register
-            expect { plugin.run([]) }.to raise_error(Exception, /incompatible event/)
+            plugin.run(mock_queue)
+
+            expect(mock_queue).to have_received(:<<) do |event|
+              expect(event).to be_a_kind_of LogStash::Event
+
+              expect(event.get('tags')).to include("_elasticsearch_input_failure")
+              expect(event.get('[event][original]')).to be_a_kind_of String
+              expect(JSON.load(event.get('[event][original]'))).to eq hit
+            end
+
+            expect(plugin.logger)
+              .to have_received(:warn).with(
+                a_string_including("Event creation error, original data now in [event][original] field"),
+                a_hash_including(:message => a_string_including('unable to merge docinfo fields into docinfo_target=`metadata_with_string`'),
+                                 :data    => a_string_including('"_id":"C5b2xLQwTZa76jBmHIbwHQ"')))
           end
 
         end
@@ -1245,6 +1262,88 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       end
 
       it_behaves_like "a retryable plugin"
+    end
+  end
+
+  context '#push_hit' do
+    let(:config) do
+      {
+        'docinfo' => true, # include ids
+        'docinfo_target' => '[@metadata][docinfo]'
+      }
+    end
+
+    let(:hit) do
+      JSON.load(<<~EOJSON)
+        {
+          "_index" : "test_bulk_index_2",
+          "_type" : "_doc",
+          "_id" : "sHe6A3wBesqF7ydicQvG",
+          "_score" : 1.0,
+          "_source" : {
+            "@timestamp" : "2021-09-20T15:02:02.557Z",
+            "message" : "ping",
+            "@version" : "17",
+            "sequence" : 7,
+            "host" : {
+              "name" : "maybe.local",
+              "ip" : "127.0.0.1"
+            }
+          }
+        }
+      EOJSON
+    end
+
+    let(:mock_queue) { double('queue', :<< => nil) }
+
+    it 'pushes a generated event to the queue' do
+      plugin.send(:push_hit, hit, mock_queue)
+      expect(mock_queue).to have_received(:<<) do |event|
+        expect(event).to be_a_kind_of LogStash::Event
+
+        # fields overriding defaults
+        expect(event.timestamp.to_s).to eq("2021-09-20T15:02:02.557Z")
+        expect(event.get('@version')).to eq("17")
+
+        # structure from hit's _source
+        expect(event.get('message')).to eq("ping")
+        expect(event.get('sequence')).to eq(7)
+        expect(event.get('[host][name]')).to eq("maybe.local")
+        expect(event.get('[host][ip]')).to eq("127.0.0.1")
+
+        # docinfo fields
+        expect(event.get('[@metadata][docinfo][_index]')).to eq("test_bulk_index_2")
+        expect(event.get('[@metadata][docinfo][_type]')).to eq("_doc")
+        expect(event.get('[@metadata][docinfo][_id]')).to eq("sHe6A3wBesqF7ydicQvG")
+      end
+    end
+
+    context 'when event creation fails' do
+      before(:each) do
+        allow(plugin).to receive(:logger).and_return(double('Logger').as_null_object)
+
+        allow(plugin.event_factory).to receive(:new_event).and_call_original
+        allow(plugin.event_factory).to receive(:new_event).with(a_hash_including hit['_source']).and_raise(RuntimeError, 'intentional')
+      end
+
+      it 'pushes a tagged event containing a JSON-encoded hit in [event][original]' do
+        plugin.send(:push_hit, hit, mock_queue)
+
+        expect(mock_queue).to have_received(:<<) do |event|
+          expect(event).to be_a_kind_of LogStash::Event
+
+          expect(event.get('tags')).to include("_elasticsearch_input_failure")
+          expect(event.get('[event][original]')).to be_a_kind_of String
+          expect(JSON.load(event.get('[event][original]'))).to eq hit
+        end
+
+        expect(plugin.logger)
+          .to have_received(:warn).with(
+            a_string_including("Event creation error, original data now in [event][original] field"),
+            a_hash_including(:message => a_string_including('intentional'),
+                             :data    => a_string_including('"_id":"sHe6A3wBesqF7ydicQvG"')))
+
+      end
     end
   end
 
