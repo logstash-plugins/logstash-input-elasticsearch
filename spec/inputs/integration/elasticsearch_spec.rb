@@ -4,7 +4,7 @@ require "logstash/plugin"
 require "logstash/inputs/elasticsearch"
 require_relative "../../../spec/es_helper"
 
-describe LogStash::Inputs::Elasticsearch, :integration => true do
+describe LogStash::Inputs::Elasticsearch do
 
   SECURE_INTEGRATION = ENV['SECURE_INTEGRATION'].eql? 'true'
 
