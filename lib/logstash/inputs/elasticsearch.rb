@@ -13,7 +13,7 @@ require "logstash/plugin_mixins/normalize_config_support"
 require "base64"
 
 require "elasticsearch"
-require "elasticsearch/transport/transport/http/manticore"
+require "elastic/transport/transport/http/manticore"
 require_relative "elasticsearch/patches/_elasticsearch_transport_http_manticore"
 require_relative "elasticsearch/patches/_elasticsearch_transport_connections_selector"
 
@@ -316,7 +316,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     @client_options = {
       :hosts => hosts,
       :transport_options => transport_options,
-      :transport_class => ::Elasticsearch::Transport::Transport::HTTP::Manticore,
+      :transport_class => ::Elastic::Transport::Transport::HTTP::Manticore,
       :ssl => ssl_options
     }
 

@@ -93,7 +93,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
         before do
           allow(Elasticsearch::Client).to receive(:new).and_return(es_client)
           allow(es_client).to receive(:info).and_raise(
-            Elasticsearch::Transport::Transport::Errors::BadRequest.new
+            Elastic::Transport::Transport::Errors::BadRequest.new
           )
         end
 
@@ -745,7 +745,8 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
         plugin.register
         client = plugin.send(:client)
 
-        expect( client.transport.instance_variable_get(:@seeds) ).to eql [{
+        puts "Transport client: #{client.transport.inspect}"
+        expect( client.transport.instance_variable_get(:@hosts) ).to eql [{
                                                                               :scheme => "https",
                                                                               :host => "ac31ebb90241773157043c34fd26fd46.us-central1.gcp.cloud.es.io",
                                                                               :port => 9243,

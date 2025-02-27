@@ -1,8 +1,8 @@
 # encoding: utf-8
 require "elasticsearch"
-require "elasticsearch/transport/transport/http/manticore"
+require "elastic/transport/transport/http/manticore"
 
-es_client_version = Gem.loaded_specs['elasticsearch-transport'].version
+es_client_version = Gem.loaded_specs['elastic-transport'].version
 if es_client_version >= Gem::Version.new('7.2') && es_client_version < Gem::Version.new('7.16')
   # elasticsearch-transport 7.2.0 - 7.14.0 had a bug where setting http headers
   #   ES::Client.new ..., transport_options: { headers: { 'Authorization' => ... } }
@@ -11,7 +11,7 @@ if es_client_version >= Gem::Version.new('7.2') && es_client_version < Gem::Vers
   # NOTE: needs to be idempotent as filter ES plugin might apply the same patch!
   #
   # @private
-  module Elasticsearch
+  module Elastic
     module Transport
       module Transport
         module HTTP
