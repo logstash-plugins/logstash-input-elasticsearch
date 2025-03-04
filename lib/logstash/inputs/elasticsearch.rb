@@ -13,6 +13,7 @@ require "logstash/plugin_mixins/normalize_config_support"
 require "base64"
 
 require "elasticsearch"
+require "manticore"
 
 # .Compatibility Note
 # [NOTE]
