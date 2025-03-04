@@ -13,9 +13,6 @@ require "logstash/plugin_mixins/normalize_config_support"
 require "base64"
 
 require "elasticsearch"
-require "elasticsearch/transport/transport/http/manticore"
-require_relative "elasticsearch/patches/_elasticsearch_transport_http_manticore"
-require_relative "elasticsearch/patches/_elasticsearch_transport_connections_selector"
 
 # .Compatibility Note
 # [NOTE]
@@ -316,7 +313,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     @client_options = {
       :hosts => hosts,
       :transport_options => transport_options,
-      :transport_class => ::Elasticsearch::Transport::Transport::HTTP::Manticore,
+      :transport_class => get_transport_client_class,
       :ssl => ssl_options
     }
 
@@ -640,6 +637,16 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
                       when 'aggregations'
                         LogStash::Inputs::Elasticsearch::Aggregation.new(@client, self)
                       end
+  end
+
+  def get_transport_client_class
+    require "elasticsearch/transport/transport/http/manticore"
+    require_relative "elasticsearch/patches/_elasticsearch_transport_http_manticore"
+    require_relative "elasticsearch/patches/_elasticsearch_transport_connections_selector"
+    ::Elasticsearch::Transport::Transport::HTTP::Manticore
+  rescue ::LoadError
+    require "elastic/transport/transport/http/manticore"
+    ::Elastic::Transport::Transport::HTTP::Manticore
   end
 
   module URIOrEmptyValidator

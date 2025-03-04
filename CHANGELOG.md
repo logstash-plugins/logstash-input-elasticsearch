@@ -1,3 +1,6 @@
+## 5.0.2
+  - Adds elastic-transport support [#223](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/223)
+
 ## 5.0.1
   - Fix: prevent plugin crash when hits contain illegal structure [#218](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/218)
     - When a hit cannot be converted to an event, the input now emits an event tagged with `_elasticsearch_input_failure` with an `[event][original]` containing a JSON-encoded string representation of the entire hit.
