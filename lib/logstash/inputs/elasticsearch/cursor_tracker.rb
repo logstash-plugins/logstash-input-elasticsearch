@@ -49,7 +49,7 @@ module LogStash; module Inputs; class Elasticsearch
     end
 
     def inject_cursor(query_json)
-      query_json.gsub(":last_value", @last_value)
+      query_json.gsub(":last_value", @last_value.to_s)
     end
   end
 end; end; end
