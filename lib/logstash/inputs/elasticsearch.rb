@@ -641,6 +641,10 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   end
 
   def get_transport_client_class
+    # LS-core includes `elasticsearch` gem. The gem is composed of two separate gems: `elasticsearch-api` and `elasticsearch-transport`
+    # And now `elasticsearch-transport` is old, instead we have `elastic-transport`.
+    # LS-core updated `elasticsearch` > 8: https://github.com/elastic/logstash/pull/17161
+    # Following source bits are for the compatibility to support both `elasticsearch-transport` and `elastic-transport` gems
     require "elasticsearch/transport/transport/http/manticore"
     require_relative "elasticsearch/patches/_elasticsearch_transport_http_manticore"
     require_relative "elasticsearch/patches/_elasticsearch_transport_connections_selector"

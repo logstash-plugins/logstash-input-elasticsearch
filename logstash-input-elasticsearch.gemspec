@@ -26,7 +26,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency "logstash-mixin-validator_support", '~> 1.0'
   s.add_runtime_dependency "logstash-mixin-scheduler", '~> 1.0'
 
-  s.add_runtime_dependency 'elasticsearch', '>= 7.17.9'
+  s.add_runtime_dependency 'elasticsearch', '>= 7.17.9', '< 9'
   s.add_runtime_dependency 'logstash-mixin-ca_trusted_fingerprint_support', '~> 1.0'
   s.add_runtime_dependency 'logstash-mixin-normalize_config_support', '~>1.0'
 
