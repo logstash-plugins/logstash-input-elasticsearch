@@ -13,7 +13,13 @@ module LogStash
           @plugin_params = plugin.params
 
           @size = @plugin_params["size"]
+          @query = @plugin_params["query"]
           @retries = @plugin_params["retries"]
+          @agg_options = {
+            :index => @plugin_params["index"],
+            :size  => 0
+          }.merge(:body => @query)
+
           @plugin = plugin
         end
 
@@ -27,18 +33,10 @@ module LogStash
           false
         end
 
-        def aggregation_options(query_object)
-          {
-            :index => @index,
-            :size => 0,
-            :body => query_object
-          }
-        end
-
-        def do_run(output_queue, query_object)
+        def do_run(output_queue)
           logger.info("Aggregation starting")
           r = retryable(AGGREGATION_JOB) do
-            @client.search(aggregation_options(query_object))
+            @client.search(@agg_options)
           end
           @plugin.push_hit(r, output_queue, 'aggregations') if r
         end
