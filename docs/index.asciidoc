@@ -126,12 +126,14 @@ Please check out <<plugins-{type}s-{plugin}-obsolete-options>> for details.
 | <<plugins-{type}s-{plugin}-ecs_compatibility>> |<<string,string>>|No
 | <<plugins-{type}s-{plugin}-hosts>> |<<array,array>>|No
 | <<plugins-{type}s-{plugin}-index>> |<<string,string>>|No
+| <<plugins-{type}s-{plugin}-last_run_metadata_path>> |<<string,string>>|No
 | <<plugins-{type}s-{plugin}-password>> |<<password,password>>|No
 | <<plugins-{type}s-{plugin}-proxy>> |<<uri,uri>>|No
 | <<plugins-{type}s-{plugin}-query>> |<<string,string>>|No
 | <<plugins-{type}s-{plugin}-response_type>> |<<string,string>>, one of `["hits","aggregations"]`|No
 | <<plugins-{type}s-{plugin}-request_timeout_seconds>> | <<number,number>>|No
 | <<plugins-{type}s-{plugin}-schedule>> |<<string,string>>|No
+| <<plugins-{type}s-{plugin}-schedule_overlap>> |<<boolean,boolean>>|No
 | <<plugins-{type}s-{plugin}-scroll>> |<<string,string>>|No
 | <<plugins-{type}s-{plugin}-search_api>> |<<string,string>>, one of `["auto", "search_after", "scroll"]`|No
 | <<plugins-{type}s-{plugin}-size>> |<<number,number>>|No
@@ -151,6 +153,8 @@ Please check out <<plugins-{type}s-{plugin}-obsolete-options>> for details.
 | <<plugins-{type}s-{plugin}-ssl_verification_mode>> |<<string,string>>, one of `["full", "none"]`|No
 | <<plugins-{type}s-{plugin}-socket_timeout_seconds>> | <<number,number>>|No
 | <<plugins-{type}s-{plugin}-target>> | {logstash-ref}/field-references-deepdive.html[field reference] | No
+| <<plugins-{type}s-{plugin}-tracking_field>> |<<string,string>>|No
+| <<plugins-{type}s-{plugin}-tracking_field_seed>> |<<string,string>>|No
 | <<plugins-{type}s-{plugin}-retries>> | <<number,number>>|No
 | <<plugins-{type}s-{plugin}-user>> |<<string,string>>|No
 |=======================================================================
@@ -330,6 +334,15 @@ Check out {ref}/api-conventions.html#api-multi-index[Multi Indices
 documentation] in the Elasticsearch documentation for info on
 referencing multiple indices.
 
+[id="plugins-{type}s-{plugin}-last_run_metadata_path"]
+===== `last_run_metadata_path`
+
+  * Value type is <<string,string>>
+  * There is no default value for this setting.
+
+The path to store the last observed value of the tracking field, when used.
+By default this file is stored as `<path.data>/plugins/inputs/elasticsearch/<pipeline.id>.last_run`.
+
 [id="plugins-{type}s-{plugin}-password"]
 ===== `password`
 
@@ -409,6 +422,19 @@ for example: "* * * * *" (execute query every minute, on the minute)
 
 There is no schedule by default. If no schedule is given, then the statement is run
 exactly once.
+
+[id="plugins-{type}s-{plugin}-schedule_overlap"]
+===== `schedule_overlap`
+
+  * Value type is <<boolean,boolean>>
+  * Default value is `true`
+
+Whether to allow queuing of a scheduled run if a run is occurring.
+While this is ideal for ensuring a new run happens immediatelly after the previous on finishes if there
+is a lot of work to do, but given the queue is unbounded it may lead to an out of memory over long periods of time
+if the queue grows continuously.
+
+When in doubt, set `schedule_overlap` to false (it may become the default value in the future).
 
 [id="plugins-{type}s-{plugin}-scroll"]
 ===== `scroll`
@@ -622,6 +648,25 @@ When the `target` is set to a field reference, the `_source` of the hit is place
 This option can be useful to avoid populating unknown fields when a downstream schema such as ECS is enforced.
 It is also possible to target an entry in the event's metadata, which will be available during event processing but not exported to your outputs (e.g., `target \=> "[@metadata][_source]"`).
 
+[id="plugins-{type}s-{plugin}-tracking_field"]
+===== `tracking_field`
+
+* Value type is <<string,string>>
+* There is no default value for this setting.
+
+Which field from the last event of a previous run will be used a cursor value for the following run.
+The value of this field is injected into each query if the query uses the placeholder `:last_value`.
+For the first query after a pipeline is started, the value used is either read from <<last_run_metadata_path>> file,
+or taken from <<tracking_field_seed>> setting.
+
+[id="plugins-{type}s-{plugin}-tracking_field_seed"]
+===== `tracking_field_seed`
+
+* Value type is <<string,string>>
+* There is no default value for this setting.
+
+The starting value for the <<tracking_field>> if there is no <<last_run_metadata_path>> already.
+For a nanosecond timestamp based field, a suggested seed value something like `1980-01-01T23:59:59.999999999Z`.
 
 [id="plugins-{type}s-{plugin}-user"]
 ===== `user`
