@@ -127,7 +127,6 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
   # Enable tracking the value of a given field to be used as a cursor
   # TODO: main concerns
-  #       * schedule overlap needs to be disabled (hardcoded as enabled)
   #       * using anything other than _event.timestamp easily leads to data loss
   #       * the first "synchronization run can take a long time"
   #       * checkpointing is only safe to do after each run (not per document)
@@ -269,7 +268,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
   # Allow scheduled runs to overlap (enabled by default). Setting to false will
   # only start a new scheduled run after the previous one completes.
-  config :schedule_overlap, :validate => :string
+  config :schedule_overlap, :validate => :boolean
 
   # If set, the _source of each hit will be added nested under the target instead of at the top-level
   config :target, :validate => :field_reference

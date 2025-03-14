@@ -35,8 +35,8 @@ module LogStash; module Inputs; class Elasticsearch
 
     def converge_last_value
       return if @last_value_hashmap.empty?
-      # TODO this implicitly assumes that the way to converge the value among slices is to pick the highest and we can't assume that
-      new_last_value = @last_value_hashmap.reduceValues(1, lambda { |v1, v2| Time.parse(v1) < Time.parse(v2) ? v2 : v1 })
+      new_last_value = @last_value_hashmap.reduceValues(1000, lambda { |v1, v2| Java::java.time.Instant.parse(v1).isBefore(Java::java.time.Instant.parse(v2)) ? v2 : v1 })
+      logger.trace? && logger.trace("converge_last_value: got #{@last_value_hashmap.values.inspect}. won: #{new_last_value}")
       return if new_last_value == @last_value
       @last_value = new_last_value
       logger.info "New cursor value for field \"#{@tracking_field}\" is: #{new_last_value}"
@@ -49,7 +49,10 @@ module LogStash; module Inputs; class Elasticsearch
     end
 
     def inject_cursor(query_json)
-      query_json.gsub(":last_value", @last_value.to_s)
+      # ":present" means "now - 30s" to avoid grabbing partially visible data in the PIT
+      result = query_json.gsub(":last_value", @last_value.to_s).gsub(":present", Java::java.time.Instant.now.minusSeconds(30).to_s)
+      logger.debug("inject_cursor: injected values for ':last_value' and ':present'", :query => result)
+      result
     end
   end
 end; end; end
