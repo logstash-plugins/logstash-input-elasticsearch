@@ -12,6 +12,7 @@ module LogStash
           @client = client
           @plugin_params = plugin.params
 
+          @index = @plugin_params["index"]
           @size = @plugin_params["size"]
           @retries = @plugin_params["retries"]
           @plugin = plugin
