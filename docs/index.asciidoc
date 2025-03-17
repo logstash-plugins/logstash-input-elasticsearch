@@ -56,9 +56,9 @@ It is sometimes desirable to track the value of a particular field between two j
 * avoid re-processing the entire result set of a long query after an unplanned restart
 * only grab new data from an index instead of processing the entire set on each job
 
-For this, the Elasticsearch input plugin provides the <<tracking_field>> and <<tracking_field_seed>> options.
-When <<tracking_field>> is set, the plugin will record the value of that field for the last document retrieved in a run into
-a file (location defaults to <<last_run_metadata_path>>.
+For this, the Elasticsearch input plugin provides the <<plugins-{type}s-{plugin}-tracking_field>> and <<plugins-{type}s-{plugin}-tracking_field_seed>> options.
+When <<plugins-{type}s-{plugin}-tracking_field>> is set, the plugin will record the value of that field for the last document retrieved in a run into
+a file (location defaults to <<plugins-{type}s-{plugin}-last_run_metadata_path>>).
 
 The user can then inject this value in the query using the placeholder `:last_value`. The value will be injected into the query
 before execution, and the updated after the query completes, assuming new data was found.
@@ -771,8 +771,8 @@ It is also possible to target an entry in the event's metadata, which will be av
 
 Which field from the last event of a previous run will be used a cursor value for the following run.
 The value of this field is injected into each query if the query uses the placeholder `:last_value`.
-For the first query after a pipeline is started, the value used is either read from <<last_run_metadata_path>> file,
-or taken from <<tracking_field_seed>> setting.
+For the first query after a pipeline is started, the value used is either read from <<plugins-{type}s-{plugin}-last_run_metadata_path>> file,
+or taken from <<plugins-{type}s-{plugin}-tracking_field_seed>> setting.
 
 Note: The tracking value is updated only after the PIT+search_after run completes, it won't update during the search_after pagination. This is to allow use of slices.
 
@@ -782,7 +782,7 @@ Note: The tracking value is updated only after the PIT+search_after run complete
 * Value type is <<string,string>>
 * There is no default value for this setting.
 
-The starting value for the <<tracking_field>> if there is no <<last_run_metadata_path>> already.
+The starting value for the <<plugins-{type}s-{plugin}-tracking_field>> if there is no <<plugins-{type}s-{plugin}-last_run_metadata_path>> already.
 For a nanosecond timestamp based field, a suggested seed value something like `1980-01-01T23:59:59.999999999Z`.
 
 [id="plugins-{type}s-{plugin}-user"]
