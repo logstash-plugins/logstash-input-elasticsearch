@@ -21,6 +21,13 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
   let(:es_version) { "7.5.0" }
   let(:cluster_info) { {"version" => {"number" => es_version, "build_flavor" => build_flavor}, "tagline" => "You Know, for Search"} }
 
+  def elastic_ruby_v8_client_available?
+    Elasticsearch::Transport
+    false
+  rescue NameError # NameError: uninitialized constant Elasticsearch::Transport if Elastic Ruby client is not available
+    true
+  end
+
   before(:each) do
     Elasticsearch::Client.send(:define_method, :ping) { } # define no-action ping method
     allow_any_instance_of(Elasticsearch::Client).to receive(:info).and_return(cluster_info)
@@ -92,9 +99,11 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
 
         before do
           allow(Elasticsearch::Client).to receive(:new).and_return(es_client)
-          allow(es_client).to receive(:info).and_raise(
-            Elasticsearch::Transport::Transport::Errors::BadRequest.new
-          )
+          if elastic_ruby_v8_client_available?
+            allow(es_client).to receive(:info).and_raise(Elastic::Transport::Transport::Errors::BadRequest.new)
+          else
+            allow(es_client).to receive(:info).and_raise(Elasticsearch::Transport::Transport::Errors::BadRequest.new)
+          end
         end
 
         it "raises an exception" do
@@ -744,8 +753,13 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       it "should set host(s)" do
         plugin.register
         client = plugin.send(:client)
-
-        expect( client.transport.instance_variable_get(:@seeds) ).to eql [{
+        target_field = :@seeds
+        begin
+          Elasticsearch::Transport::Client
+        rescue
+          target_field = :@hosts
+        end
+        expect( client.transport.instance_variable_get(target_field) ).to eql [{
                                                                               :scheme => "https",
                                                                               :host => "ac31ebb90241773157043c34fd26fd46.us-central1.gcp.cloud.es.io",
                                                                               :port => 9243,
