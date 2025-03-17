@@ -49,6 +49,119 @@ This would create an Elasticsearch query with the following format:
     }'
 
 
+[id="plugins-{type}s-{plugin}-cursor"]
+==== Tracking a field's value across runs
+
+It is sometimes desirable to track the value of a particular field between two jobs:
+* avoid re-processing the entire result set of a long query after an unplanned restart
+* only grab new data from an index instead of processing the entire set on each job
+
+For this, the Elasticsearch input plugin provides the <<tracking_field>> and <<tracking_field_seed>> options.
+When <<tracking_field>> is set, the plugin will record the value of that field for the last document retrieved in a run into
+a file (location defaults to <<last_run_metadata_path>>.
+
+The user can then inject this value in the query using the placeholder `:last_value`. The value will be injected into the query
+before execution, and the updated after the query completes, assuming new data was found.
+
+The plugin also offers another placeholder called `:present` used to inject the nano-second based
+
+This feature works best when:
+* the query sorts by the tracking field
+* the field type has enough resolution so that two events are unlikely to have the same value for the field
+
+A suggestion is to use a tracking field that has nanosecond second precision, like
+https://www.elastic.co/guide/en/elasticsearch/reference/current/date_nanos.html[date nanoseconds] field type.
+
+A good use case for this feature is to track new data in an index, which can be achieved by:
+
+1. create ingest pipeline that adds Elasticsearch's `_ingest.timestamp` field to the documents as `event.ingested`:
+
+[source, json]
+    PUT _ingest/pipeline/my-pipeline
+    {
+      "processors": [
+              {
+            "script": {
+              "lang": "painless",
+              "source": "ctx.putIfAbsent(\"event\", [:]); ctx.event.ingested = metadata().now.format(DateTimeFormatter.ISO_INSTANT);"
+            }
+          }
+      ]
+    }
+
+
+2. create an index mapping where the tracking field is of date nanosecond type and invokes the defined pipeline:
+
+[source, json]
+    PUT /_template/my_template
+    {
+      "index_patterns": ["test-*"],
+      "settings": {
+        "index.default_pipeline": "my-pipeline",
+      },
+      "mappings": {
+        "properties": {
+          "event": {
+            "properties": {
+              "ingested": {
+                "type": "date_nanos",
+                "format": "strict_date_optional_time_nanos"
+              }
+            }
+          }
+        }
+      }
+    }
+
+3. define a query that looks at all data of the indices, sorted by the tracking field, and with a range filter since the last value seen until present:
+
+[source,json]
+{
+  "query": {
+    "range": {
+      "event.ingested": {
+        "gt": ":last_value",
+        "lt": ":present"
+      }
+    }
+  },
+  "sort": [
+    {
+      "event.ingested": {
+        "order": "asc",
+        "format": "strict_date_optional_time_nanos",
+        "numeric_type": "date_nanos"
+      }
+    }
+  ]
+}
+
+4. configure the Elasticsearch input to query the indices with the query defined above, every minute, and track the `event.ingested` field:
+
+[source, ruby]
+    input {
+      elasticsearch {
+        id => tail_test_index
+        hosts => [ 'https://..']
+        api_key => '....'
+        index => 'test-*'
+        query => '{ "query": { "range": { "event.ingested": { "gt": ":last_value", "lt": ":present"}}}, "sort": [ { "event.ingested": {"order": "asc", "format": "strict_date_optional_time_nanos", "numeric_type" : "date_nanos" } } ] }'
+        tracking_field => "[event][ingested]"
+        # set a seed value to a value known to be older than any value of `event.ingested`
+        tracking_field_seed => "1980-01-01T23:59:59.999999999Z"
+        slices => 5 # optional use of slices to speed data processing, should be less than number of primary shards
+        schedule => '* * * * *' # every minute
+        schedule_overlap => false # don't accumulate jobs if one takes longer than 1 minute
+      }
+    }
+
+With this setup, as new documents are indexed an `test-*` index, the next scheduled run will:
+
+1. select all new documents since the last observed value of the tracking field;
+2. use PIT+search_after to paginate through all the data;
+3. update the value of the field at the end of the pagination.
+
+[id="plugins-{type}s-{plugin}-scheduling"]
 ==== Scheduling
 
 Input from this plugin can be scheduled to run periodically according to a specific
@@ -658,6 +771,8 @@ Which field from the last event of a previous run will be used a cursor value fo
 The value of this field is injected into each query if the query uses the placeholder `:last_value`.
 For the first query after a pipeline is started, the value used is either read from <<last_run_metadata_path>> file,
 or taken from <<tracking_field_seed>> setting.
+
+Note: The tracking value is updated only after the PIT+search_after run completes, it won't update during the search_after pagination. This is to allow use of slices.
 
 [id="plugins-{type}s-{plugin}-tracking_field_seed"]
 ===== `tracking_field_seed`
