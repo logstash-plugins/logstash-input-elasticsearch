@@ -92,9 +92,11 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
 
         before do
           allow(Elasticsearch::Client).to receive(:new).and_return(es_client)
-          allow(es_client).to receive(:info).and_raise(
-            Elasticsearch::Transport::Transport::Errors::BadRequest.new
-          )
+          begin
+            allow(es_client).to receive(:info).and_raise(Elasticsearch::Transport::Transport::Errors::BadRequest.new)
+          rescue NameError # NameError: uninitialized constant Elasticsearch::Transport
+            allow(es_client).to receive(:info).and_raise(Elastic::Transport::Transport::Errors::BadRequest.new)
+          end
         end
 
         it "raises an exception" do
@@ -744,8 +746,13 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       it "should set host(s)" do
         plugin.register
         client = plugin.send(:client)
-
-        expect( client.transport.instance_variable_get(:@seeds) ).to eql [{
+        target_field = :@seeds
+        begin
+          Elasticsearch::Transport::Client
+        rescue
+          target_field = :@hosts
+        end
+        expect( client.transport.instance_variable_get(target_field) ).to eql [{
                                                                               :scheme => "https",
                                                                               :host => "ac31ebb90241773157043c34fd26fd46.us-central1.gcp.cloud.es.io",
                                                                               :port => 9243,
