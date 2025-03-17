@@ -1,17 +1,6 @@
 require 'fileutils'
 
 module LogStash; module Inputs; class Elasticsearch
-  class NoopCursorTracker
-    include LogStash::Util::Loggable
-    def checkpoint_cursor; end
-
-    def converge_last_value; end
-
-    def record_last_value(event); end
-
-    def inject_cursor(query_json); return query_json; end
-  end
-
   class CursorTracker
     include LogStash::Util::Loggable
 

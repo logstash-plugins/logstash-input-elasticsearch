@@ -379,7 +379,11 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     event = event_from_hit(hit, root_field)
     decorate(event)
     output_queue << event
-    @cursor_tracker.record_last_value(event)
+    record_last_value(event)
+  end
+
+  def record_last_value(event)
+    @cursor_tracker.record_last_value(event) if @tracking_field
   end
 
   def event_from_hit(hit, root_field)
@@ -688,14 +692,11 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   end
 
   def setup_cursor_tracker
-    if @tracking_field
-      @tracking_field_seed ||= Time.now.utc.iso8601
-      @cursor_tracker = CursorTracker.new(last_run_metadata_path: @last_run_metadata_path,
-                                          tracking_field: @tracking_field,
-                                          tracking_field_seed: @tracking_field_seed)
-    else
-      @cursor_tracker = NoopCursorTracker.new
-    end
+    return unless @tracking_field
+    @tracking_field_seed ||= Time.now.utc.iso8601
+    @cursor_tracker = CursorTracker.new(last_run_metadata_path: @last_run_metadata_path,
+                                        tracking_field: @tracking_field,
+                                        tracking_field_seed: @tracking_field_seed)
   end
 
   module URIOrEmptyValidator

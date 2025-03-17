@@ -24,11 +24,8 @@ module LogStash
         def do_run(output_queue, query)
           @query = query
 
-          if @slices.nil? || @slices <= 1
-            retryable_search(output_queue)
-          else
-            retryable_slice_search(output_queue)
-          end
+          return retryable_search(output_queue) if @slices.nil? || @slices <= 1
+          retryable_slice_search(output_queue)
         end
 
         def retryable(job_name, &block)

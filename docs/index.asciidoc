@@ -454,7 +454,9 @@ referencing multiple indices.
   * There is no default value for this setting.
 
 The path to store the last observed value of the tracking field, when used.
-By default this file is stored as `<path.data>/plugins/inputs/elasticsearch/<pipeline.id>.last_run`.
+By default this file is stored as `<path.data>/plugins/inputs/elasticsearch/last_run_value`.
+
+This setting should point to file, not a directory, and Logstash must have read+write access to this file.
 
 [id="plugins-{type}s-{plugin}-password"]
 ===== `password`
