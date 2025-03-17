@@ -357,12 +357,10 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     if @schedule
       scheduler.cron(@schedule, :overlap => @schedule_overlap) do
         @query_executor.do_run(output_queue, get_query_object())
-        @cursor_tracker.checkpoint_cursor
       end
       scheduler.join
     else
       @query_executor.do_run(output_queue, get_query_object())
-      @cursor_tracker.checkpoint_cursor
     end
   end
 
@@ -677,7 +675,22 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
                       end
   end
 
-  def get_transport_client_class
+  def setup_cursor_tracker
+    return unless @tracking_field
+    return unless @query_executor.is_a?(LogStash::Inputs::Elasticsearch::SearchAfter)
+
+    if @resolved_search_api != "search_after" || @response_type != "hits"
+      raise ConfigurationError.new("The `tracking_field` feature can only be used with `search_after` non-aggregation queries")
+    end
+
+    @tracking_field_seed ||= Time.now.utc.iso8601
+    @cursor_tracker = CursorTracker.new(last_run_metadata_path: @last_run_metadata_path,
+                                        tracking_field: @tracking_field,
+                                        tracking_field_seed: @tracking_field_seed)
+    @query_executor.cursor_tracker = @cursor_tracker
+  end
+
+ def get_transport_client_class
     # LS-core includes `elasticsearch` gem. The gem is composed of two separate gems: `elasticsearch-api` and `elasticsearch-transport`
     # And now `elasticsearch-transport` is old, instead we have `elastic-transport`.
     # LS-core updated `elasticsearch` > 8: https://github.com/elastic/logstash/pull/17161
@@ -689,14 +702,6 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   rescue ::LoadError
     require "elastic/transport/transport/http/manticore"
     ::Elastic::Transport::Transport::HTTP::Manticore
-  end
-
-  def setup_cursor_tracker
-    return unless @tracking_field
-    @tracking_field_seed ||= Time.now.utc.iso8601
-    @cursor_tracker = CursorTracker.new(last_run_metadata_path: @last_run_metadata_path,
-                                        tracking_field: @tracking_field,
-                                        tracking_field_seed: @tracking_field_seed)
   end
 
   module URIOrEmptyValidator

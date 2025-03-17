@@ -14,18 +14,27 @@ module LogStash; module Inputs; class Elasticsearch
       @last_value = IO.read(@last_run_metadata_path) rescue nil || tracking_field_seed
       @tracking_field = tracking_field
       logger.info "Starting value for cursor field \"#{@tracking_field}\": #{@last_value}"
+      @mutex = Mutex.new
     end
 
-    def checkpoint_cursor
-      converge_last_value
-      IO.write(@last_run_metadata_path, @last_value)
-      @last_value_hashmap.clear
+    def checkpoint_cursor(intermediate: true)
+      @mutex.synchronize do
+        if intermediate
+          # in intermediate checkpoints pick the smallest
+          converge_last_value {|v1, v2| v1 < v2 ? v1 : v2}
+        else
+          # in the last search of a PIT choose the largest
+          converge_last_value {|v1, v2| v1 > v2 ? v1 : v2}
+          @last_value_hashmap.clear
+        end
+        IO.write(@last_run_metadata_path, @last_value)
+      end
     end
 
-    def converge_last_value
+    def converge_last_value(&block)
       return if @last_value_hashmap.empty?
-      new_last_value = @last_value_hashmap.reduceValues(1000, lambda { |v1, v2| Java::java.time.Instant.parse(v1).isBefore(Java::java.time.Instant.parse(v2)) ? v2 : v1 })
-      logger.trace? && logger.trace("converge_last_value: got #{@last_value_hashmap.values.inspect}. won: #{new_last_value}")
+      new_last_value = @last_value_hashmap.reduceValues(1000, &block)
+      logger.debug? && logger.debug("converge_last_value: got #{@last_value_hashmap.values.inspect}. won: #{new_last_value}")
       return if new_last_value == @last_value
       @last_value = new_last_value
       logger.info "New cursor value for field \"#{@tracking_field}\" is: #{new_last_value}"

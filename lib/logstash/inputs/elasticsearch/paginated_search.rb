@@ -123,6 +123,13 @@ module LogStash
         PIT_JOB = "create point in time (PIT)"
         SEARCH_AFTER_JOB = "search_after paginated search"
 
+        attr_accessor :cursor_tracker
+
+        def do_run(output_queue, query)
+          super(output_queue, query)
+          @cursor_tracker.checkpoint_cursor(intermediate: false) if @cursor_tracker
+        end
+
         def pit?(id)
           !!id&.is_a?(String)
         end
@@ -192,6 +199,8 @@ module LogStash
               next_page(pit_id: pit_id, search_after: search_after, slice_id: slice_id)
             end
           end
+
+          @cursor_tracker.checkpoint_cursor(intermediate: true) if @cursor_tracker
 
           logger.info("Query completed", log_details)
         end
