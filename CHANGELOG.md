@@ -1,5 +1,5 @@
 ## 4.21.2
-  - Add elastic-transport client support used in elasticsearch-ruby 8.x [#224](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/224)
+  - Add elastic-transport client support used in elasticsearch-ruby 8.x [#225](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/225)
 
 ## 4.21.1
   - Fix: prevent plugin crash when hits contain illegal structure [#183](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/183)
