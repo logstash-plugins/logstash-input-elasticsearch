@@ -21,6 +21,13 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
   let(:es_version) { "7.5.0" }
   let(:cluster_info) { {"version" => {"number" => es_version, "build_flavor" => build_flavor}, "tagline" => "You Know, for Search"} }
 
+  def elastic_ruby_v8_client_available?
+    Elasticsearch::Transport
+    false
+  rescue NameError # NameError: uninitialized constant Elasticsearch::Transport if Elastic Ruby client is not available
+    true
+  end
+
   before(:each) do
     Elasticsearch::Client.send(:define_method, :ping) { } # define no-action ping method
     allow_any_instance_of(Elasticsearch::Client).to receive(:info).and_return(cluster_info)
@@ -92,10 +99,10 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
 
         before do
           allow(Elasticsearch::Client).to receive(:new).and_return(es_client)
-          begin
-            allow(es_client).to receive(:info).and_raise(Elasticsearch::Transport::Transport::Errors::BadRequest.new)
-          rescue NameError # NameError: uninitialized constant Elasticsearch::Transport
+          if elastic_ruby_v8_client_available?
             allow(es_client).to receive(:info).and_raise(Elastic::Transport::Transport::Errors::BadRequest.new)
+          else
+            allow(es_client).to receive(:info).and_raise(Elasticsearch::Transport::Transport::Errors::BadRequest.new)
           end
         end
 
