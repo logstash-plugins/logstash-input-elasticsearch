@@ -1,6 +1,7 @@
 # encoding: utf-8
 require "logstash/devutils/rspec/spec_helper"
 require "logstash/devutils/rspec/shared_examples"
+require "logstash/inputs/elasticsearch"
 require "logstash/inputs/elasticsearch/cursor_tracker"
 
 describe LogStash::Inputs::Elasticsearch::CursorTracker do
