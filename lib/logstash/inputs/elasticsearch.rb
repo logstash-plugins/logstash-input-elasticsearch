@@ -129,7 +129,6 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # TODO: main concerns
   #       * using anything other than _event.timestamp easily leads to data loss
   #       * the first "synchronization run can take a long time"
-  #       * checkpointing is only safe to do after each run (not per document)
   config :tracking_field, :validate => :string
 
   # Define the initial seed value of the tracking_field
