@@ -365,10 +365,13 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   end
 
   def get_query_object
-    return @query unless @cursor_tracker
-    injected_query = @cursor_tracker.inject_cursor(@query)
-    @logger.debug("new query is #{injected_query}")
-    query_object = LogStash::Json.load(injected_query)
+    if @cursor_tracker
+      query = @cursor_tracker.inject_cursor(@query)
+      @logger.debug("new query is #{injected_query}")
+    else
+      query = @query
+    end
+    LogStash::Json.load(query)
   end
 
   ##
