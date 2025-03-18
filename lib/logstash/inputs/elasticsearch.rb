@@ -366,7 +366,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   def get_query_object
     if @cursor_tracker
       query = @cursor_tracker.inject_cursor(@query)
-      @logger.debug("new query is #{injected_query}")
+      @logger.debug("new query is #{query}")
     else
       query = @query
     end
