@@ -8,8 +8,6 @@ module LogStash; module Inputs; class Elasticsearch
 
     def initialize(last_run_metadata_path:, tracking_field:, tracking_field_seed:)
       @last_run_metadata_path = last_run_metadata_path
-      @last_run_metadata_path ||= ::File.join(LogStash::SETTINGS.get_value("path.data"), "plugins", "inputs", "elasticsearch", "last_run_value")
-      FileUtils.mkdir_p ::File.dirname(@last_run_metadata_path)
       @last_value_hashmap = Java::java.util.concurrent.ConcurrentHashMap.new
       @last_value = IO.read(@last_run_metadata_path) rescue nil || tracking_field_seed
       @tracking_field = tracking_field

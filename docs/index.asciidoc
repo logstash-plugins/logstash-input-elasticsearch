@@ -63,11 +63,11 @@ a file (location defaults to <<plugins-{type}s-{plugin}-last_run_metadata_path>>
 The user can then inject this value in the query using the placeholder `:last_value`. The value will be injected into the query
 before execution, and the updated after the query completes, assuming new data was found.
 
-The plugin also offers another placeholder called `:present` used to inject the nano-second based
-
 This feature works best when:
 * the query sorts by the tracking field
 * the field type has enough resolution so that two events are unlikely to have the same value for the field
+
+The plugin also offers another placeholder called `:present` used to inject the nano-second based value of "now-30s".
 
 A suggestion is to use a tracking field that has nanosecond second precision, like
 https://www.elastic.co/guide/en/elasticsearch/reference/current/date_nanos.html[date nanoseconds] field type.
@@ -456,7 +456,7 @@ referencing multiple indices.
   * There is no default value for this setting.
 
 The path to store the last observed value of the tracking field, when used.
-By default this file is stored as `<path.data>/plugins/inputs/elasticsearch/last_run_value`.
+By default this file is stored as `<path.data>/plugins/inputs/elasticsearch/<pipeline_id>/last_run_value`.
 
 This setting should point to file, not a directory, and Logstash must have read+write access to this file.
 

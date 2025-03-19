@@ -136,7 +136,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
   # The location of where the tracking field value will be stored
   # The value is persisted after each scheduled run (and not per result)
-  # If it's not set it defaults to '${path.data}/plugins/inputs/elasticsearch/last_run_value'
+  # If it's not set it defaults to '${path.data}/plugins/inputs/elasticsearch/<pipeline_id>/last_run_value'
   config :last_run_metadata_path, :validate => :string
 
   # If set, include Elasticsearch document information such as index, type, and
@@ -687,13 +687,21 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     end
 
     @tracking_field_seed ||= Time.now.utc.iso8601
-    @cursor_tracker = CursorTracker.new(last_run_metadata_path: @last_run_metadata_path,
+    @cursor_tracker = CursorTracker.new(last_run_metadata_path: last_run_metadata_path,
                                         tracking_field: @tracking_field,
                                         tracking_field_seed: @tracking_field_seed)
     @query_executor.cursor_tracker = @cursor_tracker
   end
 
- def get_transport_client_class
+  def last_run_metadata_path
+    return @last_run_metadata_path if @last_run_metadata_path
+
+    last_run_metadata_path = ::File.join(LogStash::SETTINGS.get_value("path.data"), "plugins", "inputs", "elasticsearch", pipeline_id, "last_run_value")
+    FileUtils.mkdir_p ::File.dirname(last_run_metadata_path)
+    last_run_metadata_path
+  end
+
+  def get_transport_client_class
     # LS-core includes `elasticsearch` gem. The gem is composed of two separate gems: `elasticsearch-api` and `elasticsearch-transport`
     # And now `elasticsearch-transport` is old, instead we have `elastic-transport`.
     # LS-core updated `elasticsearch` > 8: https://github.com/elastic/logstash/pull/17161
