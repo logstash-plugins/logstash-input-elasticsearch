@@ -74,7 +74,7 @@ https://www.elastic.co/guide/en/elasticsearch/reference/current/date_nanos.html[
 
 A good use case for this feature is to track new data in an index, which can be achieved by:
 
-1. create ingest pipeline that adds Elasticsearch's `_ingest.timestamp` field to the documents as `event.ingested`:
+. create ingest pipeline that adds Elasticsearch's `_ingest.timestamp` field to the documents as `event.ingested`:
 
 [source, json]
     PUT _ingest/pipeline/my-pipeline
@@ -89,8 +89,8 @@ A good use case for this feature is to track new data in an index, which can be 
       ]
     }
 
-
-2. create an index mapping where the tracking field is of date nanosecond type and invokes the defined pipeline:
+[start=2]
+. create an index mapping where the tracking field is of date nanosecond type and invokes the defined pipeline:
 
 [source, json]
     PUT /_template/my_template
@@ -113,7 +113,8 @@ A good use case for this feature is to track new data in an index, which can be 
       }
     }
 
-3. define a query that looks at all data of the indices, sorted by the tracking field, and with a range filter since the last value seen until present:
+[start=3]
+. define a query that looks at all data of the indices, sorted by the tracking field, and with a range filter since the last value seen until present:
 
 [source,json]
 {
@@ -136,7 +137,8 @@ A good use case for this feature is to track new data in an index, which can be 
   ]
 }
 
-4. configure the Elasticsearch input to query the indices with the query defined above, every minute, and track the `event.ingested` field:
+[start=4]
+. configure the Elasticsearch input to query the indices with the query defined above, every minute, and track the `event.ingested` field:
 
 [source, ruby]
     input {
@@ -157,9 +159,9 @@ A good use case for this feature is to track new data in an index, which can be 
 
 With this setup, as new documents are indexed an `test-*` index, the next scheduled run will:
 
-1. select all new documents since the last observed value of the tracking field;
-2. use PIT+search_after to paginate through all the data;
-3. update the value of the field at the end of the pagination.
+. select all new documents since the last observed value of the tracking field;
+. use PIT+search_after to paginate through all the data;
+. update the value of the field at the end of the pagination.
 
 [id="plugins-{type}s-{plugin}-scheduling"]
 ==== Scheduling
