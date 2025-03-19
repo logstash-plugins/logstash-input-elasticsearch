@@ -776,7 +776,7 @@ The value of this field is injected into each query if the query uses the placeh
 For the first query after a pipeline is started, the value used is either read from <<plugins-{type}s-{plugin}-last_run_metadata_path>> file,
 or taken from <<plugins-{type}s-{plugin}-tracking_field_seed>> setting.
 
-Note: The tracking value is updated only after the PIT+search_after run completes, it won't update during the search_after pagination. This is to allow use of slices.
+Note: The tracking value is updated after each page is read and at the end of each Point in Time. In case of a crash the last saved value will be used so some duplication of data can occur. For this reason the use of unique document IDs for each event is recommended in the downstream destination.
 
 [id="plugins-{type}s-{plugin}-tracking_field_seed"]
 ===== `tracking_field_seed`
