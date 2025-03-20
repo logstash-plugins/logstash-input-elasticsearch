@@ -547,7 +547,7 @@ exactly once.
   * Default value is `true`
 
 Whether to allow queuing of a scheduled run if a run is occurring.
-While this is ideal for ensuring a new run happens immediatelly after the previous on finishes if there
+While this is ideal for ensuring a new run happens immediately after the previous on finishes if there
 is a lot of work to do, but given the queue is unbounded it may lead to an out of memory over long periods of time
 if the queue grows continuously.
 
