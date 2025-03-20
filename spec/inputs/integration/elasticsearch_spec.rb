@@ -76,6 +76,14 @@ describe LogStash::Inputs::Elasticsearch do
     shared_examples 'secured_elasticsearch' do
       it_behaves_like 'an elasticsearch index plugin'
 
+      let(:unauth_exception_class) do
+        begin
+          Elasticsearch::Transport::Transport::Errors::Unauthorized
+        rescue
+          Elastic::Transport::Transport::Errors::Unauthorized
+        end
+      end
+
       context "incorrect auth credentials" do
 
         let(:config) do
@@ -85,7 +93,7 @@ describe LogStash::Inputs::Elasticsearch do
         let(:queue) { [] }
 
         it "fails to run the plugin" do
-          expect { plugin.register }.to raise_error Elasticsearch::Transport::Transport::Errors::Unauthorized
+          expect { plugin.register }.to raise_error unauth_exception_class
         end
       end
     end
