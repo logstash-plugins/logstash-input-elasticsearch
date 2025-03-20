@@ -782,10 +782,11 @@ Note: The tracking value is updated after each page is read and at the end of ea
 ===== `tracking_field_seed`
 
 * Value type is <<string,string>>
-* There is no default value for this setting.
+* Default value is `"1970-01-01T00:00:00.000000000Z"`
 
 The starting value for the <<plugins-{type}s-{plugin}-tracking_field>> if there is no <<plugins-{type}s-{plugin}-last_run_metadata_path>> already.
-For a nanosecond timestamp based field, a suggested seed value something like `1980-01-01T23:59:59.999999999Z`.
+This field defaults to the nanosecond precision ISO8601 representation of `epoch`, or "1970-01-01T00:00:00.000000000Z", given nano-second precision timestamps are the
+most reliable data format to use for this feature.
 
 [id="plugins-{type}s-{plugin}-user"]
 ===== `user`

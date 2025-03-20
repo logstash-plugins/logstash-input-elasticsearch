@@ -126,13 +126,13 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   config :slices, :validate => :number
 
   # Enable tracking the value of a given field to be used as a cursor
-  # TODO: main concerns
+  # Main concerns:
   #       * using anything other than _event.timestamp easily leads to data loss
   #       * the first "synchronization run can take a long time"
   config :tracking_field, :validate => :string
 
   # Define the initial seed value of the tracking_field
-  config :tracking_field_seed, :validate => :string
+  config :tracking_field_seed, :validate => :string, :default => "1970-01-01T00:00:00.000000000Z"
 
   # The location of where the tracking field value will be stored
   # The value is persisted after each scheduled run (and not per result)
@@ -686,7 +686,6 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
       raise ConfigurationError.new("The `tracking_field` feature can only be used with `search_after` non-aggregation queries")
     end
 
-    @tracking_field_seed ||= Time.now.utc.iso8601
     @cursor_tracker = CursorTracker.new(last_run_metadata_path: last_run_metadata_path,
                                         tracking_field: @tracking_field,
                                         tracking_field_seed: @tracking_field_seed)
