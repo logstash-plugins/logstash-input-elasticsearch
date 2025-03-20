@@ -48,9 +48,65 @@ This would create an Elasticsearch query with the following format:
       "sort": [ "_doc" ]
     }'
 
+[id="plugins-{type}s-{plugin}-scheduling"]
+==== Scheduling
+
+Input from this plugin can be scheduled to run periodically according to a specific
+schedule. This scheduling syntax is powered by https://github.com/jmettraux/rufus-scheduler[rufus-scheduler].
+The syntax is cron-like with some extensions specific to Rufus (e.g. timezone support ).
+
+Examples:
+
+|==========================================================
+| `* 5 * 1-3 *`               | will execute every minute of 5am every day of January through March.
+| `0 * * * *`                 | will execute on the 0th minute of every hour every day.
+| `0 6 * * * America/Chicago` | will execute at 6:00am (UTC/GMT -5) every day.
+|==========================================================
+
+
+Further documentation describing this syntax can be found
+https://github.com/jmettraux/rufus-scheduler#parsing-cronlines-and-time-strings[here].
+
+
+[id="plugins-{type}s-{plugin}-auth"]
+==== Authentication
+
+Authentication to a secure Elasticsearch cluster is possible using _one_ of the following options:
+
+* <<plugins-{type}s-{plugin}-user>> AND <<plugins-{type}s-{plugin}-password>>
+* <<plugins-{type}s-{plugin}-cloud_auth>>
+* <<plugins-{type}s-{plugin}-api_key>>
+
+[id="plugins-{type}s-{plugin}-autz"]
+==== Authorization
+
+Authorization to a secure Elasticsearch cluster requires `read` permission at index level and `monitoring` permissions at cluster level.
+The `monitoring` permission at cluster level is necessary to perform periodic connectivity checks.
+
+[id="plugins-{type}s-{plugin}-ecs"]
+==== Compatibility with the Elastic Common Schema (ECS)
+
+When ECS compatibility is disabled, `docinfo_target` uses the `"@metadata"` field as a default, with ECS enabled the plugin
+uses a naming convention `"[@metadata][input][elasticsearch]"` as a default target for placing document information.
+
+The plugin logs a warning when ECS is enabled and `target` isn't set.
+
+TIP: Set the `target` option to avoid potential schema conflicts.
+
+[id="plugins-{type}s-{plugin}-failure-handling"]
+==== Failure handling
+
+When this input plugin cannot create a structured `Event` from a hit result, it will instead create an `Event` that is tagged with `_elasticsearch_input_failure` whose `[event][original]` is a JSON-encoded string representation of the entire hit.
+
+Common causes are:
+
+ - When the hit result contains top-level fields that are {logstash-ref}/processing.html#reserved-fields[reserved in Logstash] but do not have the expected shape. Use the <<plugins-{type}s-{plugin}-target>> directive to avoid conflicts with the top-level namespace.
+ - When <<plugins-{type}s-{plugin}-docinfo>> is enabled and the docinfo fields cannot be merged into the hit result. Combine <<plugins-{type}s-{plugin}-target>> and <<plugins-{type}s-{plugin}-docinfo_target>> to avoid conflict.
 
 [id="plugins-{type}s-{plugin}-cursor"]
 ==== Tracking a field's value across runs
+
+NOTE: experimental:[] `tracking_field` and related settings are experimental and subject to change in the future
 
 It is sometimes desirable to track the value of a particular field between two jobs:
 * avoid re-processing the entire result set of a long query after an unplanned restart
@@ -162,61 +218,6 @@ With this setup, as new documents are indexed an `test-*` index, the next schedu
 . select all new documents since the last observed value of the tracking field;
 . use PIT+search_after to paginate through all the data;
 . update the value of the field at the end of the pagination.
-
-[id="plugins-{type}s-{plugin}-scheduling"]
-==== Scheduling
-
-Input from this plugin can be scheduled to run periodically according to a specific
-schedule. This scheduling syntax is powered by https://github.com/jmettraux/rufus-scheduler[rufus-scheduler].
-The syntax is cron-like with some extensions specific to Rufus (e.g. timezone support ).
-
-Examples:
-
-|==========================================================
-| `* 5 * 1-3 *`               | will execute every minute of 5am every day of January through March.
-| `0 * * * *`                 | will execute on the 0th minute of every hour every day.
-| `0 6 * * * America/Chicago` | will execute at 6:00am (UTC/GMT -5) every day.
-|==========================================================
-
-
-Further documentation describing this syntax can be found
-https://github.com/jmettraux/rufus-scheduler#parsing-cronlines-and-time-strings[here].
-
-
-[id="plugins-{type}s-{plugin}-auth"]
-==== Authentication
-
-Authentication to a secure Elasticsearch cluster is possible using _one_ of the following options:
-
-* <<plugins-{type}s-{plugin}-user>> AND <<plugins-{type}s-{plugin}-password>>
-* <<plugins-{type}s-{plugin}-cloud_auth>>
-* <<plugins-{type}s-{plugin}-api_key>>
-
-[id="plugins-{type}s-{plugin}-autz"]
-==== Authorization
-
-Authorization to a secure Elasticsearch cluster requires `read` permission at index level and `monitoring` permissions at cluster level.
-The `monitoring` permission at cluster level is necessary to perform periodic connectivity checks.
-
-[id="plugins-{type}s-{plugin}-ecs"]
-==== Compatibility with the Elastic Common Schema (ECS)
-
-When ECS compatibility is disabled, `docinfo_target` uses the `"@metadata"` field as a default, with ECS enabled the plugin
-uses a naming convention `"[@metadata][input][elasticsearch]"` as a default target for placing document information.
-
-The plugin logs a warning when ECS is enabled and `target` isn't set.
-
-TIP: Set the `target` option to avoid potential schema conflicts.
-
-[id="plugins-{type}s-{plugin}-failure-handling"]
-==== Failure handling
-
-When this input plugin cannot create a structured `Event` from a hit result, it will instead create an `Event` that is tagged with `_elasticsearch_input_failure` whose `[event][original]` is a JSON-encoded string representation of the entire hit.
-
-Common causes are:
-
- - When the hit result contains top-level fields that are {logstash-ref}/processing.html#reserved-fields[reserved in Logstash] but do not have the expected shape. Use the <<plugins-{type}s-{plugin}-target>> directive to avoid conflicts with the top-level namespace.
- - When <<plugins-{type}s-{plugin}-docinfo>> is enabled and the docinfo fields cannot be merged into the hit result. Combine <<plugins-{type}s-{plugin}-target>> and <<plugins-{type}s-{plugin}-docinfo_target>> to avoid conflict.
 
 [id="plugins-{type}s-{plugin}-options"]
 ==== Elasticsearch Input configuration options
