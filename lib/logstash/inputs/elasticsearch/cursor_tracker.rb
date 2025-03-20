@@ -46,12 +46,12 @@ module LogStash; module Inputs; class Elasticsearch
 
     def inject_cursor(query_json)
       # ":present" means "now - 30s" to avoid grabbing partially visible data in the PIT
-      result = query_json.gsub(":last_value", @last_value.to_s).gsub(":present", now_in_nanos)
+      result = query_json.gsub(":last_value", @last_value.to_s).gsub(":present", now_minus_30s)
       logger.debug("inject_cursor: injected values for ':last_value' and ':present'", :query => result)
       result
     end
 
-    def now_in_nanos
+    def now_minus_30s
       Java::java.time.Instant.now.minusSeconds(30).to_s
     end
   end

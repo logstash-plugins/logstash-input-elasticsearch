@@ -58,7 +58,7 @@ describe LogStash::Inputs::Elasticsearch::CursorTracker do
     before(:each) do
       subject.record_last_value(LogStash::Event.new("my_field" => new_value))
       subject.checkpoint_cursor(intermediate: false)
-      allow(subject).to receive(:now_in_nanos).and_return(fake_now)
+      allow(subject).to receive(:now_minus_30s).and_return(fake_now)
     end
 
     it "injects the value of the cursor into json query if it contains :last_value" do
