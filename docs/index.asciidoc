@@ -117,18 +117,21 @@ When <<plugins-{type}s-{plugin}-tracking_field>> is set, the plugin will record 
 a file (location defaults to <<plugins-{type}s-{plugin}-last_run_metadata_path>>).
 
 The user can then inject this value in the query using the placeholder `:last_value`. The value will be injected into the query
-before execution, and the updated after the query completes, assuming new data was found.
+before execution, and the updated after the query completes if new data was found.
 
 This feature works best when:
-* the query sorts by the tracking field
-* the field type has enough resolution so that two events are unlikely to have the same value for the field
 
-The plugin also offers another placeholder called `:present` used to inject the nano-second based value of "now-30s".
+. the query sorts by the tracking field;
+. the timestamp field is added by {es};
+. the field type has enough resolution so that two events are unlikely to have the same value.
 
-A suggestion is to use a tracking field that has nanosecond second precision, like
-https://www.elastic.co/guide/en/elasticsearch/reference/current/date_nanos.html[date nanoseconds] field type.
+It is recommended to use a tracking field whose type is https://www.elastic.co/guide/en/elasticsearch/reference/current/date_nanos.html[date nanoseconds].
+If the tracking field is of this data type, an extra placeholder called `:present` can be used to inject the nano-second based value of "now-30s".
+This placeholder is useful as the right-hand side of a range filter, allowing the collection of
+new data but leaving partially-searcheable bulk request data to the next scheduled job.
 
-A good use case for this feature is to track new data in an index, which can be achieved by:
+Below is a series of steps to help set up the "tailing" of data being written to a set of indices, using a date nanosecond field
+added by an Elasticsearch ingest pipeline, and the `tracking_field` capability of this plugin.
 
 . create ingest pipeline that adds Elasticsearch's `_ingest.timestamp` field to the documents as `event.ingested`:
 
@@ -205,9 +208,7 @@ A good use case for this feature is to track new data in an index, which can be 
         index => 'test-*'
         query => '{ "query": { "range": { "event.ingested": { "gt": ":last_value", "lt": ":present"}}}, "sort": [ { "event.ingested": {"order": "asc", "format": "strict_date_optional_time_nanos", "numeric_type" : "date_nanos" } } ] }'
         tracking_field => "[event][ingested]"
-        # set a seed value to a value known to be older than any value of `event.ingested`
-        tracking_field_seed => "1980-01-01T23:59:59.999999999Z"
-        slices => 5 # optional use of slices to speed data processing, should be less than number of primary shards
+        slices => 5 # optional use of slices to speed data processing, should be equal to or less than number of primary shards
         schedule => '* * * * *' # every minute
         schedule_overlap => false # don't accumulate jobs if one takes longer than 1 minute
       }
@@ -216,7 +217,7 @@ A good use case for this feature is to track new data in an index, which can be 
 With this setup, as new documents are indexed an `test-*` index, the next scheduled run will:
 
 . select all new documents since the last observed value of the tracking field;
-. use PIT+search_after to paginate through all the data;
+. use <<point-in-time-api,Point in time (PIT)>> + <<search-after, Search after>> to paginate through all the data;
 . update the value of the field at the end of the pagination.
 
 [id="plugins-{type}s-{plugin}-options"]
