@@ -73,6 +73,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
   require 'logstash/inputs/elasticsearch/paginated_search'
   require 'logstash/inputs/elasticsearch/aggregation'
+  require 'logstash/inputs/elasticsearch/esql'
 
   include LogStash::PluginMixins::ECSCompatibilitySupport(:disabled, :v1, :v8 => :v1)
   include LogStash::PluginMixins::ECSCompatibilitySupport::TargetCheck
@@ -253,6 +254,11 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # If set, the _source of each hit will be added nested under the target instead of at the top-level
   config :target, :validate => :field_reference
 
+  # A mode to switch between DSL and ES|QL, defaults to DSL
+  config :query_mode, :validate => %w[dsl, esql], :default => 'dsl'
+
+  config :esql, :validate => :hash
+
   # Obsolete Settings
   config :ssl, :obsolete => "Set 'ssl_enabled' instead."
   config :ca_file, :obsolete => "Set 'ssl_certificate_authorities' instead."
@@ -283,10 +289,13 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     fill_hosts_from_cloud_id
     setup_ssl_params!
 
-    @base_query = LogStash::Json.load(@query)
-    if @slices
-      @base_query.include?('slice') && fail(LogStash::ConfigurationError, "Elasticsearch Input Plugin's `query` option cannot specify specific `slice` when configured to manage parallel slices with `slices` option")
-      @slices < 1 && fail(LogStash::ConfigurationError, "Elasticsearch Input Plugin's `slices` option must be greater than zero, got `#{@slices}`")
+    puts "Query mode: #{@query_mode}"
+    if @query_mode == 'dsl'
+      @base_query = LogStash::Json.load(@query)
+      if @slices
+        @base_query.include?('slice') && fail(LogStash::ConfigurationError, "Elasticsearch Input Plugin's `query` option cannot specify specific `slice` when configured to manage parallel slices with `slices` option")
+        @slices < 1 && fail(LogStash::ConfigurationError, "Elasticsearch Input Plugin's `slices` option must be greater than zero, got `#{@slices}`")
+      end
     end
 
     @retries < 0 && fail(LogStash::ConfigurationError, "Elasticsearch Input Plugin's `retries` option must be equal or greater than zero, got `#{@retries}`")
@@ -358,6 +367,15 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     serialized_hit = hit.to_json
     logger.warn("Event creation error, original data now in [event][original] field", message: e.message, exception: e.class, data: serialized_hit)
     return event_factory.new_event('event' => { 'original' => serialized_hit }, 'tags' => ['_elasticsearch_input_failure'])
+  end
+
+  # hit: {columns: [], values: []}
+  def decorate_and_push_to_queue(output_queue, mapped_entry)
+    puts "mapped_entry class: #{mapped_entry.class}"
+    puts "mapped_entry value: #{mapped_entry.inspect}"
+    event = targeted_event_factory.new_event mapped_entry
+    decorate(event)
+    output_queue << event
   end
 
   def set_docinfo_fields(hit, event)
@@ -627,6 +645,11 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   end
 
   def setup_query_executor
+    if @query_mode == 'esql'
+      @query_executor = LogStash::Inputs::Elasticsearch::Esql.new(@client, self)
+      return @query_executor
+    end
+
     @query_executor = case @response_type
                       when 'hits'
                         if @resolved_search_api == "search_after"
