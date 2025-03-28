@@ -217,7 +217,7 @@ added by an Elasticsearch ingest pipeline, and the `tracking_field` capability o
 With this setup, as new documents are indexed an `test-*` index, the next scheduled run will:
 
 . select all new documents since the last observed value of the tracking field;
-. use <<point-in-time-api,Point in time (PIT)>> + <<search-after, Search after>> to paginate through all the data;
+. use {ref}/point-in-time-api.html#point-in-time-api[Point in time (PIT)] + {ref}/paginate-search-results.html#search-after[Search after] to paginate through all the data;
 . update the value of the field at the end of the pagination.
 
 [id="plugins-{type}s-{plugin}-options"]
