@@ -119,8 +119,8 @@ When <<plugins-{type}s-{plugin}-tracking_field>> is set, the plugin records the 
 a file. 
 (The file location defaults to <<plugins-{type}s-{plugin}-last_run_metadata_path>>.)
 
-The user can then inject this value in the query using the placeholder `:last_value`. The value will be injected into the query
-before execution, and the updated after the query completes if new data was found.
+You can then inject this value in the query using the placeholder `:last_value`. 
+The value will be injected into the query before execution, and then updated after the query completes if new data was found.
 
 This feature works best when:
 
