@@ -114,9 +114,10 @@ Examples include:
 * avoiding the need to re-process the entire result set of a long query after an unplanned restart
 * grabbing only new data from an index instead of processing the entire set on each job.
 
-For this, the Elasticsearch input plugin provides the <<plugins-{type}s-{plugin}-tracking_field>> and <<plugins-{type}s-{plugin}-tracking_field_seed>> options.
-When <<plugins-{type}s-{plugin}-tracking_field>> is set, the plugin will record the value of that field for the last document retrieved in a run into
-a file (location defaults to <<plugins-{type}s-{plugin}-last_run_metadata_path>>).
+The Elasticsearch input plugin provides the <<plugins-{type}s-{plugin}-tracking_field>> and <<plugins-{type}s-{plugin}-tracking_field_seed>> options.
+When <<plugins-{type}s-{plugin}-tracking_field>> is set, the plugin records the value of that field for the last document retrieved in a run into
+a file. 
+(The file location defaults to <<plugins-{type}s-{plugin}-last_run_metadata_path>>.)
 
 The user can then inject this value in the query using the placeholder `:last_value`. The value will be injected into the query
 before execution, and the updated after the query completes if new data was found.
