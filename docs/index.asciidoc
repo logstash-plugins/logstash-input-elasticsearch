@@ -106,7 +106,6 @@ Common causes are:
 [id="plugins-{type}s-{plugin}-cursor"]
 ==== Tracking a field's value across runs
 
-NOTE: experimental:[] `tracking_field` and related settings are experimental and subject to change in the future
 .Technical Preview: Tracking a field's value
 ****
 The feature that allows tracking a field's value across runs is in _Technical Preview_.
