@@ -1152,7 +1152,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
 
     context "when there's an exception" do
       before(:each) do
-        allow(client).to receive(:search).and_raise RuntimeError
+        allow(client).to receive(:search).and_raise RuntimeError.new("test exception")
       end
       it 'produces no events' do
         plugin.run queue
@@ -1296,6 +1296,10 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
     end
 
     let(:mock_queue) { double('queue', :<< => nil) }
+
+    before(:each) do
+      plugin.send(:setup_cursor_tracker)
+    end
 
     it 'pushes a generated event to the queue' do
       plugin.send(:push_hit, hit, mock_queue)
