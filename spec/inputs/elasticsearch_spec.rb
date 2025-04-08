@@ -1370,4 +1370,110 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
     client.transport.respond_to?(:transport) ? client.transport.transport : client.transport
   end
 
+  context "#ESQL" do
+    let(:config) do
+      {
+        "query" => "FROM test-index | STATS count() BY field",
+        "response_type" => "esql",
+        "retries" => 3
+      }
+    end
+    let(:es_version) { "8.11.0" }
+
+    before(:each) do
+      # ES|QL supported |elasticsearch-ruby v8 client is available from 8.17.4
+      # this is a safeguard to let tests succeed in <8.17.4 versions, see validation test cases for unsupported behavior
+      stub_const("LOGSTASH_VERSION", "8.17.4")
+    end
+
+    describe "#initialize" do
+      it "sets up the ESQL client with correct parameters" do
+        expect(plugin.instance_variable_get(:@query)).to eq(config["query"])
+        expect(plugin.instance_variable_get(:@response_type)).to eq(config["response_type"])
+        expect(plugin.instance_variable_get(:@retries)).to eq(config["retries"])
+      end
+    end
+
+    describe "#register" do
+      before(:each) do
+        Elasticsearch::Client.send(:define_method, :ping) { }
+        allow_any_instance_of(Elasticsearch::Client).to receive(:info).and_return(cluster_info)
+      end
+      it "creates ES|QL executor" do
+        plugin.register
+        expect(plugin.instance_variable_get(:@query_executor)).to be_an_instance_of(LogStash::Inputs::Elasticsearch::Esql)
+      end
+    end
+
+    describe "#validation" do
+
+      describe "LS version" do
+        context "when compatible" do
+
+          it "does not raise an error" do
+            expect { plugin.send(:validate_ls_version_for_esql_support!) }.not_to raise_error
+          end
+        end
+
+        context "when incompatible" do
+          before(:each) do
+            stub_const("LOGSTASH_VERSION", "8.10.0")
+          end
+
+          it "raises a runtime error" do
+            expect { plugin.send(:validate_ls_version_for_esql_support!) }
+              .to raise_error(RuntimeError, /Current version of Logstash does not include Elasticsearch client which supports ES|QL. Please upgrade Logstash to at least 8.17.4/)
+          end
+        end
+      end
+
+      describe "ES version" do
+        before(:each) do
+          allow(plugin).to receive(:es_version).and_return("8.10.5")
+        end
+
+        context "when incompatible" do
+          it "raises a runtime error" do
+            expect { plugin.send(:validate_es_for_esql_support!) }
+              .to raise_error(RuntimeError, /Connected Elasticsearch 8.10.5 version does not supports ES|QL. Please upgrade it./)
+          end
+        end
+      end
+
+      describe "ES|QL query"  do
+        context "when query is valid" do
+          it "does not raise an error" do
+            expect { plugin.send(:validate_esql_query!) }.not_to raise_error
+          end
+        end
+
+        context "when query is empty" do
+          let(:config) do
+            {
+              "query" => " "
+            }
+          end
+
+          it "raises a configuration error" do
+            expect { plugin.send(:validate_esql_query!) }
+              .to raise_error(LogStash::ConfigurationError, /`query` cannot be empty/)
+          end
+        end
+
+        context "when query doesn't align with ES syntax" do
+          let(:config) do
+            {
+              "query" => "RANDOM query"
+            }
+          end
+
+          it "raises a configuration error" do
+            source_commands = %w[FROM ROW SHOW]
+            expect { plugin.send(:validate_esql_query!) }
+              .to raise_error(LogStash::ConfigurationError, "`query` needs to start with any of #{source_commands}")
+          end
+        end
+      end
+    end
+  end
 end

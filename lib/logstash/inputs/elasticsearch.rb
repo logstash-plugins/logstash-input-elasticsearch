@@ -74,6 +74,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   require 'logstash/inputs/elasticsearch/paginated_search'
   require 'logstash/inputs/elasticsearch/aggregation'
   require 'logstash/inputs/elasticsearch/cursor_tracker'
+  require 'logstash/inputs/elasticsearch/esql'
 
   include LogStash::PluginMixins::ECSCompatibilitySupport(:disabled, :v1, :v8 => :v1)
   include LogStash::PluginMixins::ECSCompatibilitySupport::TargetCheck
@@ -104,7 +105,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # This allows you to speccify the response type: either hits or aggregations
   # where hits: normal search request
   #       aggregations: aggregation request
-  config :response_type, :validate => ['hits', 'aggregations'], :default => 'hits'
+  config :response_type, :validate => %w[hits aggregations esql], :default => 'hits'
 
   # This allows you to set the maximum number of hits returned per scroll.
   config :size, :validate => :number, :default => 1000
@@ -302,10 +303,17 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     fill_hosts_from_cloud_id
     setup_ssl_params!
 
-    @base_query = LogStash::Json.load(@query)
-    if @slices
-      @base_query.include?('slice') && fail(LogStash::ConfigurationError, "Elasticsearch Input Plugin's `query` option cannot specify specific `slice` when configured to manage parallel slices with `slices` option")
-      @slices < 1 && fail(LogStash::ConfigurationError, "Elasticsearch Input Plugin's `slices` option must be greater than zero, got `#{@slices}`")
+    if @response_type == 'esql'
+      validate_ls_version_for_esql_support!
+      validate_esql_query!
+      inform_ineffective_esql_params
+    else
+      # for the ES|QL, plugin accepts raw string query but JSON for others
+      @base_query = LogStash::Json.load(@query)
+      if @slices
+        @base_query.include?('slice') && fail(LogStash::ConfigurationError, "Elasticsearch Input Plugin's `query` option cannot specify specific `slice` when configured to manage parallel slices with `slices` option")
+        @slices < 1 && fail(LogStash::ConfigurationError, "Elasticsearch Input Plugin's `slices` option must be greater than zero, got `#{@slices}`")
+      end
     end
 
     @retries < 0 && fail(LogStash::ConfigurationError, "Elasticsearch Input Plugin's `retries` option must be equal or greater than zero, got `#{@retries}`")
@@ -340,6 +348,9 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     @client = Elasticsearch::Client.new(@client_options)
 
     test_connection!
+
+    # make sure connected ES supports ES|QL (8.11+)
+    validate_es_for_esql_support! if @response_type == 'esql'
 
     setup_serverless
 
@@ -396,6 +407,12 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     serialized_hit = hit.to_json
     logger.warn("Event creation error, original data now in [event][original] field", message: e.message, exception: e.class, data: serialized_hit)
     return event_factory.new_event('event' => { 'original' => serialized_hit }, 'tags' => ['_elasticsearch_input_failure'])
+  end
+
+  def decorate_and_push_to_queue(output_queue, mapped_entry)
+    event = targeted_event_factory.new_event mapped_entry
+    decorate(event)
+    output_queue << event
   end
 
   def set_docinfo_fields(hit, event)
@@ -675,6 +692,8 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
                         end
                       when 'aggregations'
                         LogStash::Inputs::Elasticsearch::Aggregation.new(@client, self)
+                      when 'esql'
+                        LogStash::Inputs::Elasticsearch::Esql.new(@client, self)
                       end
   end
 
@@ -712,6 +731,31 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   rescue ::LoadError
     require "elastic/transport/transport/http/manticore"
     ::Elastic::Transport::Transport::HTTP::Manticore
+  end
+
+  def validate_ls_version_for_esql_support!
+    # LS 8.17.4+ has elasticsearch-ruby 8.17 client
+    # elasticsearch-ruby 8.11+ supports ES|QL
+    if Gem::Version.create(LOGSTASH_VERSION) < Gem::Version.create("8.17.4")
+      fail("Current version of Logstash does not include Elasticsearch client which supports ES|QL. Please upgrade Logstash to at least 8.17.4")
+    end
+  end
+
+  def validate_esql_query!
+    fail(LogStash::ConfigurationError, "`query` cannot be empty") if @query.strip.empty?
+    source_commands = %w[FROM ROW SHOW]
+    contains_source_command = source_commands.any? { |source_command| @query.strip.start_with?(source_command) }
+    fail(LogStash::ConfigurationError, "`query` needs to start with any of #{source_commands}") unless contains_source_command
+  end
+
+  def inform_ineffective_esql_params
+    ineffective_options = original_params.keys & %w(target size slices search_api)
+    @logger.info("Configured #{ineffective_options} params are ineffective in ES|QL mode") if ineffective_options.size > 1
+  end
+
+  def validate_es_for_esql_support!
+    es_supports_esql = Gem::Version.create(es_version) >= Gem::Version.create("8.11")
+    fail("Connected Elasticsearch #{es_version} version does not supports ES|QL. Please upgrade it.") unless es_supports_esql
   end
 
   module URIOrEmptyValidator
