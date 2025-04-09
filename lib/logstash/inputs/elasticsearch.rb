@@ -366,15 +366,16 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   def run(output_queue)
     if @schedule
       scheduler.cron(@schedule, :overlap => @schedule_overlap) do
-        @query_executor.do_run(output_queue, get_query_object())
+        @query_executor.do_run(output_queue, get_query_object)
       end
       scheduler.join
     else
-      @query_executor.do_run(output_queue, get_query_object())
+      @query_executor.do_run(output_queue, get_query_object)
     end
   end
 
   def get_query_object
+    return @query if @response_type == 'esql'
     if @cursor_tracker
       query = @cursor_tracker.inject_cursor(@query)
       @logger.debug("new query is #{query}")
