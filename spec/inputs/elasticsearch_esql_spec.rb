@@ -54,20 +54,20 @@ describe LogStash::Inputs::Elasticsearch::Esql do
 
     it "executes the ESQL query and processes the results" do
       allow(response).to receive(:headers).and_return({})
-      esql_executor.do_run(output_queue)
+      esql_executor.do_run(output_queue, plugin_config["query"])
       expect(plugin).to have_received(:decorate_and_push_to_queue).with(output_queue, {'id' => 'foo', 'val' => 'bar'})
     end
 
     it "logs a warning if the response contains a warning header" do
       allow(response).to receive(:headers).and_return({"warning" => "some warning"})
       expect(esql_executor.logger).to receive(:warn).with("ES|QL executor received warning", {:message => "some warning"})
-      esql_executor.do_run(output_queue)
+      esql_executor.do_run(output_queue, plugin_config["query"])
     end
 
     it "does not log a warning if the response does not contain a warning header" do
       allow(response).to receive(:headers).and_return({})
       expect(esql_executor.logger).not_to receive(:warn)
-      esql_executor.do_run(output_queue)
+      esql_executor.do_run(output_queue, plugin_config["query"])
     end
   end
 
@@ -93,4 +93,4 @@ describe LogStash::Inputs::Elasticsearch::Esql do
       expect(result).to eq({'id' => 'foo', 'val' => 'bar'})
     end
   end
-end
+end if LOGSTASH_VERSION >= '8.17.5'
