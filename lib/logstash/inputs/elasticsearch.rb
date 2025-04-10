@@ -287,6 +287,9 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   DEFAULT_EAV_HEADER = { "Elastic-Api-Version" => "2023-10-31" }.freeze
   INTERNAL_ORIGIN_HEADER = { 'x-elastic-product-origin' => 'logstash-input-elasticsearch'}.freeze
 
+  LS_ESQL_SUPPORT_VERSION = "8.17.4" # the version started using elasticsearch-ruby v8
+  ES_ESQL_SUPPORT_VERSION = "8.11.0"
+
   def initialize(params={})
     super(params)
 
@@ -308,7 +311,6 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
       validate_esql_query!
       inform_ineffective_esql_params
     else
-      # for the ES|QL, plugin accepts raw string query but JSON for others
       @base_query = LogStash::Json.load(@query)
       if @slices
         @base_query.include?('slice') && fail(LogStash::ConfigurationError, "Elasticsearch Input Plugin's `query` option cannot specify specific `slice` when configured to manage parallel slices with `slices` option")
@@ -349,8 +351,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
     test_connection!
 
-    # make sure connected ES supports ES|QL (8.11+)
-    validate_es_for_esql_support! if @response_type == 'esql'
+    validate_es_for_esql_support!
 
     setup_serverless
 
@@ -571,8 +572,8 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
       jvm_version = java.lang.System.getProperty('java.version')
 
       plugin_version = Gem.loaded_specs["logstash-input-elasticsearch"].version
-      # example: logstash/7.14.1 (OS=Linux-5.4.0-84-generic-amd64; JVM=AdoptOpenJDK-11.0.11) logstash-input-elasticsearch/4.10.0
-      "logstash/#{LOGSTASH_VERSION} (OS=#{os_name}-#{os_version}-#{os_arch}; JVM=#{jvm_vendor}-#{jvm_version}) logstash-#{@plugin_type}-#{config_name}/#{plugin_version}"
+      # example: logstash/7.14.1 (OS=Linux-5.4.0-84-generic-amd64; JVM=AdoptOpenJDK-11.0.11) logstash-input-elasticsearch/4.10.0 query_type/DSL
+      "logstash/#{LOGSTASH_VERSION} (OS=#{os_name}-#{os_version}-#{os_arch}; JVM=#{jvm_vendor}-#{jvm_version}) logstash-#{@plugin_type}-#{config_name}/#{plugin_version} query_type/#{@response_type}"
   end
 
   def fill_user_password_from_cloud_auth
@@ -735,10 +736,8 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   end
 
   def validate_ls_version_for_esql_support!
-    # LS 8.17.4+ has elasticsearch-ruby 8.17 client
-    # elasticsearch-ruby 8.11+ supports ES|QL
-    if Gem::Version.create(LOGSTASH_VERSION) < Gem::Version.create("8.17.4")
-      fail("Current version of Logstash does not include Elasticsearch client which supports ES|QL. Please upgrade Logstash to at least 8.17.4")
+    if Gem::Version.create(LOGSTASH_VERSION) < Gem::Version.create(LS_ESQL_SUPPORT_VERSION)
+      fail("Current version of Logstash does not include Elasticsearch client which supports ES|QL. Please upgrade Logstash to at least #{LS_ESQL_SUPPORT_VERSION}")
     end
   end
 
@@ -755,8 +754,10 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   end
 
   def validate_es_for_esql_support!
-    es_supports_esql = Gem::Version.create(es_version) >= Gem::Version.create("8.11")
-    fail("Connected Elasticsearch #{es_version} version does not supports ES|QL. Please upgrade it.") unless es_supports_esql
+    return unless @response_type == 'esql'
+    # make sure connected ES supports ES|QL (8.11+)
+    es_supports_esql = Gem::Version.create(es_version) >= Gem::Version.create(ES_ESQL_SUPPORT_VERSION)
+    fail("Connected Elasticsearch #{es_version} version does not supports ES|QL. ES|QL feature requires at least Elasticsearch #{ES_ESQL_SUPPORT_VERSION} version.") unless es_supports_esql
   end
 
   module URIOrEmptyValidator

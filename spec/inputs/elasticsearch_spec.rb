@@ -1378,12 +1378,11 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
         "retries" => 3
       }
     end
-    let(:es_version) { "8.11.0" }
+    let(:es_version) { LogStash::Inputs::Elasticsearch::ES_ESQL_SUPPORT_VERSION }
+    let(:ls_version) { LogStash::Inputs::Elasticsearch::LS_ESQL_SUPPORT_VERSION }
 
     before(:each) do
-      # ES|QL supported |elasticsearch-ruby v8 client is available from 8.17.4
-      # this is a safeguard to let tests succeed in <8.17.4 versions, see validation test cases for unsupported behavior
-      stub_const("LOGSTASH_VERSION", "8.17.4")
+      stub_const("LOGSTASH_VERSION", ls_version)
     end
 
     describe "#initialize" do
@@ -1422,7 +1421,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
 
           it "raises a runtime error" do
             expect { plugin.send(:validate_ls_version_for_esql_support!) }
-              .to raise_error(RuntimeError, /Current version of Logstash does not include Elasticsearch client which supports ES|QL. Please upgrade Logstash to at least 8.17.4/)
+              .to raise_error(RuntimeError, /Current version of Logstash does not include Elasticsearch client which supports ES|QL. Please upgrade Logstash to at least #{ls_version}/)
           end
         end
       end
@@ -1435,7 +1434,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
         context "when incompatible" do
           it "raises a runtime error" do
             expect { plugin.send(:validate_es_for_esql_support!) }
-              .to raise_error(RuntimeError, /Connected Elasticsearch 8.10.5 version does not supports ES|QL. Please upgrade it./)
+              .to raise_error(RuntimeError, /Connected Elasticsearch 8.10.5 version does not supports ES|QL. ES|QL feature requires at least Elasticsearch #{es_version} version./)
           end
         end
       end

@@ -93,4 +93,4 @@ describe LogStash::Inputs::Elasticsearch::Esql do
       expect(result).to eq({'id' => 'foo', 'val' => 'bar'})
     end
   end
-end if LOGSTASH_VERSION >= '8.17.5'
+end if LOGSTASH_VERSION >= LogStash::Inputs::Elasticsearch::LS_ESQL_SUPPORT_VERSION
