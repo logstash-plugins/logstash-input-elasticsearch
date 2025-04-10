@@ -27,6 +27,7 @@ module LogStash
         # @param query A query to be executed
         def do_run(output_queue, query)
           logger.info("ES|QL executor starting")
+          puts "Query: #{query}"
           response = retryable(ESQL_JOB) do
             @client.esql.query({ body: { query: query }, format: 'json' })
           end
