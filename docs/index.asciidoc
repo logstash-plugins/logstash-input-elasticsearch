@@ -230,6 +230,40 @@ The next scheduled run:
 * uses {ref}/point-in-time-api.html#point-in-time-api[Point in time (PIT)] + {ref}/paginate-search-results.html#search-after[Search after] to paginate through all the data, and
 * updates the value of the field at the end of the pagination.
 
+[id="plugins-{type}s-{plugin}-esql"]
+==== ES|QL support
+{es} Query Language (ES|QL) provides a SQL-like interface for querying your {es} data.
+
+To utilize the ES|QL feature with this plugin, the following version requirements must be met:
+[cols="1,2",options="header"]
+|===
+|Component |Minimum version
+|{es} |8.11.0 or newer
+|{ls} |8.17.4 or newer
+|This plugin |4.23.0+ (4.x series) or 5.2.0+ (5.x series)
+|===
+
+To configure ES|QL query in the plugin, set the `response_type` to `esql` and provide your ES|QL query in the `query` parameter.
+
+IMPORTANT: We recommend understanding https://www.elastic.co/guide/en/elasticsearch/reference/current/esql-limitations.html[ES|QL current limitations] before using it in production environments.
+
+The following is a basic scheduled ES|QL query that runs hourly:
+[source, ruby]
+    input {
+      elasticsearch {
+        id => hourly_cron_job
+        hosts => [ 'https://..']
+        api_key => '....'
+        response_type => 'esql'
+        query => 'FROM my-index | WHERE @timestamp > NOW() - 1 hour | LIMIT 500'
+        schedule => '0 * * * *' # every hour at min 0
+      }
+    }
+
+NOTE: With ES|QL query, {ls} doesn't generate `event.original`
+
+For comprehensive ES|QL syntax reference and best practices, see the https://www.elastic.co/guide/en/elasticsearch/reference/current/esql-syntax.html[official {es} documentation].
+
 [id="plugins-{type}s-{plugin}-options"]
 ==== Elasticsearch Input configuration options
 
@@ -257,7 +291,7 @@ Please check out <<plugins-{type}s-{plugin}-obsolete-options>> for details.
 | <<plugins-{type}s-{plugin}-password>> |<<password,password>>|No
 | <<plugins-{type}s-{plugin}-proxy>> |<<uri,uri>>|No
 | <<plugins-{type}s-{plugin}-query>> |<<string,string>>|No
-| <<plugins-{type}s-{plugin}-response_type>> |<<string,string>>, one of `["hits","aggregations"]`|No
+| <<plugins-{type}s-{plugin}-response_type>> |<<string,string>>, one of `["hits","aggregations","esql"]`|No
 | <<plugins-{type}s-{plugin}-request_timeout_seconds>> | <<number,number>>|No
 | <<plugins-{type}s-{plugin}-schedule>> |<<string,string>>|No
 | <<plugins-{type}s-{plugin}-schedule_overlap>> |<<boolean,boolean>>|No
@@ -507,16 +541,49 @@ the default sort `'{ "sort": { "_shard_doc": "asc" } }'` will be added to the qu
 [id="plugins-{type}s-{plugin}-response_type"]
 ===== `response_type`
 
-  * Value can be any of: `hits`, `aggregations`
+  * Value can be any of: `hits`, `aggregations`, `esql`
   * Default value is `hits`
 
 Which part of the result to transform into Logstash events when processing the
 response from the query.
+
 The default `hits` will generate one event per returned document (i.e. "hit").
+
 When set to `aggregations`, a single Logstash event will be generated with the
 contents of the `aggregations` object of the query's response. In this case the
 `hits` object will be ignored. The parameter `size` will be always be set to
 0 regardless of the default or user-defined value set in this plugin.
+
+When using the `esql` setting, the query parameter must be a valid plaintext ES|QL string.
+When this setting is active, `target`, `size`, `slices` and `search_api` parameters are ignored.
+ES|QL returns query results in a structured tabular format, where data is organized into _columns_ (fields) and _values_ (entries).
+The plugin maps each value entry to an event, populating corresponding fields.
+For example, a query might produce a table like:
+
+[cols="2,1,1,2",options="header"]
+|===
+|`timestamp` |`user_id` | `action` | `status_code`
+
+|2025-04-10T12:00:00 |123 |login |200
+|2025-04-10T12:05:00 |456 |purchase |403
+|===
+
+For this case, the plugin emits two events look like
+[source, json]
+[
+  {
+    "timestamp": "2025-04-10T12:00:00",
+    "user_id": 123,
+    "action": "login",
+    "status_code": 200
+  },
+  {
+    "timestamp": "2025-04-10T12:05:00",
+    "user_id": 456,
+    "action": "purchase",
+    "status_code": 403
+  }
+]
 
 [id="plugins-{type}s-{plugin}-request_timeout_seconds"]
 ===== `request_timeout_seconds`
