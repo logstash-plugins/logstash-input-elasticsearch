@@ -255,7 +255,10 @@ The following is a basic scheduled ES|QL query that runs hourly:
         hosts => [ 'https://..']
         api_key => '....'
         response_type => 'esql'
-        query => 'FROM my-index | WHERE @timestamp > NOW() - 1 hour | LIMIT 500'
+        query => '
+          FROM food-index
+            | WHERE spicy_level = "hot" AND @timestamp > NOW() - 1 hour
+            | LIMIT 500'
         schedule => '0 * * * *' # every hour at min 0
       }
     }
