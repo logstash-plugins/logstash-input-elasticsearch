@@ -13,10 +13,10 @@ module LogStash
         # @param plugin [LogStash::Inputs::Elasticsearch] The parent plugin instance
         def initialize(client, plugin)
           @client = client
-          @plugin_params = plugin.params
           @plugin = plugin
-          @retries = @plugin_params["retries"]
-          @query = @plugin_params["query"]
+          @retries = plugin.params["retries"]
+
+          @query = plugin.params["query"]
           unless @query.include?('METADATA')
             logger.warn("The query doesn't have METADATA keyword. Including it makes _id and _version available in the documents", {:query => @query})
           end
@@ -24,11 +24,11 @@ module LogStash
 
         # Execute the ESQL query and process results
         # @param output_queue [Queue] The queue to push processed events to
-        # @param query A query to be executed
+        # @param query A query (to obey interface definition)
         def do_run(output_queue, query)
           logger.info("ES|QL executor starting")
           response = retryable(ESQL_JOB) do
-            @client.esql.query({ body: { query: query }, format: 'json' })
+            @client.esql.query({ body: { query: @query }, format: 'json' })
           end
           # retriable already printed error details
           return if response == false

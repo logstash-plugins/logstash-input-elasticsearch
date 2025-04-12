@@ -258,10 +258,13 @@ The following is a basic scheduled ES|QL query that runs hourly:
         query => '
           FROM food-index
             | WHERE spicy_level = "hot" AND @timestamp > NOW() - 1 hour
-            | LIMIT 500'
+            | LIMIT 500
+        '
         schedule => '0 * * * *' # every hour at min 0
       }
     }
+
+Set `config.support_escapes: true` in `logstash.yml` if you need to escape special chars in the query.
 
 NOTE: With ES|QL query, {ls} doesn't generate `event.original`
 
