@@ -10,7 +10,6 @@ describe LogStash::Inputs::Elasticsearch, integration: true do
   ES_HOSTS = ["http#{SECURE_INTEGRATION ? 's' : nil}://#{ESHelper.get_host_port}"]
 
   let(:plugin) { described_class.new(config) }
-  let(:es_version) { LogStash::Inputs::Elasticsearch::ES_ESQL_SUPPORT_VERSION }
   let(:es_index) { "logstash-esql-integration-#{rand(1000)}" }
   let(:test_documents) do
     [
@@ -32,11 +31,14 @@ describe LogStash::Inputs::Elasticsearch, integration: true do
   end
 
   before(:all) do
+    is_ls_with_esql_supported_client = Gem::Version.create(LOGSTASH_VERSION) < Gem::Version.create(LogStash::Inputs::Elasticsearch::ES_ESQL_SUPPORT_VERSION)
+    skip "LS version does not have ES client which supports ES|QL" unless is_ls_with_esql_supported_client
+
     # Skip tests if ES version doesn't support ES||QL
     es_client = Elasticsearch::Client.new(hosts: ES_HOSTS) # need to separately create since let isn't allowed in before(:context)
     es_version_info = es_client.info["version"]
     es_gem_version = Gem::Version.create(es_version_info["number"])
-    skip "Elasticsearch version does not support ES|QL" if es_gem_version.nil? || es_gem_version < Gem::Version.create(LogStash::Inputs::Elasticsearch::ES_ESQL_SUPPORT_VERSION)
+    skip "ES version does not support ES|QL" if es_gem_version.nil? || es_gem_version < Gem::Version.create(LogStash::Inputs::Elasticsearch::ES_ESQL_SUPPORT_VERSION)
   end
 
   before(:each) do
