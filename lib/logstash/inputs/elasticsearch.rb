@@ -97,14 +97,17 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # The index or alias to search.
   config :index, :validate => :string, :default => "logstash-*"
 
-  # The query to be executed. Read the Elasticsearch query DSL documentation
-  # for more info
-  # https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html
+  # The query to be executed. DSL or ES|QL (when `response_type => 'esql'`) query type is accepted.
+  # Read the following documentations for more info
+  # Query DSL: https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html
+  # ES|QL: https://www.elastic.co/guide/en/elasticsearch/reference/current/esql.html
   config :query, :validate => :string, :default => '{ "sort": [ "_doc" ] }'
 
-  # This allows you to speccify the response type: either hits or aggregations
-  # where hits: normal search request
-  #       aggregations: aggregation request
+  # This allows you to speccify the response type: one of [hits, aggregations, esql]
+  # where
+  #   hits: normal search request
+  #   aggregations: aggregation request
+  #   esql: ES|QL request
   config :response_type, :validate => %w[hits aggregations esql], :default => 'hits'
 
   # This allows you to set the maximum number of hits returned per scroll.
@@ -749,7 +752,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   end
 
   def inform_ineffective_esql_params
-    ineffective_options = original_params.keys & %w(target size slices search_api)
+    ineffective_options = original_params.keys & %w(index target size slices search_api, docinfo, docinfo_target, docinfo_fields)
     @logger.info("Configured #{ineffective_options} params are ineffective in ES|QL mode") if ineffective_options.size > 1
   end
 
