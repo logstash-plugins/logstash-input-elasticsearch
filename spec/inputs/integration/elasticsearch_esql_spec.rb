@@ -31,7 +31,7 @@ describe LogStash::Inputs::Elasticsearch, integration: true do
   end
 
   before(:all) do
-    is_ls_with_esql_supported_client = Gem::Version.create(LOGSTASH_VERSION) < Gem::Version.create(LogStash::Inputs::Elasticsearch::LS_ESQL_SUPPORT_VERSION)
+    is_ls_with_esql_supported_client = Gem::Version.create(LOGSTASH_VERSION) >= Gem::Version.create(LogStash::Inputs::Elasticsearch::LS_ESQL_SUPPORT_VERSION)
     skip "LS version does not have ES client which supports ES|QL" unless is_ls_with_esql_supported_client
 
     # Skip tests if ES version doesn't support ES||QL
