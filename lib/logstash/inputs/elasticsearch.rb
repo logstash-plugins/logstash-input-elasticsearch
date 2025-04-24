@@ -276,6 +276,10 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # If set, the _source of each hit will be added nested under the target instead of at the top-level
   config :target, :validate => :field_reference
 
+  # Parameters query or query APIs can use
+  #   current acceptable params: drop_null_columns => true|false (for ES|QL)
+  config :query_params, :validate => :hash, :default => {}
+
   # Obsolete Settings
   config :ssl, :obsolete => "Set 'ssl_enabled' instead."
   config :ca_file, :obsolete => "Set 'ssl_certificate_authorities' instead."
@@ -323,6 +327,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
     @retries < 0 && fail(LogStash::ConfigurationError, "Elasticsearch Input Plugin's `retries` option must be equal or greater than zero, got `#{@retries}`")
 
+    validate_query_params!
     validate_authentication
     fill_user_password_from_cloud_auth
 
@@ -749,6 +754,17 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     source_commands = %w[FROM ROW SHOW]
     contains_source_command = source_commands.any? { |source_command| @query.strip.start_with?(source_command) }
     fail(LogStash::ConfigurationError, "`query` needs to start with any of #{source_commands}") unless contains_source_command
+  end
+
+  def validate_query_params!
+    # keep the original, remove ES|QL accepted params and validate
+    cloned_query_params = @query_params.clone
+    if @response_type == 'esql'
+      cloned_query_params.delete("drop_null_columns")
+      fail(LogStash::ConfigurationError, "#{cloned_query_params} not accepted when `response_type => 'esql'`") if cloned_query_params.any?
+    else
+      fail(LogStash::ConfigurationError, "#{@query_params} not accepted when `response_type => #{@response_type}`") if @query_params.any?
+    end
   end
 
   def inform_ineffective_esql_params

@@ -44,7 +44,7 @@ describe LogStash::Inputs::Elasticsearch::Esql do
 
   describe "when executing chain of processes" do
     let(:output_queue) { Queue.new }
-    let(:response) { { 'values' => [%w[foo bar]], 'columns' => [{ 'name' => 'id'}, { 'name' => 'val'}] } }
+    let(:response) { { 'values' => [%w[foo bar]], 'columns' => [{ 'name' => 'a.b.1.d'}, { 'name' => 'h_g.k$l.m.0'}] } }
 
     before do
       allow(esql_executor).to receive(:retryable).and_yield
@@ -55,7 +55,7 @@ describe LogStash::Inputs::Elasticsearch::Esql do
     it "executes the ESQL query and processes the results" do
       allow(response).to receive(:headers).and_return({})
       esql_executor.do_run(output_queue, plugin_config["query"])
-      expect(plugin).to have_received(:decorate_and_push_to_queue).with(output_queue, {'id' => 'foo', 'val' => 'bar'})
+      expect(plugin).to have_received(:decorate_and_push_to_queue).with(output_queue, {"a"=>{"b"=>{"1"=>{"d"=>"foo"}}}, "h_g"=>{"k$l"=>{"m"=>{"0"=>"bar"}}}})
     end
 
     it "logs a warning if the response contains a warning header" do
@@ -71,16 +71,15 @@ describe LogStash::Inputs::Elasticsearch::Esql do
     end
   end
 
-
   describe "when starts processing the response" do
     let(:output_queue) { Queue.new }
     let(:values) { [%w[foo bar]] }
-    let(:columns) { [{'name' => 'id'}, {'name' => 'val'}] }
+    let(:columns) { [{'name' => 'some.id'}, {'name' => 'some.val'}] }
 
     it "processes the ESQL response and pushes events to the output queue" do
       allow(plugin).to receive(:decorate_and_push_to_queue)
       esql_executor.send(:process_response, values, columns, output_queue)
-      expect(plugin).to have_received(:decorate_and_push_to_queue).with(output_queue, {'id' => 'foo', 'val' => 'bar'})
+      expect(plugin).to have_received(:decorate_and_push_to_queue).with(output_queue, {"some"=>{"id"=>"foo", "val"=>"bar"}})
     end
   end
 

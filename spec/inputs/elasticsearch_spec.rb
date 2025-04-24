@@ -1473,6 +1473,38 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
           end
         end
       end
+
+      describe "with extra params" do
+        context "empty `query_params`" do
+          let(:config) {
+            super().merge('query_params' => {})
+          }
+
+          it "does not raise a configuration error" do
+            expect { plugin.send(:validate_query_params!) }.not_to raise_error
+          end
+        end
+
+        context "with actual `drop_null_columns` value" do
+          let(:config) {
+            super().merge('query_params' => { 'drop_null_columns' => true })
+          }
+
+          it "does not raise a configuration error" do
+            expect { plugin.send(:validate_query_params!) }.not_to raise_error
+          end
+        end
+
+        context "with extra non ES|QL params" do
+          let(:config) {
+            super().merge('query_params' => { 'drop_null_columns' => true, 'test' => 'hi'})
+          }
+
+          it "does not raise a configuration error" do
+            expect { plugin.send(:validate_query_params!) }.to raise_error(LogStash::ConfigurationError, "{\"test\"=>\"hi\"} not accepted when `response_type => 'esql'`")
+          end
+        end
+      end
     end
   end
 end
