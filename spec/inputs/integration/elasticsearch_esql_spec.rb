@@ -116,9 +116,9 @@ describe LogStash::Inputs::Elasticsearch, integration: true do
       end
     end
 
-    context "#METADATA included" do
+    context "#METADATA" do
       let(:config) do
-        super().merge("query" => "FROM #{es_index} METADATA _index, _id, _version | SORT count")
+        super().merge("query" => "FROM #{es_index} METADATA _index, _id, _version | DROP message.keyword, type.keyword | SORT count")
       end
 
       it "includes document metadata" do
