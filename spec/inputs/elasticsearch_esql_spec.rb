@@ -15,81 +15,138 @@ describe LogStash::Inputs::Elasticsearch::Esql do
   end
   let(:esql_executor) { described_class.new(client, plugin) }
 
-  describe "when initializes" do
+  describe "#initialization" do
     it "sets up the ESQL client with correct parameters" do
       expect(esql_executor.instance_variable_get(:@query)).to eq(plugin_config["query"])
       expect(esql_executor.instance_variable_get(:@retries)).to eq(plugin_config["retries"])
+      expect(esql_executor.instance_variable_get(:@plugin)).to eq(plugin)
+      expect(esql_executor.instance_variable_get(:@target_field)).to eq(nil)
     end
   end
 
-  describe "when faces error while retrying" do
-    it "retries the given block the specified number of times" do
-      attempts = 0
-      result = esql_executor.retryable("Test Job") do
-        attempts += 1
-        raise StandardError if attempts < 3
-        "success"
-      end
-      expect(attempts).to eq(3)
-      expect(result).to eq("success")
-    end
-
-    it "returns false if the block fails all attempts" do
-      result = esql_executor.retryable("Test Job") do
-        raise StandardError
-      end
-      expect(result).to eq(false)
-    end
-  end
-
-  describe "when executing chain of processes" do
+  describe "#execution" do
     let(:output_queue) { Queue.new }
-    let(:response) { { 'values' => [%w[foo bar]], 'columns' => [{ 'name' => 'a.b.1.d'}, { 'name' => 'h_g.k$l.m.0'}] } }
 
-    before do
-      allow(esql_executor).to receive(:retryable).and_yield
-      allow(client).to receive_message_chain(:esql, :query).and_return(response)
-      allow(plugin).to receive(:decorate_and_push_to_queue)
+    context "when faces error while retrying" do
+      it "retries the given block the specified number of times" do
+        attempts = 0
+        result = esql_executor.retryable("Test Job") do
+          attempts += 1
+          raise StandardError if attempts < 3
+          "success"
+        end
+        expect(attempts).to eq(3)
+        expect(result).to eq("success")
+      end
+
+      it "returns false if the block fails all attempts" do
+        result = esql_executor.retryable("Test Job") do
+          raise StandardError
+        end
+        expect(result).to eq(false)
+      end
     end
 
-    it "executes the ESQL query and processes the results" do
-      allow(response).to receive(:headers).and_return({})
-      esql_executor.do_run(output_queue, plugin_config["query"])
-      expect(plugin).to have_received(:decorate_and_push_to_queue).with(output_queue, {"a"=>{"b"=>{"1"=>{"d"=>"foo"}}}, "h_g"=>{"k$l"=>{"m"=>{"0"=>"bar"}}}})
+    context "when executing chain of processes" do
+      let(:response) { { 'values' => [%w[foo bar]], 'columns' => [{ 'name' => 'a.b.1.d', 'type' => 'keyword' },
+                                                                  { 'name' => 'h_g.k$l.m.0', 'type' => 'keyword' }] } }
+
+      before do
+        allow(esql_executor).to receive(:retryable).and_yield
+        allow(client).to receive_message_chain(:esql, :query).and_return(response)
+        allow(plugin).to receive(:decorate_event)
+      end
+
+      it "executes the ESQL query and processes the results" do
+        allow(response).to receive(:headers).and_return({})
+        esql_executor.do_run(output_queue, plugin_config["query"])
+        expect(output_queue.size).to eq(1)
+
+        event = output_queue.pop
+        expect(event.get('[a][b][1][d]')).to eq('foo')
+        expect(event.get('[h_g][k$l][m][0]')).to eq('bar')
+      end
+
+      it "logs a warning if the response contains a warning header" do
+        allow(response).to receive(:headers).and_return({ "warning" => "some warning" })
+        expect(esql_executor.logger).to receive(:warn).with("ES|QL executor received warning", { :message => "some warning" })
+        esql_executor.do_run(output_queue, plugin_config["query"])
+      end
+
+      it "does not log a warning if the response does not contain a warning header" do
+        allow(response).to receive(:headers).and_return({})
+        expect(esql_executor.logger).not_to receive(:warn)
+        esql_executor.do_run(output_queue, plugin_config["query"])
+      end
     end
 
-    it "logs a warning if the response contains a warning header" do
-      allow(response).to receive(:headers).and_return({"warning" => "some warning"})
-      expect(esql_executor.logger).to receive(:warn).with("ES|QL executor received warning", {:message => "some warning"})
-      esql_executor.do_run(output_queue, plugin_config["query"])
-    end
+    describe "multiple rows in the result" do
+      let(:response) { { 'values' => rows, 'columns' => [{ 'name' => 'key.1', 'type' => 'keyword' },
+                                                         { 'name' => 'key.2', 'type' => 'keyword' }] } }
 
-    it "does not log a warning if the response does not contain a warning header" do
-      allow(response).to receive(:headers).and_return({})
-      expect(esql_executor.logger).not_to receive(:warn)
-      esql_executor.do_run(output_queue, plugin_config["query"])
+      before do
+        allow(esql_executor).to receive(:retryable).and_yield
+        allow(client).to receive_message_chain(:esql, :query).and_return(response)
+        allow(plugin).to receive(:decorate_event)
+        allow(response).to receive(:headers).and_return({})
+      end
+
+      context "when mapping" do
+        let(:rows) { [%w[foo bar], %w[hello world]] }
+
+        it "1:1 maps rows to events" do
+          esql_executor.do_run(output_queue, plugin_config["query"])
+          expect(output_queue.size).to eq(2)
+
+          event_1 = output_queue.pop
+          expect(event_1.get('[key][1]')).to eq('foo')
+          expect(event_1.get('[key][2]')).to eq('bar')
+
+          event_2 = output_queue.pop
+          expect(event_2.get('[key][1]')).to eq('hello')
+          expect(event_2.get('[key][2]')).to eq('world')
+        end
+      end
+
+      context "when partial nil values appear" do
+        let(:rows) { [[nil, "bar"], ["hello", nil]] }
+
+        it "ignores the nil values" do
+          esql_executor.do_run(output_queue, plugin_config["query"])
+          expect(output_queue.size).to eq(2)
+
+          event_1 = output_queue.pop
+          expect(event_1.get('[key][1]')).to eq(nil)
+          expect(event_1.get('[key][2]')).to eq('bar')
+
+          event_2 = output_queue.pop
+          expect(event_2.get('[key][1]')).to eq('hello')
+          expect(event_2.get('[key][2]')).to eq(nil)
+        end
+      end
     end
   end
 
-  describe "when starts processing the response" do
-    let(:output_queue) { Queue.new }
-    let(:values) { [%w[foo bar]] }
-    let(:columns) { [{'name' => 'some.id'}, {'name' => 'some.val'}] }
+  describe "#column spec" do
+    let(:valid_spec) { { 'name' => 'field.name', 'type' => 'keyword' } }
+    let(:column_spec) { LogStash::Inputs::Elasticsearch::ColumnSpec.new(valid_spec) }
 
-    it "processes the ESQL response and pushes events to the output queue" do
-      allow(plugin).to receive(:decorate_and_push_to_queue)
-      esql_executor.send(:process_response, values, columns, output_queue)
-      expect(plugin).to have_received(:decorate_and_push_to_queue).with(output_queue, {"some"=>{"id"=>"foo", "val"=>"bar"}})
+    context "when initializes" do
+      it "sets the name and type attributes" do
+        expect(column_spec.name).to eq("field.name")
+        expect(column_spec.type).to eq("keyword")
+      end
+
+      it "freezes the name and type attributes" do
+        expect(column_spec.name).to be_frozen
+        expect(column_spec.type).to be_frozen
+      end
     end
-  end
 
-  describe "when maps column and values" do
-    let(:columns) { [{'name' => 'id'}, {'name' => 'val'}] }
-    let(:values) { %w[foo bar] }
-
-    it "maps column names to their corresponding values" do
-      result = esql_executor.send(:map_column_and_values, columns, values)
-      expect(result).to eq({'id' => 'foo', 'val' => 'bar'})
+    context "when calls the field reference" do
+      it "returns the correct field reference format" do
+        expect(column_spec.field_reference).to eq("[field][name]")
+      end
     end
   end
 end if LOGSTASH_VERSION >= LogStash::Inputs::Elasticsearch::LS_ESQL_SUPPORT_VERSION

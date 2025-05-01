@@ -1370,7 +1370,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
     client.transport.respond_to?(:transport) ? client.transport.transport : client.transport
   end
 
-  context "#ESQL" do
+  describe "#ESQL" do
     let(:config) do
       {
         "query" => "FROM test-index | STATS count() BY field",
@@ -1470,38 +1470,6 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
             source_commands = %w[FROM ROW SHOW]
             expect { plugin.send(:validate_esql_query!) }
               .to raise_error(LogStash::ConfigurationError, "`query` needs to start with any of #{source_commands}")
-          end
-        end
-      end
-
-      describe "with extra params" do
-        context "empty `query_params`" do
-          let(:config) {
-            super().merge('query_params' => {})
-          }
-
-          it "does not raise a configuration error" do
-            expect { plugin.send(:validate_query_params!) }.not_to raise_error
-          end
-        end
-
-        context "with actual `drop_null_columns` value" do
-          let(:config) {
-            super().merge('query_params' => { 'drop_null_columns' => true })
-          }
-
-          it "does not raise a configuration error" do
-            expect { plugin.send(:validate_query_params!) }.not_to raise_error
-          end
-        end
-
-        context "with extra non ES|QL params" do
-          let(:config) {
-            super().merge('query_params' => { 'drop_null_columns' => true, 'test' => 'hi'})
-          }
-
-          it "does not raise a configuration error" do
-            expect { plugin.send(:validate_query_params!) }.to raise_error(LogStash::ConfigurationError, "{\"test\"=>\"hi\"} not accepted when `response_type => 'esql'`")
           end
         end
       end

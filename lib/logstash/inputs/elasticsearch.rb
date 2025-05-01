@@ -97,7 +97,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # The index or alias to search.
   config :index, :validate => :string, :default => "logstash-*"
 
-  # The query to be executed. DSL or ES|QL (when `response_type => 'esql'`) query type is accepted.
+  # The query to be executed. DSL or ES|QL (when `response_type => 'esql'`) query shape is accepted.
   # Read the following documentations for more info
   # Query DSL: https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html
   # ES|QL: https://www.elastic.co/guide/en/elasticsearch/reference/current/esql.html
@@ -276,10 +276,6 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # If set, the _source of each hit will be added nested under the target instead of at the top-level
   config :target, :validate => :field_reference
 
-  # Parameters query or query APIs can use
-  #   current acceptable params: drop_null_columns => true|false (for ES|QL)
-  config :query_params, :validate => :hash, :default => {}
-
   # Obsolete Settings
   config :ssl, :obsolete => "Set 'ssl_enabled' instead."
   config :ca_file, :obsolete => "Set 'ssl_certificate_authorities' instead."
@@ -316,7 +312,8 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     if @response_type == 'esql'
       validate_ls_version_for_esql_support!
       validate_esql_query!
-      inform_ineffective_esql_params
+      ignored_options = original_params.keys & %w(index size slices search_api, docinfo, docinfo_target, docinfo_fields)
+      @logger.info("Configured #{ignored_options} params are ignored in ES|QL query") if ignored_options&.size > 1
     else
       @base_query = LogStash::Json.load(@query)
       if @slices
@@ -327,7 +324,6 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
     @retries < 0 && fail(LogStash::ConfigurationError, "Elasticsearch Input Plugin's `retries` option must be equal or greater than zero, got `#{@retries}`")
 
-    validate_query_params!
     validate_authentication
     fill_user_password_from_cloud_auth
 
@@ -383,6 +379,22 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     end
   end
 
+  ##
+  # This can be called externally from the query_executor
+  public
+  def push_hit(hit, output_queue, root_field = '_source')
+    event = event_from_hit(hit, root_field)
+    decorate(event)
+    output_queue << event
+    record_last_value(event)
+  end
+
+  def decorate_event(event)
+    decorate(event)
+  end
+
+  private
+
   def get_query_object
     return @query if @response_type == 'esql'
     if @cursor_tracker
@@ -392,16 +404,6 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
       query = @query
     end
     LogStash::Json.load(query)
-  end
-
-  ##
-  # This can be called externally from the query_executor
-  public
-  def push_hit(hit, output_queue, root_field = '_source')
-    event = event_from_hit(hit, root_field)
-    decorate(event)
-    output_queue << event
-    record_last_value(event)
   end
 
   def record_last_value(event)
@@ -419,12 +421,6 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     return event_factory.new_event('event' => { 'original' => serialized_hit }, 'tags' => ['_elasticsearch_input_failure'])
   end
 
-  def decorate_and_push_to_queue(output_queue, mapped_entry)
-    event = targeted_event_factory.new_event mapped_entry
-    decorate(event)
-    output_queue << event
-  end
-
   def set_docinfo_fields(hit, event)
     # do not assume event[@docinfo_target] to be in-place updatable. first get it, update it, then at the end set it in the event.
     docinfo_target = event.get(@docinfo_target) || {}
@@ -440,8 +436,6 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
     event.set(@docinfo_target, docinfo_target)
   end
-
-  private
 
   def hosts_default?(hosts)
     hosts.nil? || ( hosts.is_a?(Array) && hosts.empty? )
@@ -754,22 +748,6 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     source_commands = %w[FROM ROW SHOW]
     contains_source_command = source_commands.any? { |source_command| @query.strip.start_with?(source_command) }
     fail(LogStash::ConfigurationError, "`query` needs to start with any of #{source_commands}") unless contains_source_command
-  end
-
-  def validate_query_params!
-    # keep the original, remove ES|QL accepted params and validate
-    cloned_query_params = @query_params.clone
-    if @response_type == 'esql'
-      cloned_query_params.delete("drop_null_columns")
-      fail(LogStash::ConfigurationError, "#{cloned_query_params} not accepted when `response_type => 'esql'`") if cloned_query_params.any?
-    else
-      fail(LogStash::ConfigurationError, "#{@query_params} not accepted when `response_type => #{@response_type}`") if @query_params.any?
-    end
-  end
-
-  def inform_ineffective_esql_params
-    ineffective_options = original_params.keys & %w(index target size slices search_api, docinfo, docinfo_target, docinfo_fields)
-    @logger.info("Configured #{ineffective_options} params are ineffective in ES|QL mode") if ineffective_options.size > 1
   end
 
   def validate_es_for_esql_support!
