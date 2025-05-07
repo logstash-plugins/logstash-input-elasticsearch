@@ -234,18 +234,12 @@ The next scheduled run:
 ==== ES|QL support
 {es} Query Language (ES|QL) provides a SQL-like interface for querying your {es} data.
 
-To utilize the ES|QL feature with this plugin, the following version requirements must be met:
-[cols="1,2",options="header"]
-|===
-|Component |Minimum version
-|{es} |8.11.0 or newer
-|{ls} |8.17.4 or newer
-|This plugin |4.23.0+ (4.x series) or 5.2.0+ (5.x series)
+To use {esql}, this plugin needs to be installed in {ls} 8.17.4 or newer, and must be connected to {es} 8.11 or newer.
 |===
 
-To configure ES|QL query in the plugin, set the `response_type` to `esql` and provide your ES|QL query in the `query` parameter.
+To configure {esql} query in the plugin, set the `response_type` to `esql` and provide your {esql} query in the `query` parameter.
 
-IMPORTANT: We recommend understanding https://www.elastic.co/guide/en/elasticsearch/reference/current/esql-limitations.html[ES|QL current limitations] before using it in production environments.
+IMPORTANT: {esql} is evolving and may still have limitations with regard to result size or supported field types. We recommend understanding https://www.elastic.co/guide/en/elasticsearch/reference/current/esql-limitations.html[ES|QL current limitations] before using it in production environments.
 
 The following is a basic scheduled ES|QL query that runs hourly:
 [source, ruby]
@@ -322,6 +316,8 @@ To illustrate the situation with example, assuming your mapping has a time `time
     }
 
 The ES|QL result will contain all three fields but the plugin cannot map them into {ls} event.
+
+This a common occurence if your template or mapping follows the pattern of always indexing strings as "text" (`field`) + " keyword" (`field.keyword`) multi-field. In this case it's recommended to do `KEEP field` if the string is identical and there is only one subfield as the engine will optimize and retrieve the keyword, otherwise you can do `KEEP field.keyword | RENAME field.keyword as field` .
 To avoid this, you can use the `RENAME` keyword to rename the `time` parent field to get all three fields with unique fields.
 [source, ruby]
     ...
@@ -622,7 +618,7 @@ contents of the `aggregations` object of the query's response. In this case the
 0 regardless of the default or user-defined value set in this plugin.
 
 When using the `esql` setting, the query must be a valid ES|QL string.
-When this setting is active, `target`, `size`, `slices` and `search_api` parameters are ignored.
+When this setting is active, `index`, `size`, `slices`, `search_api`, `docinfo`, `docinfo_target` and `docinfo_fields` parameters are not allowed.
 
 [id="plugins-{type}s-{plugin}-request_timeout_seconds"]
 ===== `request_timeout_seconds`
