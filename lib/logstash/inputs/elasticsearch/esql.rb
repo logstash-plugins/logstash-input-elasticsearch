@@ -17,7 +17,7 @@ module LogStash
         # @param plugin [LogStash::Inputs::Elasticsearch] The parent plugin instance
         def initialize(client, plugin)
           @client = client
-          @plugin = plugin
+          @event_decorator = plugin.method(:decorate_event)
           @target_field = plugin.params["target"]
           @retries = plugin.params["retries"]
 
@@ -80,7 +80,7 @@ module LogStash
                 event.set(field_reference, ESQL_PARSERS_BY_TYPE[column.type].call(value))
               end
             end
-            @plugin.decorate_event(event)
+            @event_decorator.call(event)
             output_queue << event
           rescue => e
             # if event creation fails with whatever reason, inform user and tag with failure and return entry as it is

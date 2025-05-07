@@ -312,8 +312,8 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     if @response_type == 'esql'
       validate_ls_version_for_esql_support!
       validate_esql_query!
-      ignored_options = original_params.keys & %w(index size slices search_api, docinfo, docinfo_target, docinfo_fields)
-      @logger.info("Configured #{ignored_options} params are ignored in ES|QL query") if ignored_options&.size > 1
+      not_allowed_options = original_params.keys & %w(index size slices search_api, docinfo, docinfo_target, docinfo_fields)
+      raise(LogStash::ConfigurationError, "Configured #{not_allowed_options} params are not allowed while using ES|QL query") if not_allowed_options&.size > 1
     else
       @base_query = LogStash::Json.load(@query)
       if @slices

@@ -235,7 +235,6 @@ The next scheduled run:
 {es} Query Language (ES|QL) provides a SQL-like interface for querying your {es} data.
 
 To use {esql}, this plugin needs to be installed in {ls} 8.17.4 or newer, and must be connected to {es} 8.11 or newer.
-|===
 
 To configure {esql} query in the plugin, set the `response_type` to `esql` and provide your {esql} query in the `query` parameter.
 

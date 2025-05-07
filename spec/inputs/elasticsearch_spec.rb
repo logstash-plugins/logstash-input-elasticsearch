@@ -1439,6 +1439,24 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
         end
       end
 
+      context "ES|QL query and DSL params used together" do
+        let(:config) {
+          super().merge({
+            "index" => "my-index",
+            "size" => 1,
+            "slices" => 1,
+            "search_api" => "auto",
+            "docinfo" => true,
+            "docinfo_target" => "[@metadata][docinfo]",
+            "docinfo_fields" => ["_index"],
+          })}
+
+        it "raises a config error" do
+          mixed_fields = %w[index size slices docinfo_fields]
+          expect { plugin.register }.to raise_error(LogStash::ConfigurationError, /Configured #{mixed_fields} params are not allowed while using ES|QL query/)
+        end
+      end
+
       describe "ES|QL query"  do
         context "when query is valid" do
           it "does not raise an error" do

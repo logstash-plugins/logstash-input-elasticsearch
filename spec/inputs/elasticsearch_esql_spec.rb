@@ -6,7 +6,8 @@ require "elasticsearch"
 describe LogStash::Inputs::Elasticsearch::Esql do
   let(:client) { instance_double(Elasticsearch::Client) }
   let(:esql_client) { double("esql-client") }
-  let(:plugin) { instance_double(LogStash::Inputs::Elasticsearch, params: plugin_config) }
+
+  let(:plugin) { instance_double(LogStash::Inputs::Elasticsearch, params: plugin_config, decorate_event: nil) }
   let(:plugin_config) do
     {
       "query" => "FROM test-index | STATS count() BY field",
@@ -19,7 +20,6 @@ describe LogStash::Inputs::Elasticsearch::Esql do
     it "sets up the ESQL client with correct parameters" do
       expect(esql_executor.instance_variable_get(:@query)).to eq(plugin_config["query"])
       expect(esql_executor.instance_variable_get(:@retries)).to eq(plugin_config["retries"])
-      expect(esql_executor.instance_variable_get(:@plugin)).to eq(plugin)
       expect(esql_executor.instance_variable_get(:@target_field)).to eq(nil)
     end
   end
