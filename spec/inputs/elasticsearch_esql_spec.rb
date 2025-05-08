@@ -54,7 +54,6 @@ describe LogStash::Inputs::Elasticsearch::Esql do
       before do
         allow(esql_executor).to receive(:retryable).and_yield
         allow(client).to receive_message_chain(:esql, :query).and_return(response)
-        allow(plugin).to receive(:decorate_event)
       end
 
       it "executes the ESQL query and processes the results" do
@@ -87,7 +86,6 @@ describe LogStash::Inputs::Elasticsearch::Esql do
       before do
         allow(esql_executor).to receive(:retryable).and_yield
         allow(client).to receive_message_chain(:esql, :query).and_return(response)
-        allow(plugin).to receive(:decorate_event)
         allow(response).to receive(:headers).and_return({})
       end
 
@@ -122,6 +120,36 @@ describe LogStash::Inputs::Elasticsearch::Esql do
           event_2 = output_queue.pop
           expect(event_2.get('[key][1]')).to eq('hello')
           expect(event_2.get('[key][2]')).to eq(nil)
+        end
+      end
+    end
+
+    context "when sub-elements occur in the result" do
+      let(:response) { {
+        'values' => [[50, 1, 100], [50, 0, 1000], [50, 9, 99999]],
+        'columns' =>
+          [
+            { 'name' => 'time', 'type' => 'long' },
+            { 'name' => 'time.min', 'type' => 'long' },
+            { 'name' => 'time.max', 'type' => 'long' },
+          ]
+      } }
+
+      before do
+        allow(esql_executor).to receive(:retryable).and_yield
+        allow(client).to receive_message_chain(:esql, :query).and_return(response)
+        allow(response).to receive(:headers).and_return({})
+      end
+
+      it "includes 1st depth elements into event" do
+        esql_executor.do_run(output_queue, plugin_config["query"])
+
+        expect(output_queue.size).to eq(3)
+        3.times do
+          event = output_queue.pop
+          expect(event.get('time')).to eq(50)
+          expect(event.get('[time][min]')).to eq(nil)
+          expect(event.get('[time][max]')).to eq(nil)
         end
       end
     end

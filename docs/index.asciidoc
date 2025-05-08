@@ -304,8 +304,12 @@ NOTE: If your index has a mapping with sub-objects where `status.code` and `stat
 ===== Conflict on multi-fields
 
 ES|QL query fetches all parent and sub-fields fields if your {es} index has https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/multi-fields[multi-fields] or https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/subobjects[subobjects].
-Since {ls} events cannot contain parent field's concrete value and sub-field values together, the plugin cannot map the result to {ls} event and produces `_elasticsearch_input_failure` tagged failed event.
-We recommend using the `RENAME` (or `DROP`) keyword in your ES|QL query explicitly rename the fields to overcome this issue.
+Since {ls} events cannot contain parent field's concrete value and sub-field values together, the plugin ignores sub-fields with warning and includes parent.
+We recommend using the `RENAME` (or `DROP` to avoid warnings) keyword in your ES|QL query explicitly rename the fields to include sub-fields into the event.
+
+This a common occurrence if your template or mapping follows the pattern of always indexing strings as "text" (`field`) + " keyword" (`field.keyword`) multi-field.
+In this case it's recommended to do `KEEP field` if the string is identical and there is only one subfield as the engine will optimize and retrieve the keyword, otherwise you can do `KEEP field.keyword | RENAME field.keyword as field`.
+
 To illustrate the situation with example, assuming your mapping has a time `time` field with `time.min` and `time.max` sub-fields as following:
 [source, ruby]
     "properties": {
@@ -315,8 +319,6 @@ To illustrate the situation with example, assuming your mapping has a time `time
     }
 
 The ES|QL result will contain all three fields but the plugin cannot map them into {ls} event.
-
-This a common occurence if your template or mapping follows the pattern of always indexing strings as "text" (`field`) + " keyword" (`field.keyword`) multi-field. In this case it's recommended to do `KEEP field` if the string is identical and there is only one subfield as the engine will optimize and retrieve the keyword, otherwise you can do `KEEP field.keyword | RENAME field.keyword as field` .
 To avoid this, you can use the `RENAME` keyword to rename the `time` parent field to get all three fields with unique fields.
 [source, ruby]
     ...
