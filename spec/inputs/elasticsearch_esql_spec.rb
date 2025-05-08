@@ -69,7 +69,7 @@ describe LogStash::Inputs::Elasticsearch::Esql do
 
       it "logs a warning if the response contains a warning header" do
         allow(response).to receive(:headers).and_return({ "warning" => "some warning" })
-        expect(esql_executor.logger).to receive(:warn).with("ES|QL executor received warning", { :message => "some warning" })
+        expect(esql_executor.logger).to receive(:warn).with("ES|QL executor received warning", { :warning_message => "some warning" })
         esql_executor.do_run(output_queue, plugin_config["query"])
       end
 

@@ -18,8 +18,14 @@ module LogStash
         def initialize(client, plugin)
           @client = client
           @event_decorator = plugin.method(:decorate_event)
-          @target_field = plugin.params["target"]
           @retries = plugin.params["retries"]
+
+          target_field = plugin.params["target"]
+          if target_field
+            def self.apply_target(path) = "[#{target_field}][#{path}]"
+          else
+            def self.apply_target(path) = path
+          end
 
           @query = plugin.params["query"]
           unless @query.include?('METADATA')
@@ -40,7 +46,7 @@ module LogStash
           return if response == false
 
           if response&.headers&.dig("warning")
-            logger.warn("ES|QL executor received warning", {:message => response.headers["warning"]})
+            logger.warn("ES|QL executor received warning", {:warning_message => response.headers["warning"]})
           end
           columns = response['columns']&.freeze
           values = response['values']&.freeze
@@ -76,7 +82,7 @@ module LogStash
               # `unless value.nil?` is a part of `drop_null_columns` that if some of columns' values are not `nil`, `nil` values appear
               # we should continuously filter out them to achieve full `drop_null_columns` on each individual row (ideal `LIMIT 1` result)
               unless value.nil?
-                field_reference = @target_field.nil? ? column.field_reference : "[#{@target_field}][#{column.field_reference}]"
+                field_reference = apply_target(column.field_reference)
                 event.set(field_reference, ESQL_PARSERS_BY_TYPE[column.type].call(value))
               end
             end
