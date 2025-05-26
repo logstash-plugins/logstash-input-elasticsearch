@@ -1374,7 +1374,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
     let(:config) do
       {
         "query" => "FROM test-index | STATS count() BY field",
-        "response_type" => "esql",
+        "query_type" => "esql",
         "retries" => 3
       }
     end
@@ -1387,8 +1387,8 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
 
     describe "#initialize" do
       it "sets up the ESQL client with correct parameters" do
+        expect(plugin.instance_variable_get(:@query_type)).to eq(config["query_type"])
         expect(plugin.instance_variable_get(:@query)).to eq(config["query"])
-        expect(plugin.instance_variable_get(:@response_type)).to eq(config["response_type"])
         expect(plugin.instance_variable_get(:@retries)).to eq(config["retries"])
       end
     end
@@ -1449,10 +1449,12 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
             "docinfo" => true,
             "docinfo_target" => "[@metadata][docinfo]",
             "docinfo_fields" => ["_index"],
+            "response_type" => "hits",
+            "tracking_field" => "[@metadata][tracking]"
           })}
 
         it "raises a config error" do
-          mixed_fields = %w[index size slices docinfo_fields]
+          mixed_fields = %w[index size slices docinfo_fields response_type tracking_field]
           expect { plugin.register }.to raise_error(LogStash::ConfigurationError, /Configured #{mixed_fields} params are not allowed while using ES|QL query/)
         end
       end

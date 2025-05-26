@@ -23,7 +23,7 @@ describe LogStash::Inputs::Elasticsearch, integration: true do
   let(:config) do
     {
       "hosts" => ES_HOSTS,
-      "response_type" => "esql"
+      "query_type" => "esql"
     }
   end
   let(:es_client) do

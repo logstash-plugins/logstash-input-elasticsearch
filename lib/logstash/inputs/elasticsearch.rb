@@ -97,18 +97,21 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # The index or alias to search.
   config :index, :validate => :string, :default => "logstash-*"
 
-  # The query to be executed. DSL or ES|QL (when `response_type => 'esql'`) query shape is accepted.
+  # A type of Elasticsearch query, provided by @query. This will validate query shape and other params.
+  config :query_type, :validate => %w[dsl esql], :default => 'dsl'
+
+  # The query to be executed. DSL or ES|QL (when `query_type => 'esql'`) query shape is accepted.
   # Read the following documentations for more info
   # Query DSL: https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html
   # ES|QL: https://www.elastic.co/guide/en/elasticsearch/reference/current/esql.html
   config :query, :validate => :string, :default => '{ "sort": [ "_doc" ] }'
 
-  # This allows you to speccify the response type: one of [hits, aggregations, esql]
+  # This allows you to specify the DSL response type: one of [hits, aggregations]
   # where
   #   hits: normal search request
   #   aggregations: aggregation request
-  #   esql: ES|QL request
-  config :response_type, :validate => %w[hits aggregations esql], :default => 'hits'
+  # Note that this param is invalid when `query_type => 'esql'`, ES|QL response shape is always a tabular format
+  config :response_type, :validate => %w[hits aggregations], :default => 'hits'
 
   # This allows you to set the maximum number of hits returned per scroll.
   config :size, :validate => :number, :default => 1000
@@ -309,10 +312,10 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     fill_hosts_from_cloud_id
     setup_ssl_params!
 
-    if @response_type == 'esql'
+    if @query_type == 'esql'
       validate_ls_version_for_esql_support!
       validate_esql_query!
-      not_allowed_options = original_params.keys & %w(index size slices search_api, docinfo, docinfo_target, docinfo_fields)
+      not_allowed_options = original_params.keys & %w(index size slices search_api docinfo docinfo_target docinfo_fields response_type tracking_field)
       raise(LogStash::ConfigurationError, "Configured #{not_allowed_options} params are not allowed while using ES|QL query") if not_allowed_options&.size > 1
     else
       @base_query = LogStash::Json.load(@query)
@@ -361,7 +364,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
     setup_search_api
 
-    setup_query_executor
+    @query_executor = create_query_executor
 
     setup_cursor_tracker
 
@@ -396,7 +399,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   private
 
   def get_query_object
-    return @query if @response_type == 'esql'
+    return @query if @query_type == 'esql'
     if @cursor_tracker
       query = @cursor_tracker.inject_cursor(@query)
       @logger.debug("new query is #{query}")
@@ -685,20 +688,16 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
   end
 
-  def setup_query_executor
-    @query_executor = case @response_type
-                      when 'hits'
-                        if @resolved_search_api == "search_after"
-                          LogStash::Inputs::Elasticsearch::SearchAfter.new(@client, self)
-                        else
-                          logger.warn("scroll API is no longer recommended for pagination. Consider using search_after instead.") if es_major_version >= 8
-                          LogStash::Inputs::Elasticsearch::Scroll.new(@client, self)
-                        end
-                      when 'aggregations'
-                        LogStash::Inputs::Elasticsearch::Aggregation.new(@client, self)
-                      when 'esql'
-                        LogStash::Inputs::Elasticsearch::Esql.new(@client, self)
-                      end
+  def create_query_executor
+    return LogStash::Inputs::Elasticsearch::Esql.new(@client, self) if @query_type == 'esql'
+
+    # DSL query executor
+    return LogStash::Inputs::Elasticsearch::Aggregation.new(@client, self) if @response_type == 'aggregations'
+    # response_type is hits, executor can be search_after or scroll type
+    return LogStash::Inputs::Elasticsearch::SearchAfter.new(@client, self) if @resolved_search_api == "search_after"
+
+    logger.warn("scroll API is no longer recommended for pagination. Consider using search_after instead.") if es_major_version >= 8
+    LogStash::Inputs::Elasticsearch::Scroll.new(@client, self)
   end
 
   def setup_cursor_tracker
@@ -751,7 +750,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   end
 
   def validate_es_for_esql_support!
-    return unless @response_type == 'esql'
+    return unless @query_type == 'esql'
     # make sure connected ES supports ES|QL (8.11+)
     es_supports_esql = Gem::Version.create(es_version) >= Gem::Version.create(ES_ESQL_SUPPORT_VERSION)
     fail("Connected Elasticsearch #{es_version} version does not supports ES|QL. ES|QL feature requires at least Elasticsearch #{ES_ESQL_SUPPORT_VERSION} version.") unless es_supports_esql
