@@ -232,6 +232,13 @@ The next scheduled run:
 
 [id="plugins-{type}s-{plugin}-esql"]
 ==== {esql} support
+
+.Technical Preview
+****
+The {esql} feature that allows using ES|QL queries with this plugin is in Technical Preview.
+Configuration options and implementation details are subject to change in minor releases without being preceded by deprecation warnings.
+****
+
 {es} Query Language ({esql}) provides a SQL-like interface for querying your {es} data.
 
 To use {esql}, this plugin needs to be installed in {ls} 8.17.4 or newer, and must be connected to {es} 8.11 or newer.
