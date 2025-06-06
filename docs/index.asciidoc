@@ -230,6 +230,110 @@ The next scheduled run:
 * uses {ref}/point-in-time-api.html#point-in-time-api[Point in time (PIT)] + {ref}/paginate-search-results.html#search-after[Search after] to paginate through all the data, and
 * updates the value of the field at the end of the pagination.
 
+[id="plugins-{type}s-{plugin}-esql"]
+==== {esql} support
+
+.Technical Preview
+****
+The {esql} feature that allows using ES|QL queries with this plugin is in Technical Preview.
+Configuration options and implementation details are subject to change in minor releases without being preceded by deprecation warnings.
+****
+
+{es} Query Language ({esql}) provides a SQL-like interface for querying your {es} data.
+
+To use {esql}, this plugin needs to be installed in {ls} 8.17.4 or newer, and must be connected to {es} 8.11 or newer.
+
+To configure {esql} query in the plugin, set the `query_type` to `esql` and provide your {esql} query in the `query` parameter.
+
+IMPORTANT: {esql} is evolving and may still have limitations with regard to result size or supported field types. We recommend understanding https://www.elastic.co/guide/en/elasticsearch/reference/current/esql-limitations.html[ES|QL current limitations] before using it in production environments.
+
+The following is a basic scheduled {esql} query that runs hourly:
+[source, ruby]
+    input {
+      elasticsearch {
+        id => hourly_cron_job
+        hosts => [ 'https://..']
+        api_key => '....'
+        query_type => 'esql'
+        query => '
+          FROM food-index
+            | WHERE spicy_level = "hot" AND @timestamp > NOW() - 1 hour
+            | LIMIT 500
+        '
+        schedule => '0 * * * *' # every hour at min 0
+      }
+    }
+
+Set `config.support_escapes: true` in `logstash.yml` if you need to escape special chars in the query.
+
+NOTE: With {esql} query, {ls} doesn't generate `event.original`.
+
+[id="plugins-{type}s-{plugin}-esql-event-mapping"]
+===== Mapping {esql} result to {ls} event
+{esql} returns query results in a structured tabular format, where data is organized into _columns_ (fields) and _values_ (entries).
+The plugin maps each value entry to an event, populating corresponding fields.
+For example, a query might produce a table like:
+
+[cols="2,1,1,1,2",options="header"]
+|===
+|`timestamp` |`user_id` | `action` | `status.code` | `status.desc`
+
+|2025-04-10T12:00:00 |123 |login |200 | Success
+|2025-04-10T12:05:00 |456 |purchase |403 | Forbidden (unauthorized user)
+|===
+
+For this case, the plugin emits two events look like
+[source, json]
+[
+  {
+    "timestamp": "2025-04-10T12:00:00",
+    "user_id": 123,
+    "action": "login",
+    "status": {
+        "code": 200,
+        "desc": "Success"
+    }
+  },
+  {
+    "timestamp": "2025-04-10T12:05:00",
+    "user_id": 456,
+    "action": "purchase",
+    "status": {
+        "code": 403,
+        "desc": "Forbidden (unauthorized user)"
+    }
+  }
+]
+
+NOTE: If your index has a mapping with sub-objects where `status.code` and `status.desc` actually dotted fields, they appear in {ls} events as a nested structure.
+
+[id="plugins-{type}s-{plugin}-esql-multifields"]
+===== Conflict on multi-fields
+
+{esql} query fetches all parent and sub-fields fields if your {es} index has https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/multi-fields[multi-fields] or https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/subobjects[subobjects].
+Since {ls} events cannot contain parent field's concrete value and sub-field values together, the plugin ignores sub-fields with warning and includes parent.
+We recommend using the `RENAME` (or `DROP` to avoid warnings) keyword in your {esql} query explicitly rename the fields to include sub-fields into the event.
+
+This a common occurrence if your template or mapping follows the pattern of always indexing strings as "text" (`field`) + " keyword" (`field.keyword`) multi-field.
+In this case it's recommended to do `KEEP field` if the string is identical and there is only one subfield as the engine will optimize and retrieve the keyword, otherwise you can do `KEEP field.keyword | RENAME field.keyword as field`.
+
+To illustrate the situation with example, assuming your mapping has a time `time` field with `time.min` and `time.max` sub-fields as following:
+[source, ruby]
+    "properties": {
+        "time": { "type": "long" },
+        "time.min": { "type": "long" },
+        "time.max": { "type": "long" }
+    }
+
+The {esql} result will contain all three fields but the plugin cannot map them into {ls} event.
+To avoid this, you can use the `RENAME` keyword to rename the `time` parent field to get all three fields with unique fields.
+[source, ruby]
+    ...
+    query => 'FROM my-index | RENAME time AS time.current'
+    ...
+
+For comprehensive {esql} syntax reference and best practices, see the https://www.elastic.co/guide/en/elasticsearch/reference/current/esql-syntax.html[{esql} documentation].
+
 [id="plugins-{type}s-{plugin}-options"]
 ==== Elasticsearch Input configuration options
 
@@ -257,6 +361,7 @@ Please check out <<plugins-{type}s-{plugin}-obsolete-options>> for details.
 | <<plugins-{type}s-{plugin}-password>> |<<password,password>>|No
 | <<plugins-{type}s-{plugin}-proxy>> |<<uri,uri>>|No
 | <<plugins-{type}s-{plugin}-query>> |<<string,string>>|No
+| <<plugins-{type}s-{plugin}-query_type>> |<<string,string>>, one of `["dsl","esql"]`|No
 | <<plugins-{type}s-{plugin}-response_type>> |<<string,string>>, one of `["hits","aggregations"]`|No
 | <<plugins-{type}s-{plugin}-request_timeout_seconds>> | <<number,number>>|No
 | <<plugins-{type}s-{plugin}-schedule>> |<<string,string>>|No
@@ -498,22 +603,35 @@ environment variables e.g. `proxy => '${LS_PROXY:}'`.
   * Value type is <<string,string>>
   * Default value is `'{ "sort": [ "_doc" ] }'`
 
-The query to be executed. Read the {ref}/query-dsl.html[Elasticsearch query DSL
-documentation] for more information.
+The query to be executed.
+Accepted query shape is DSL or {esql} (when `query_type => 'esql'`).
+Read the {ref}/query-dsl.html[{es} query DSL documentation] or {ref}/esql.html[{esql} documentation] for more information.
 
 When <<plugins-{type}s-{plugin}-search_api>> resolves to `search_after` and the query does not specify `sort`,
 the default sort `'{ "sort": { "_shard_doc": "asc" } }'` will be added to the query. Please refer to the {ref}/paginate-search-results.html#search-after[Elasticsearch search_after] parameter to know more.
 
+[id="plugins-{type}s-{plugin}-query_type"]
+===== `query_type`
+
+* Value can be `dsl` or `esql`
+* Default value is `dsl`
+
+Defines the <<plugins-{type}s-{plugin}-query>> shape.
+When `dsl`, the query shape must be valid {es} JSON-style string.
+When `esql`, the query shape must be a valid {esql} string and `index`, `size`, `slices`, `search_api`, `docinfo`, `docinfo_target`, `docinfo_fields`, `response_type` and `tracking_field` parameters are not allowed.
+
 [id="plugins-{type}s-{plugin}-response_type"]
 ===== `response_type`
 
-  * Value can be any of: `hits`, `aggregations`
+  * Value can be any of: `hits`, `aggregations`, `esql`
   * Default value is `hits`
 
 Which part of the result to transform into Logstash events when processing the
 response from the query.
+
 The default `hits` will generate one event per returned document (i.e. "hit").
-When set to `aggregations`, a single Logstash event will be generated with the
+
+When set to `aggregations`, a single {ls} event will be generated with the
 contents of the `aggregations` object of the query's response. In this case the
 `hits` object will be ignored. The parameter `size` will be always be set to
 0 regardless of the default or user-defined value set in this plugin.
