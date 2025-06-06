@@ -1,3 +1,6 @@
+## 5.2.0
+  - ES|QL support [#233](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/233)
+
 ## 4.22.0
   - Add "cursor"-like index tracking [#205](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/205)
 
