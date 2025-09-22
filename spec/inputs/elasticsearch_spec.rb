@@ -823,26 +823,28 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       end
 
       context "with ssl" do
-        let(:config) { super().merge("ssl_enabled" => true) }
-        encoded_api_key = Base64.strict_encode64('foo:bar')
+        let(:api_key_value) { nil }
+        let(:config) { super().merge("ssl_enabled" => true, 'api_key' => LogStash::Util::Password.new(api_key_value)) }
+        let(:encoded_api_key) { Base64.strict_encode64('foo:bar') }
 
-        scenarios = {
-          'with non-encoded api-key' => LogStash::Util::Password.new('foo:bar'),
-          'with encoded api-key' => LogStash::Util::Password.new(encoded_api_key)
-        }
+        shared_examples "a plugin that sets the ApiKey authorization header" do
+          it "correctly sets the Authorization header" do
+            plugin.register
+            client = plugin.send(:client)
+            auth_header = extract_transport(client).options[:transport_options][:headers]['Authorization']
 
-        scenarios.each do |description, api_key_value|
-          context description do
-            let(:config) { super().merge('api_key' => api_key_value) }
-
-            it "should set authorization" do
-              plugin.register
-              client = plugin.send(:client)
-              auth_header = extract_transport(client).options[:transport_options][:headers]['Authorization']
-
-              expect(auth_header).to eql "ApiKey #{encoded_api_key}"
-            end
+            expect(auth_header).to eql("ApiKey #{encoded_api_key}")
           end
+        end
+
+        context "with a non-encoded API key" do
+          let(:api_key_value) { "foo:bar" }
+          it_behaves_like "a plugin that sets the ApiKey authorization header"
+        end
+
+        context "with an encoded API key" do
+          let(:api_key_value) { encoded_api_key }
+          it_behaves_like "a plugin that sets the ApiKey authorization header"
         end
 
         context 'user also set' do

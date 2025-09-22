@@ -1,5 +1,5 @@
 ## 5.2.1
-- Support both, encoded and non encoded api-key formats on plugin configuration [#237](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/237)
+- Added support for encoded and non encoded api-key formats on plugin configuration [#237](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/237)
 
 ## 5.2.0
   - ES|QL support [#233](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/233)

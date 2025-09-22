@@ -565,16 +565,14 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   def setup_api_key(api_key)
     return {} unless (api_key&.value)
 
-    token = is_base64?(api_key.value) ?  api_key.value : Base64.strict_encode64(api_key.value)
+    token = base64?(api_key.value) ? api_key.value : Base64.strict_encode64(api_key.value)
     { 'Authorization' => "ApiKey #{token}" }
   end
 
-  def is_base64?(string)
-    begin
-      string == Base64.strict_encode64(Base64.strict_decode64(string))
-    rescue ArgumentError
-      false
-    end
+  def base64?(string)
+    string == Base64.strict_encode64(Base64.strict_decode64(string))
+  rescue ArgumentError
+    false
   end
 
   def prepare_user_agent
