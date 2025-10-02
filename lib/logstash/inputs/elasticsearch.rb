@@ -708,9 +708,8 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
   def setup_cursor_tracker
     return unless @tracking_field
-    return unless @query_executor.is_a?(LogStash::Inputs::Elasticsearch::SearchAfter)
 
-    if @resolved_search_api != "search_after" || @response_type != "hits"
+    if @resolved_search_api != "search_after" || @response_type != "hits" || !@query_executor.is_a?(LogStash::Inputs::Elasticsearch::SearchAfter)
       raise ConfigurationError.new("The `tracking_field` feature can only be used with `search_after` non-aggregation queries")
     end
 
