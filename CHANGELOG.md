@@ -1,3 +1,6 @@
+## 5.2.2
+  - [DOC] Note that `search_after` requires permissions on underlying indices/data streams, not aliases [#251](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/TBD)
+
 ## 5.2.1
   - Added support for encoded and non encoded api-key formats on plugin configuration [#237](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/237)
 
