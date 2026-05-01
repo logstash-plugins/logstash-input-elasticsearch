@@ -706,7 +706,7 @@ The query requires at least one `sort` field, as described in the <<plugins-{typ
 
 `scroll` uses {ref}/paginate-search-results.html#scroll-search-results[scroll] API to search, which is no longer recommended.
 
-NOTE: When using `search_after`, read permissions on aliases alone are insufficient. Permissions must be granted on the underlying indices or data streams.
+NOTE: `search_after` needs read permissions on the underlying indices or data streams. Permissions on aliases alone are not enough.
 
 [id="plugins-{type}s-{plugin}-size"]
 ===== `size`
