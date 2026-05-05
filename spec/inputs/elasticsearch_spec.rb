@@ -48,13 +48,13 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       it "does not set header Elastic-Api-Version" do
         plugin.register
         client = plugin.send(:client)
-        expect( client.transport(client).options[:transport_options][:headers] ).not_to match hash_including("Elastic-Api-Version" => "2023-10-31")
+        expect( client.transport.options[:transport_options][:headers] ).not_to match hash_including("Elastic-Api-Version" => "2023-10-31")
       end
 
       it "sets an x-elastic-product-origin header identifying this as an internal plugin request" do
         plugin.register
         client = plugin.send(:client)
-        expect( client.transport(client).options[:transport_options][:headers] ).to match hash_including("x-elastic-product-origin"=>"logstash-input-elasticsearch")
+        expect( client.transport.options[:transport_options][:headers] ).to match hash_including("x-elastic-product-origin"=>"logstash-input-elasticsearch")
       end
     end
 
@@ -105,13 +105,13 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
           expect_any_instance_of(Elasticsearch::Client).to receive(:info).and_return(true)
           plugin.register
           client = plugin.send(:client)
-          expect( client.transport(client).options[:transport_options][:headers] ).to match hash_including("Elastic-Api-Version" => "2023-10-31")
+          expect( client.transport.options[:transport_options][:headers] ).to match hash_including("Elastic-Api-Version" => "2023-10-31")
         end
 
         it "sets an x-elastic-product-origin header identifying this as an internal plugin request" do
           plugin.register
           client = plugin.send(:client)
-          expect( client.transport(client).options[:transport_options][:headers] ).to match hash_including("x-elastic-product-origin"=>"logstash-input-elasticsearch")
+          expect( client.transport.options[:transport_options][:headers] ).to match hash_including("x-elastic-product-origin"=>"logstash-input-elasticsearch")
         end
       end
 
@@ -127,7 +127,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
         it "sets custom headers" do
           plugin.register
           client = plugin.send(:client)
-          expect( client.transport(client).options[:transport_options][:headers] ).to match hash_including(config["custom_headers"])
+          expect( client.transport.options[:transport_options][:headers] ).to match hash_including(config["custom_headers"])
         end
       end
     end
@@ -774,7 +774,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       it "should set authorization" do
         plugin.register
         client = plugin.send(:client)
-        auth_header = client.transport(client).options[:transport_options][:headers]['Authorization']
+        auth_header = client.transport.options[:transport_options][:headers]['Authorization']
 
         expect( auth_header ).to eql "Basic #{Base64.encode64('elastic:my-passwd-00').rstrip}"
       end
@@ -814,7 +814,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
           it "correctly sets the Authorization header" do
             plugin.register
             client = plugin.send(:client)
-            auth_header = client.transport(client).options[:transport_options][:headers]['Authorization']
+            auth_header = client.transport.options[:transport_options][:headers]['Authorization']
 
             expect(auth_header).to eql("ApiKey #{encoded_api_key}")
           end
@@ -854,7 +854,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       it "should set proxy" do
         plugin.register
         client = plugin.send(:client)
-        proxy = client.transport(client).options[:transport_options][:proxy]
+        proxy = client.transport.options[:transport_options][:proxy]
 
         expect( proxy ).to eql "http://localhost:1234"
       end
@@ -866,7 +866,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
           plugin.register
           client = plugin.send(:client)
 
-          expect( client.transport(client).options[:transport_options] ).to_not include(:proxy)
+          expect( client.transport.options[:transport_options] ).to_not include(:proxy)
         end
       end
     end
@@ -1358,10 +1358,6 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
 
       end
     end
-  end
-
-  def client.transport(client)
-    client.transport
   end
 
   describe "#ESQL" do
