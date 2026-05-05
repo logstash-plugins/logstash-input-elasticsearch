@@ -18,15 +18,8 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
   let(:plugin) { described_class.new(config) }
   let(:queue) { Queue.new }
   let(:build_flavor) { "default" }
-  let(:es_version) { "7.5.0" }
+  let(:es_version) { "8.19.10" }
   let(:cluster_info) { {"version" => {"number" => es_version, "build_flavor" => build_flavor}, "tagline" => "You Know, for Search"} }
-
-  def elastic_ruby_v8_client_available?
-    Elasticsearch::Transport
-    false
-  rescue NameError # NameError: uninitialized constant Elasticsearch::Transport if Elastic Ruby client is not available
-    true
-  end
 
   before(:each) do
     Elasticsearch::Client.send(:define_method, :ping) { } # define no-action ping method
@@ -36,7 +29,8 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
   let(:base_config) do
     {
         'hosts' => ["localhost"],
-        'query' => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }'
+        'query' => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }',
+        'search_api' => 'scroll'
     }
   end
 
@@ -55,13 +49,13 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       it "does not set header Elastic-Api-Version" do
         plugin.register
         client = plugin.send(:client)
-        expect( extract_transport(client).options[:transport_options][:headers] ).not_to match hash_including("Elastic-Api-Version" => "2023-10-31")
+        expect( client.transport.options[:transport_options][:headers] ).not_to match hash_including("Elastic-Api-Version" => "2023-10-31")
       end
 
       it "sets an x-elastic-product-origin header identifying this as an internal plugin request" do
         plugin.register
         client = plugin.send(:client)
-        expect( extract_transport(client).options[:transport_options][:headers] ).to match hash_including("x-elastic-product-origin"=>"logstash-input-elasticsearch")
+        expect( client.transport.options[:transport_options][:headers] ).to match hash_including("x-elastic-product-origin"=>"logstash-input-elasticsearch")
       end
     end
 
@@ -99,11 +93,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
 
         before do
           allow(Elasticsearch::Client).to receive(:new).and_return(es_client)
-          if elastic_ruby_v8_client_available?
-            allow(es_client).to receive(:info).and_raise(Elastic::Transport::Transport::Errors::BadRequest.new)
-          else
-            allow(es_client).to receive(:info).and_raise(Elasticsearch::Transport::Transport::Errors::BadRequest.new)
-          end
+          allow(es_client).to receive(:info).and_raise(Elastic::Transport::Transport::Errors::BadRequest.new)
         end
 
         it "raises an exception" do
@@ -116,13 +106,13 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
           expect_any_instance_of(Elasticsearch::Client).to receive(:info).and_return(true)
           plugin.register
           client = plugin.send(:client)
-          expect( extract_transport(client).options[:transport_options][:headers] ).to match hash_including("Elastic-Api-Version" => "2023-10-31")
+          expect( client.transport.options[:transport_options][:headers] ).to match hash_including("Elastic-Api-Version" => "2023-10-31")
         end
 
         it "sets an x-elastic-product-origin header identifying this as an internal plugin request" do
           plugin.register
           client = plugin.send(:client)
-          expect( extract_transport(client).options[:transport_options][:headers] ).to match hash_including("x-elastic-product-origin"=>"logstash-input-elasticsearch")
+          expect( client.transport.options[:transport_options][:headers] ).to match hash_including("x-elastic-product-origin"=>"logstash-input-elasticsearch")
         end
       end
 
@@ -138,7 +128,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
         it "sets custom headers" do
           plugin.register
           client = plugin.send(:client)
-          expect( extract_transport(client).options[:transport_options][:headers] ).to match hash_including(config["custom_headers"])
+          expect( client.transport.options[:transport_options][:headers] ).to match hash_including(config["custom_headers"])
         end
       end
     end
@@ -190,11 +180,12 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
         "_type" => "logs",
         "_id" => "C5b2xLQwTZa76jBmHIbwHQ",
         "_score" => 1.0,
-        "_source" => { "message" => ["ohayo"] }
+        "_source" => { "message" => ["ohayo"] },
+        "sort" => [1]
       }
       allow(@esclient).to receive(:search) { { "hits" => { "hits" => [hit] } } }
-      allow(@esclient).to receive(:scroll) { { "hits" => { "hits" => [hit] } } }
-      allow(@esclient).to receive(:clear_scroll).and_return(nil)
+      allow(@esclient).to receive(:open_point_in_time).and_return({"id" => "test-pit-id"})
+      allow(@esclient).to receive(:close_point_in_time).and_return(nil)
       allow(@esclient).to receive(:ping)
       allow(@esclient).to receive(:info).and_return(cluster_info)
     end
@@ -210,7 +201,8 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
     let(:config) do
       {
           'hosts' => ["localhost"],
-          'query' => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }'
+          'query' => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }',
+          'search_api' => 'scroll'
       }
     end
 
@@ -269,7 +261,8 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
         {
             'hosts' => ["localhost"],
             'query' => '{ "query": { "match": { "city_name": "Okinawa" } }, "fields": ["message"] }',
-            'target' => "[@metadata][_source]"
+            'target' => "[@metadata][_source]",
+            'search_api' => 'scroll'
         }
       end
 
@@ -293,7 +286,8 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
           'query' => "#{LogStash::Json.dump(query)}",
           'slices' => slices,
           'docinfo' => true, # include ids
-          'docinfo_target' => '[@metadata]'
+          'docinfo_target' => '[@metadata]',
+          'search_api' => 'scroll'
       }
     end
     let(:query) do
@@ -753,13 +747,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       it "should set host(s)" do
         plugin.register
         client = plugin.send(:client)
-        target_field = :@seeds
-        begin
-          Elasticsearch::Transport::Client
-        rescue
-          target_field = :@hosts
-        end
-        expect( client.transport.instance_variable_get(target_field) ).to eql [{
+        expect( client.transport.instance_variable_get(:@hosts) ).to eql [{
                                                                               :scheme => "https",
                                                                               :host => "ac31ebb90241773157043c34fd26fd46.us-central1.gcp.cloud.es.io",
                                                                               :port => 9243,
@@ -791,7 +779,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       it "should set authorization" do
         plugin.register
         client = plugin.send(:client)
-        auth_header = extract_transport(client).options[:transport_options][:headers]['Authorization']
+        auth_header = client.transport.options[:transport_options][:headers]['Authorization']
 
         expect( auth_header ).to eql "Basic #{Base64.encode64('elastic:my-passwd-00').rstrip}"
       end
@@ -831,7 +819,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
           it "correctly sets the Authorization header" do
             plugin.register
             client = plugin.send(:client)
-            auth_header = extract_transport(client).options[:transport_options][:headers]['Authorization']
+            auth_header = client.transport.options[:transport_options][:headers]['Authorization']
 
             expect(auth_header).to eql("ApiKey #{encoded_api_key}")
           end
@@ -871,7 +859,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
       it "should set proxy" do
         plugin.register
         client = plugin.send(:client)
-        proxy = extract_transport(client).options[:transport_options][:proxy]
+        proxy = client.transport.options[:transport_options][:proxy]
 
         expect( proxy ).to eql "http://localhost:1234"
       end
@@ -883,7 +871,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
           plugin.register
           client = plugin.send(:client)
 
-          expect( extract_transport(client).options[:transport_options] ).to_not include(:proxy)
+          expect( client.transport.options[:transport_options] ).to_not include(:proxy)
         end
       end
     end
@@ -911,15 +899,15 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
                     "cluster_name": "docker-cluster",
                     "cluster_uuid": "DyR1hN03QvuCWXRy3jtb0g",
                     "version": {
-                        "number": "7.13.1",
+                        "number": "8.13.1",
                         "build_flavor": "default",
                         "build_type": "docker",
                         "build_hash": "9a7758028e4ea59bcab41c12004603c5a7dd84a9",
-                        "build_date": "2021-05-28T17:40:59.346932922Z",
+                        "build_date": "2024-05-28T17:40:59.346932922Z",
                         "build_snapshot": false,
-                        "lucene_version": "8.8.2",
-                        "minimum_wire_compatibility_version": "6.8.0",
-                        "minimum_index_compatibility_version": "6.0.0-beta1"
+                        "lucene_version": "9.10.0",
+                        "minimum_wire_compatibility_version": "7.17.0",
+                        "minimum_index_compatibility_version": "7.0.0"
                     },
                     "tagline": "You Know, for Search"
                 }
@@ -1020,8 +1008,6 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
         let(:plugin) { described_class.new(config) }
         let(:event)  { LogStash::Event.new({}) }
 
-        # elasticsearch-ruby 7.17.9 initialize two user agent headers, `user-agent` and `User-Agent`
-        # hence, fail this header size test case
         xit "client should sent the expect user-agent" do
           plugin.register
 
@@ -1220,6 +1206,7 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
     end
 
     describe "scroll" do
+      let(:config) { super().merge({ "search_api" => "scroll" }) }
       let(:search_response) do
         {
           "_scroll_id" => "cXVlcnlUaGVuRmV0Y2g",
@@ -1377,11 +1364,6 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
 
       end
     end
-  end
-
-  # @note can be removed once we depends on elasticsearch gem >= 6.x
-  def extract_transport(client) # on 7.x client.transport is a ES::Transport::Client
-    client.transport.respond_to?(:transport) ? client.transport.transport : client.transport
   end
 
   describe "#ESQL" do
