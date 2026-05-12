@@ -36,4 +36,3 @@ jobs:
       command: ${{ inputs.command }}
       pr_number: ${{ inputs.pr_number }}
       changelog_entry: ${{ inputs.changelog_entry }}
-    secrets: inherit
