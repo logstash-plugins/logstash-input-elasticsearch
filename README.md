@@ -1,7 +1,9 @@
 # Logstash Plugin
 
 [![Gem Version](https://badge.fury.io/rb/logstash-input-elasticsearch.svg)](https://badge.fury.io/rb/logstash-input-elasticsearch)
-[![Travis Build Status](https://travis-ci.com/logstash-plugins/logstash-input-elasticsearch.svg)](https://travis-ci.com/logstash-plugins/logstash-input-elasticsearch)
+[![Unit Tests](https://github.com/logstash-plugins/logstash-input-elasticsearch/actions/workflows/unit-tests.yml/badge.svg)](https://github.com/logstash-plugins/logstash-input-elasticsearch/actions/workflows/unit-tests.yml)
+[![Integration Tests](https://github.com/logstash-plugins/logstash-input-elasticsearch/actions/workflows/integration-tests.yml/badge.svg)](https://github.com/logstash-plugins/logstash-input-elasticsearch/actions/workflows/integration-tests.yml)
+[![Secure Integration Tests](https://github.com/logstash-plugins/logstash-input-elasticsearch/actions/workflows/secure-integration-tests.yml/badge.svg)](https://github.com/logstash-plugins/logstash-input-elasticsearch/actions/workflows/secure-integration-tests.yml)
 
 This is a plugin for [Logstash](https://github.com/elastic/logstash).
 
