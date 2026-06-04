@@ -5,8 +5,17 @@ set -ex
 
 cd .ci
 
-if [ "$INTEGRATION" == "true" ]; then
-    docker-compose up --exit-code-from logstash
+if docker compose version >/dev/null 2>&1; then
+    docker_compose=(docker compose)
+elif command -v docker-compose >/dev/null 2>&1; then
+    docker_compose=(docker-compose)
 else
-    docker-compose up --exit-code-from logstash logstash
+    echo "Neither 'docker compose' nor 'docker-compose' is available" >&2
+    exit 127
+fi
+
+if [ "$INTEGRATION" == "true" ]; then
+    "${docker_compose[@]}" up --exit-code-from logstash
+else
+    "${docker_compose[@]}" up --exit-code-from logstash logstash
 fi
