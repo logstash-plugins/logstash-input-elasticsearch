@@ -1,3 +1,6 @@
+## 5.3.0
+  Drop a support for Logstash 7.x by requiring elasticsearch gem >= 8. Logstash 8+ continues to work as before.
+
 ## 5.2.2
   - [DOC] Note that `search_after` requires permissions on underlying indices/data streams, not aliases [#251](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/251)
 
