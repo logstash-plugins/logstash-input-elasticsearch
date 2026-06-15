@@ -77,11 +77,7 @@ describe LogStash::Inputs::Elasticsearch do
       it_behaves_like 'an elasticsearch index plugin'
 
       let(:unauth_exception_class) do
-        begin
-          Elasticsearch::Transport::Transport::Errors::Unauthorized
-        rescue
-          Elastic::Transport::Transport::Errors::Unauthorized
-        end
+        Elastic::Transport::Transport::Errors::Unauthorized
       end
 
       context "incorrect auth credentials" do
