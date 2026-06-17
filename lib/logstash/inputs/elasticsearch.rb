@@ -662,6 +662,8 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
 
   def setup_serverless
     if serverless?
+      # recreate client with default header when it is serverless
+      # verify the header by sending GET /
       @client = new_client(serverless: true)
       @client.info
     end
