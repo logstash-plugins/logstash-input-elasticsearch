@@ -1,3 +1,6 @@
+## 5.3.1
+  - Fix serverless request failure caused by conflicting `compatible-with` and `Elastic-Api-Version` headers when using elasticsearch-ruby v9 [#NNN](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/NNN)
+
 ## 5.3.0
   - Drop a support for Logstash 7.x by requiring elasticsearch gem >= 8. Logstash 8+ continues to work as before [#252](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/252)
 

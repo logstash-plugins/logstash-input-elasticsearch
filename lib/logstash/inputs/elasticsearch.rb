@@ -331,31 +331,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     validate_authentication
     fill_user_password_from_cloud_auth
 
-    transport_options = {:headers => {}}
-    transport_options[:headers].merge!(INTERNAL_ORIGIN_HEADER)
-    transport_options[:headers].merge!(setup_basic_auth(user, password))
-    transport_options[:headers].merge!(setup_api_key(api_key))
-    transport_options[:headers].merge!({'user-agent' => prepare_user_agent()})
-    transport_options[:headers].merge!(@custom_headers) unless @custom_headers.empty?
-    transport_options[:request_timeout] = @request_timeout_seconds unless @request_timeout_seconds.nil?
-    transport_options[:connect_timeout] = @connect_timeout_seconds unless @connect_timeout_seconds.nil?
-    transport_options[:socket_timeout]  = @socket_timeout_seconds  unless @socket_timeout_seconds.nil?
-
-    hosts = setup_hosts
-    ssl_options = setup_client_ssl
-
-    @logger.warn "Supplied proxy setting (proxy => '') has no effect" if @proxy.eql?('')
-
-    transport_options[:proxy] = @proxy.to_s if @proxy && !@proxy.eql?('')
-
-    @client_options = {
-      :hosts => hosts,
-      :transport_options => transport_options,
-      :transport_class => ::Elastic::Transport::Transport::HTTP::Manticore,
-      :ssl => ssl_options
-    }
-
-    @client = Elasticsearch::Client.new(@client_options)
+    @client = new_client
 
     test_connection!
 
@@ -641,6 +617,31 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   # @private used by unit specs
   attr_reader :client
 
+  def new_client(serverless: false)
+    headers = {}
+    headers.merge!(INTERNAL_ORIGIN_HEADER)
+    headers.merge!(setup_basic_auth(user, password))
+    headers.merge!(setup_api_key(api_key))
+    headers.merge!({'user-agent' => prepare_user_agent()})
+    headers.merge!(@custom_headers) unless @custom_headers.empty?
+    headers.merge!(DEFAULT_EAV_HEADER) if serverless
+
+    transport_options = { headers: headers }
+    transport_options[:request_timeout] = @request_timeout_seconds unless @request_timeout_seconds.nil?
+    transport_options[:connect_timeout] = @connect_timeout_seconds unless @connect_timeout_seconds.nil?
+    transport_options[:socket_timeout]  = @socket_timeout_seconds  unless @socket_timeout_seconds.nil?
+
+    @logger.warn "Supplied proxy setting (proxy => '') has no effect" if @proxy.eql?('')
+    transport_options[:proxy] = @proxy.to_s if @proxy && !@proxy.eql?('')
+
+    Elasticsearch::Client.new(
+      hosts: setup_hosts,
+      transport_options: transport_options,
+      transport_class: ::Elastic::Transport::Transport::HTTP::Manticore,
+      ssl: setup_client_ssl
+    )
+  end
+
   def test_connection!
     @client.ping
   rescue Elasticsearch::UnsupportedProductError
@@ -659,12 +660,9 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
     @es_major_version ||= es_version.split('.').first.to_i
   end
 
-  # recreate client with default header when it is serverless
-  # verify the header by sending GET /
   def setup_serverless
     if serverless?
-      @client_options[:transport_options][:headers].merge!(DEFAULT_EAV_HEADER)
-      @client = Elasticsearch::Client.new(@client_options)
+      @client = new_client(serverless: true)
       @client.info
     end
   rescue => e
