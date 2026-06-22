@@ -2,9 +2,9 @@ name: Secure Integration Tests
 
 on:
   push:
-    branches: ['4.x', main]
+    branches: ['4.x', 'main']
   pull_request:
-    branches: ['4.x', main]
+    branches: ['4.x', 'main']
   schedule:
     # Daily run that fans out across every active branch via the matrix
     # job below. GitHub only fires `schedule:` from the workflow file on
@@ -34,7 +34,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        branch: ['4.x', main]
+        branch: ['4.x', 'main']
     uses: logstash-plugins/.ci/.github/workflows/secure-integration-tests.yml@1.x
     secrets: inherit
     with:
