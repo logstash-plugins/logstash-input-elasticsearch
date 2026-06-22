@@ -6,7 +6,7 @@ set -ex
 cd .ci
 
 if [ "$INTEGRATION" == "true" ]; then
-    docker-compose up --exit-code-from logstash
+    docker compose up --exit-code-from logstash
 else
-    docker-compose up --exit-code-from logstash logstash
+    docker compose up --exit-code-from logstash logstash
 fi
