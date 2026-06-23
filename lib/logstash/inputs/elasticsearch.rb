@@ -216,7 +216,8 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   config :cloud_auth, :validate => :password
 
   # Authenticate using Elasticsearch API key.
-  # format is id:api_key (as returned by https://www.elastic.co/guide/en/elasticsearch/reference/current/security-api-create-api-key.html[Create API key])
+  # Either the `id:api_key` pair (as returned by https://www.elastic.co/guide/en/elasticsearch/reference/current/security-api-create-api-key.html[Create API key]),
+  # its base64-encoded form, or an https://www.elastic.co/docs/deploy-manage/api-keys/elastic-cloud-api-keys[Elastic Cloud API key] (prefixed with `essu_`) can be used.
   config :api_key, :validate => :password
 
   # Set the address of a forward HTTP proxy.
@@ -542,8 +543,18 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   def setup_api_key(api_key)
     return {} unless (api_key&.value)
 
-    token = base64?(api_key.value) ? api_key.value : Base64.strict_encode64(api_key.value)
+    # Elastic Cloud API keys (`essu_` prefixed) and already base64-encoded
+    # keys are passed verbatim; a raw `id:api_key` pair is encoded here.
+    token = (cloud_api_key?(api_key.value) || base64?(api_key.value)) ? api_key.value : Base64.strict_encode64(api_key.value)
     { 'Authorization' => "ApiKey #{token}" }
+  end
+
+  # Elastic Cloud API keys scoped for Elasticsearch (such as the unified
+  # Serverless keys) are opaque `essu_` prefixed tokens that Elasticsearch
+  # accepts verbatim in the `Authorization: ApiKey` header, with no base64
+  # encoding.
+  def cloud_api_key?(string)
+    string.start_with?("essu_")
   end
 
   def base64?(string)
