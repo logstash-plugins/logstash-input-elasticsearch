@@ -1,5 +1,5 @@
 ## 5.3.2
-  - Support Elastic Cloud API keys (`essu_` prefixed) in the `api_key` option by passing them verbatim instead of base64 re-encoding them [#274](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/274)
+  - Support Elastic Cloud API keys in the `api_key` option, which now accepts an `id:api_key` pair, its base64-encoded form, or an `essu_` Cloud API key, and rejects an unrecognized format at startup [#274](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/274)
 
 ## 5.3.1
   - Fix serverless request failure caused by conflicting `compatible-with` and `Elastic-Api-Version` headers when using elasticsearch-ruby v9 [#269](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/269)

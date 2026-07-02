@@ -216,7 +216,7 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   config :cloud_auth, :validate => :password
 
   # Authenticate using Elasticsearch API key.
-  # Either the `id:api_key` pair (as returned by https://www.elastic.co/guide/en/elasticsearch/reference/current/security-api-create-api-key.html[Create API key]),
+  # Format is either the `id:api_key` pair (as returned by https://www.elastic.co/guide/en/elasticsearch/reference/current/security-api-create-api-key.html[Create API key]),
   # its base64-encoded form, or an https://www.elastic.co/docs/deploy-manage/api-keys/elastic-cloud-api-keys[Elastic Cloud API key] (prefixed with `essu_`) can be used.
   config :api_key, :validate => :password
 
@@ -543,18 +543,30 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   def setup_api_key(api_key)
     return {} unless (api_key&.value)
 
-    # Elastic Cloud API keys (`essu_` prefixed) and already base64-encoded
-    # keys are passed verbatim; a raw `id:api_key` pair is encoded here.
-    token = (cloud_api_key?(api_key.value) || base64?(api_key.value)) ? api_key.value : Base64.strict_encode64(api_key.value)
+    token = resolve_api_key(api_key.value)
     { 'Authorization' => "ApiKey #{token}" }
   end
 
-  # Elastic Cloud API keys scoped for Elasticsearch (such as the unified
-  # Serverless keys) are opaque `essu_` prefixed tokens that Elasticsearch
-  # accepts verbatim in the `Authorization: ApiKey` header, with no base64
-  # encoding.
+  # Resolves the `api_key` value into the credential used in the
+  # `Authorization: ApiKey` header. An already base64-encoded key and an Elastic
+  # Cloud API key are used as-is; a raw `id:api_key` pair is base64-encoded. An
+  # unrecognized value is rejected so a malformed key surfaces at startup rather
+  # than as a later authentication failure.
+  def resolve_api_key(key_value)
+    if base64?(key_value) || cloud_api_key?(key_value)
+      key_value
+    elsif key_value.match?(/\A[^:]+:[^:]+\z/)
+      Base64.strict_encode64(key_value)
+    else
+      raise LogStash::ConfigurationError, "Invalid api_key format. Expected a base64-encoded key, an 'id:api_key' pair, or a Cloud API key (essu_ prefix)."
+    end
+  end
+
+  # Elastic Cloud API keys (such as the unified Serverless keys) are opaque
+  # tokens prefixed with `essu_` that Elasticsearch accepts verbatim in the
+  # `Authorization: ApiKey` header, with no base64 encoding.
   def cloud_api_key?(string)
-    string.start_with?("essu_")
+    string.match?(/\Aessu_.+/)
   end
 
   def base64?(string)
