@@ -835,6 +835,28 @@ describe LogStash::Inputs::Elasticsearch, :ecs_compatibility_support do
           it_behaves_like "a plugin that sets the ApiKey authorization header"
         end
 
+        context "with an Elastic Cloud API key (essu_ prefix)" do
+          # The suffix is intentionally not canonical base64: a Cloud key is opaque
+          # and must be forwarded verbatim regardless of its payload encoding.
+          let(:api_key_value) { "essu_VFZGblZreFhTekJ4ZDB4M2NHUnZRMEU2YzNWd1pYSnpaV055WlhRPQ==AAAAAAAA" }
+
+          it "sets the Authorization header verbatim without re-encoding" do
+            plugin.register
+            client = plugin.send(:client)
+            auth_header = client.transport.options[:transport_options][:headers]['Authorization']
+
+            expect(auth_header).to eql("ApiKey #{api_key_value}")
+          end
+        end
+
+        context "with an unrecognized api_key format" do
+          let(:api_key_value) { "not-a-valid-key" }
+
+          it "fails registration with a configuration error" do
+            expect { plugin.register }.to raise_error(LogStash::ConfigurationError, /Invalid api_key format/)
+          end
+        end
+
         context 'user also set' do
           let(:config) { super().merge({ 'api_key' => 'foo:bar', 'user' => 'another' }) }
 
