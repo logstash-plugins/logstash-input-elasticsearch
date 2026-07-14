@@ -312,8 +312,6 @@ class LogStash::Inputs::Elasticsearch < LogStash::Inputs::Base
   end
 
   def register
-    require "rufus/scheduler"
-
     @pipeline_id = execution_context&.pipeline_id || 'main'
 
     fill_hosts_from_cloud_id
