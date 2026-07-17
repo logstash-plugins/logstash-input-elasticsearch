@@ -1,3 +1,6 @@
+## 4.23.1
+  - Support base64-encoded and Elastic Cloud (`essu_`-prefixed) API keys in the `api_key` option; reject unrecognized formats at startup. [#276](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/276)
+
 ## 4.23.0
   - ES|QL support [#235](https://github.com/logstash-plugins/logstash-input-elasticsearch/pull/235)
 
