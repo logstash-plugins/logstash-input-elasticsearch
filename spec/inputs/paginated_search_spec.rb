@@ -118,7 +118,9 @@ describe "Paginated search" do
           expect(es_client).to receive(:open_point_in_time).once.and_return({ "id" => pit_id})
           expect(plugin).to receive(:push_hit).with(any_args).twice
           expect(Thread).to receive(:new).and_call_original.exactly(slices).times
-          expect(es_client).to receive(:search).with(instance_of(Hash)).and_return(first_resp, last_resp, first_resp, last_resp)
+          expect(es_client).to receive(:search).with(instance_of(Hash)).exactly(4).times do |options|
+            options.dig(:body, :search_after) ? last_resp : first_resp
+          end
           expect(es_client).to receive(:close_point_in_time).with(any_args).once.and_return(nil)
           subject.retryable_slice_search(queue)
         end
