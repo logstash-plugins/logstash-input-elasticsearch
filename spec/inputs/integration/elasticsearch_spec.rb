@@ -53,7 +53,7 @@ describe LogStash::Inputs::Elasticsearch do
     end
 
     it 'should retrieve json event from elasticsearch' do
-      queue = []
+      queue = Queue.new
       plugin.run(queue)
       expect(queue.size).to eq(10)
       event = queue.pop
